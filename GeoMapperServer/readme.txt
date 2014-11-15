@@ -1,4 +1,4 @@
-landing.js around line 95 to make the server show all spawns to all players
+landing.js around line 95 to make the server show all spawns to all players, instead of the while loop
 
     _.forEach(zones, function (zone) {
 		_.forEach(zone.positions, function(spawn) {
