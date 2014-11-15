@@ -176,6 +176,7 @@ holodeck.preview {
 
 .metal {
 	fill: #00FF00;
+	fill-opacity: .6;
 }
 
 .boundary {

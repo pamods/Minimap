@@ -8,6 +8,8 @@ console.log("loaded geomapper");
 	
 	var planetNameIndexMap = {};
 	
+	var planetNameRadiusMap = {};
+	
 	var convertToLangLong = function(x,y,z){
 		var lat = 90 - (Math.acos(z / Math.sqrt(x*x+y*y+z*z))) * 180 / Math.PI;
 		var lon = ((270 + (Math.atan2(y , x)) * 180 / Math.PI) % 360) - 180;
@@ -38,8 +40,10 @@ console.log("loaded geomapper");
 		console.log(payload);
 		for (var i = 0; i < payload.planets.length; i++) {
 			planetNameIndexMap[payload.planets[i].index] = payload.planets[i].name;
+			planetNameRadiusMap[payload.planets[i].name] = payload.planets[i].radius;
 		}
 		console.log(planetNameIndexMap);
+		console.log(planetNameRadiusMap);
 		
 		return oldCelestialData(payload);
 	};
@@ -141,7 +145,7 @@ console.log("loaded geomapper");
 			api.camera.lookAt(target);
 			
 			setTimeout(function() {
-				mapPlanet(task[0], task[1], task[2], function() {
+				mapPlanet(task[0], task[1], planetNameRadiusMap[task[1]], function() {
 					mapPlanets(tasks);
 				});
 			}, 3000);
@@ -150,18 +154,30 @@ console.log("loaded geomapper");
 		}
 	};
 	
-	mapPlanet = function(cameraId, planetName, radius, finish) {
+	var cnt = 0;
+	var mapStart = new Date().getTime();
+	
+	var mapPlanet = function(cameraId, planetName, radius, finish) {
 		console.log("initiating mex placement on "+planetName);
+
 		placeMexOnCurrentPlanet(function() {
 			console.log("starting to map planet "+planetName);
+			cnt = 0;
+			mapStart = new Date().getTime();
+
 			var stepSize = stepSizeForRadius(radius, 750);
 			testLongLat(-180, -90, stepSize, cameraId, function() {
 				fixName(cameraId, planetName);
+				var diff = (new Date().getTime() - mapStart) / 1000;
+				var perSec = cnt / diff;
+				console.log("mapped out "+cnt+" locations for planet "+planetName+" in "+diff+" seconds, that is a mapping rate of "+perSec+" locations per second");
 				finish();
 			});
 		});
 	};
 	
+	console.log("to map out the planet run mapPlanet([[<cameraId>, 'exact planet name'], [<cameraId>, 'exact planet name'], [<more planets>]]);");
+	console.log("to get the camera id of planets make a ping somewhere on them, the debugger will print their id for you, sadly there is no way for the code alone to now the mapping of id to name");
 	
 	var placeMexOnCurrentPlanet = function(finish) {
 		api.select.empty();
@@ -192,6 +208,7 @@ console.log("loaded geomapper");
 	};
 	
 	var testLongLat = function(long, lat, stepSize, cameraId, finish) {
+		cnt++;
 		if (lat > 90) {
 			testLongLat(long + stepSize, -90, stepSize, cameraId, finish);
 		} else if (long <= 180) {

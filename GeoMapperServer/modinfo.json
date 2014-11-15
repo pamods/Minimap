@@ -10,6 +10,7 @@
   "id":"uimod-geomapper-server",
   "build":"74525",
   "date":"2014/11/15",
+  "forum": "https://forums.uberent.com/threads/wip-alerts-minimap.64595/",
   "dependencies":[
     "info.nanodesu.geomapper",
     "com.uberent.pa.mods.stockmods.server.cheat.allow_create_unit"

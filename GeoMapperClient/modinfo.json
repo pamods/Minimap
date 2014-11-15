@@ -10,6 +10,7 @@
   "signature":"not yet implemented",
   "id":"uimod-geomapper",
   "priority":100,
+  "forum": "https://forums.uberent.com/threads/wip-alerts-minimap.64595/",
   "scenes":{
     "live_game":[
       "coui://ui/mods/geomapper/unitInfoParser.js",
