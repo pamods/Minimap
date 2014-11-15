@@ -138,8 +138,12 @@ console.log("loaded geomapper");
 		return Math.sqrt((360*180) / testCount);
 	};
 	
+	var cnt = 0;
+	var mapStart = new Date().getTime();
+	
 	mapPlanets = function(tasks) {
 		var task = tasks.pop();
+		
 		if (task) {
 			var target = {planet_id: task[0], location: {x: 1, y: 1, z: 1}, zoom: 'orbital'};
 			api.camera.lookAt(target);
@@ -153,14 +157,11 @@ console.log("loaded geomapper");
 			printmap();
 		}
 	};
-	
-	var cnt = 0;
-	var mapStart = new Date().getTime();
-	
+
 	var mapPlanet = function(cameraId, planetName, radius, finish) {
 		console.log("initiating mex placement on "+planetName);
 
-		placeMexOnCurrentPlanet(function() {
+		placeMexOnCurrentPlanet(cameraId, function() {
 			console.log("starting to map planet "+planetName);
 			cnt = 0;
 			mapStart = new Date().getTime();
@@ -179,10 +180,20 @@ console.log("loaded geomapper");
 	console.log("to map out the planet run mapPlanet([[<cameraId>, 'exact planet name'], [<cameraId>, 'exact planet name'], [<more planets>]]);");
 	console.log("to get the camera id of planets make a ping somewhere on them, the debugger will print their id for you, sadly there is no way for the code alone to now the mapping of id to name");
 	
-	var placeMexOnCurrentPlanet = function(finish) {
+	var placeMexOnCurrentPlanet = function(cameraId, finish) {
+		api.camera.lookAt({planet_id: cameraId, location: {x: 1, y: 1, z: 1}, zoom: 'air'});
 		api.select.empty();
-		engine.call("unit.debug.setSpecId", "/pa/units/commanders/avatar/avatar.json"); 
-		engine.call("unit.debug.paste");
+		model.send_message('create_unit', {
+			  army: 1,
+			  what: "/pa/units/commanders/avatar/avatar.json",
+			  planet: cameraId,
+			  location: {x:1, y:1, z:1}
+		});
+		api.select.allFabbersOnScreen();
+		setTimeout(function() {
+			api.select.allFabbersOnScreen();
+			api.camera.lookAt({planet_id: cameraId, location: {x: 1, y: 1, z: 1}, zoom: 'orbital'});
+		}, 750);
 		setTimeout(function() {
 			api.select.allFabbersOnScreen();
 			setTimeout(function() {
