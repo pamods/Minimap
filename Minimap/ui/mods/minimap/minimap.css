@@ -1,0 +1,185 @@
+.body_panel {
+ 	pointer-events: none;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+     display: flex;
+     flex-grow: 0; 
+     flex-shrink: 0; 
+     flex-direction: column; 
+     justify-content: flex-end; 
+     align-items: flex-start; 
+}
+
+.receiveMouse {
+    pointer-events: all;
+}
+
+.ignoreMouse {
+    pointer-events: none;
+}
+
+#minimap_div {
+	display: inline;
+}
+
+.minimapdiv {
+	float: left;
+	position: relative;
+}
+
+.minimap_head {
+	position: relative;
+	top: 0;
+	left: 0;
+	pointer-events: none;
+	font-size: 14px;
+    color: white;
+    text-shadow: -1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000;
+}
+
+.minimap_config {
+	position: absolute;
+	top: 20px;
+	left: 0;
+	pointer-events: all;
+    text-shadow: -1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000;
+}
+
+@-webkit-keyframes blink-yellow-circle {
+    0% { stroke: #FFFFCC; }
+    100% { stroke: #FFFF00;  }
+}
+
+@-webkit-keyframes blink-red {
+    0% { fill: #780000; }
+    100% { fill: #FF9900;  }
+}
+
+@-webkit-keyframes blink-black {
+    0% { fill: #000000 ; }
+    100% { fill: #C8C8C8;  }
+}
+
+@-webkit-keyframes blink-black-circle {
+    0% { stroke: #000000 ; }
+    100% { stroke: #C8C8C8;  }
+}
+
+.destruction-warning {
+    -webkit-animation-name: blink-red;
+    -webkit-animation-duration: 0.1s;
+    -webkit-animation-iteration-count: infinite;
+    -webkit-animation-timing-function: ease-in-out;
+    -webkit-animation-direction: alternate;
+}
+
+.ping-warning-circle {
+	fill: none;
+	stroke: #FFFFCC;
+	stroke-width: 20px;
+    -webkit-animation-name: blink-yellow-circle;
+    -webkit-animation-duration: 0.1s;
+    -webkit-animation-iteration-count: infinite;
+    -webkit-animation-timing-function: ease-in-out;
+    -webkit-animation-direction: alternate;
+}
+
+.enemy-unit-warning {
+    -webkit-animation-name: blink-black;
+    -webkit-animation-duration: 0.1s;
+    -webkit-animation-iteration-count: infinite;
+    -webkit-animation-timing-function: ease-in-out;
+    -webkit-animation-direction: alternate;
+}
+
+.enemy-building {
+	fill: none;
+	stroke: #000000;
+	stroke-width: 4px;
+    -webkit-animation-name: blink-black-circle;
+    -webkit-animation-duration: 0.1s;
+    -webkit-animation-iteration-count: infinite;
+    -webkit-animation-timing-function: ease-in-out;
+    -webkit-animation-direction: alternate;
+}
+
+body-dock {
+    width: 250px;
+}
+
+body {
+	background: black;
+}
+
+holodeck.preview {
+    position: relative;
+    width: 266px;
+    height: 266px;
+    display: block;
+    z-index: -1;
+    margin-right: 330px;
+}
+
+.pip_border {
+    position: absolute;
+    display: inline-block;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: -2;
+}
+
+.stroke {
+	fill: none;
+	stroke: #000;
+	stroke-width: 3px;
+}
+
+.fill {
+	fill: #eee;
+}
+
+.graticule {
+	fill: none;
+	stroke: #777;
+	stroke-width: .5px;
+	stroke-opacity: .5;
+}
+
+.land {
+	fill: #996633;
+}
+
+.sea {
+	fill: #3399FF;
+}
+
+.alert {
+	
+}
+
+.building {
+	fill: #FF8000;
+	stroke: #777;
+	stroke-width: 1px;
+	stroke-opacity: .5;
+}
+
+.spawns {
+	fill: none;
+	stroke: #FF9900;
+	stroke-width: 4px;
+	stroke-opacity: .8;
+}
+
+.metal {
+	fill: #00FF00;
+}
+
+.boundary {
+	fill: none;
+	stroke: #fff;
+	stroke-width: .5px;
+}

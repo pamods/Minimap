@@ -1,0 +1,17 @@
+{
+  "enabled":true,
+  "context":"server",
+  "identifier":"info.nanodesu.geomapper.help",
+  "display_name":"Geomapper Server",
+  "description":"Server mod that helps in mapping out planets",
+  "author":"Cola_Colin",
+  "version":"0.1",
+  "signature":"(not yet implemented)",
+  "id":"uimod-geomapper-server",
+  "build":"74525",
+  "date":"2014/11/15",
+  "dependencies":[
+    "info.nanodesu.geomapper",
+    "com.uberent.pa.mods.stockmods.server.cheat.allow_create_unit"
+  ]
+}

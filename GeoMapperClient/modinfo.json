@@ -1,0 +1,28 @@
+{
+  "context":"client",
+  "identifier":"info.nanodesu.geomapper",
+  "display_name":"GeoMapper Client",
+  "description":"capture geographical data from planets for use with minimaps",
+  "author":"Cola_Colin",
+  "version":"1",
+  "build":"74525",
+  "date":"2014/11/15",
+  "signature":"not yet implemented",
+  "id":"uimod-geomapper",
+  "priority":100,
+  "scenes":{
+    "live_game":[
+      "coui://ui/mods/geomapper/unitInfoParser.js",
+      "coui://ui/mods/geomapper/alertsManager.js",
+      "coui://ui/mods/geomapper/core.js"
+    ]
+  },
+  "category":[
+    "in-game",
+    "ui"
+  ],
+  "enabled":true,
+  "dependencies":[
+    "info.nanodesu.geomapper.help"
+  ]
+}
