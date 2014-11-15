@@ -81,14 +81,8 @@ var unitCommands =
 		console.log("does it include the camera id?");
 		console.log(payload);
 		
-		// TODO either use then prepared data from somewhere or hope masterdigital gives me access to these ids here
-		if (payload.name === 'HoneyPot Ranked') {
-			hackPlanetMapping[0] = 0;
-			hackPlanetMapping[29957] = 29957;
-			hackPlanetMapping[29958] = 29958;
-		} else {
-			hackPlanetMapping[0] = 0;
-		}
+
+		hackPlanetMapping[0] = 0;
 		
 		$(document).ready(function() {
 			for (p in hackPlanetMapping) {
@@ -116,8 +110,10 @@ var unitCommands =
 			var hackDeck = hackPlanetMapping[p];
 			if (hackDeck === undefined) { // TODO this should not be required if I had all planet ids at the start... with this it will fail on the first command due to the setuptime
 				hackDeck = new HackDeck(p);
+				hackPlanetMapping[p] = hackDeck;
+			} else {
+				hackDeck.moveSelected(x, y, z, queue);
 			}
-			hackDeck.moveSelected(x, y, z, queue);
 		}
 	};
 }()) : unitCommands;
