@@ -180,11 +180,23 @@ console.log("loaded geomapper");
 	console.log("to map out the planet run mapPlanet([[<cameraId>, 'exact planet name'], [<cameraId>, 'exact planet name'], [<more planets>]]);");
 	console.log("to get the camera id of planets make a ping somewhere on them, the debugger will print their id for you, sadly there is no way for the code alone to now the mapping of id to name");
 	
+	var oldH = handlers.server_state;
+	var myArmyId = 0;
+	handlers.server_state = function(payload) {
+		if (payload && payload.data && payload.data.client && payload.data.client.army_id) {
+			myArmyId = payload.data.client.army_id;
+			console.log("client army is: "+myArmyId);
+		} else {
+			console.log(payload);
+		}
+		return oldH(payload);
+	};
+	
 	var placeMexOnCurrentPlanet = function(cameraId, finish) {
 		api.camera.lookAt({planet_id: cameraId, location: {x: 1, y: 1, z: 1}, zoom: 'air'});
 		api.select.empty();
 		model.send_message('create_unit', {
-			  army: 1,
+			  army: myArmyId,
 			  what: "/pa/units/commanders/avatar/avatar.json",
 			  planet: cameraId,
 			  location: {x:1, y:1, z:1}
