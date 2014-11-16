@@ -6,7 +6,7 @@ console.log("loaded geomapper");
 	var planets = [];
 	var spawns = [];
 	
-	var planetNameIndexMap = {};
+	var planetIndexNameMap = {};
 	
 	var planetNameRadiusMap = {};
 	
@@ -39,10 +39,10 @@ console.log("loaded geomapper");
 		console.log("celestial data & planet index map");
 		console.log(payload);
 		for (var i = 0; i < payload.planets.length; i++) {
-			planetNameIndexMap[payload.planets[i].index] = payload.planets[i].name;
+			planetIndexNameMap[payload.planets[i].index] = payload.planets[i].name;
 			planetNameRadiusMap[payload.planets[i].name] = payload.planets[i].radius;
 		}
-		console.log(planetNameIndexMap);
+		console.log(planetIndexNameMap);
 		console.log(planetNameRadiusMap);
 		
 		return oldCelestialData(payload);
@@ -108,24 +108,17 @@ console.log("loaded geomapper");
 		return oldServerState(msg);
 	};
 	
+	var lastMetalTime = new Date().getTime();
+	
 	alertsManager.addListener(function(data) {
 		for (var i = 0; i < data.list.length; i++) {
 			var notice = data.list[i];
 			
-			if (notice.watch_type === 3) {
-				console.log("CLICKED PLANET WITH CAMERA ID " + notice.planet_id);
-			}
-			
-			var isSea = notice.spec_id.indexOf("torpedo_launcher.json") !== -1;
-			var isLand = notice.spec_id.indexOf("land_barrier.json") !== -1;
 			var isMetal = notice.spec_id.indexOf("metal_extractor") !== -1;
 			if (notice.watch_type === 0) {
 				var planet = getOrCreatePlanet(notice.planet_id);
-				if (isSea) {
-					//planet.sea.push(cp(notice.location));
-				} else if (isLand) {
-					//planet.land.push(cp(notice.location));
-				} else if (isMetal) {
+				if (isMetal) {
+					lastMetalTime = new Date().getTime();
 					planet.metal.push(cp(notice.location));
 				}
 			}
@@ -138,76 +131,24 @@ console.log("loaded geomapper");
 		return Math.sqrt((360*180) / testCount);
 	};
 	
-	var cnt = 0;
-	var mapStart = new Date().getTime();
-	
-	mapPlanets = function(tasks) {
-		var task = tasks.pop();
-		
-		if (task) {
-			var target = {planet_id: task[0], location: {x: 1, y: 1, z: 1}, zoom: 'orbital'};
-			api.camera.lookAt(target);
-			
-			setTimeout(function() {
-				mapPlanet(task[0], task[1], planetNameRadiusMap[task[1]], function() {
-					mapPlanets(tasks);
-				});
-			}, 3000);
-		} else {
-			printmap();
-		}
-	};
-
-	var mapPlanet = function(cameraId, planetName, radius, finish) {
-		console.log("initiating mex placement on "+planetName);
-
-		placeMexOnCurrentPlanet(cameraId, function() {
-			console.log("starting to map planet "+planetName);
-			cnt = 0;
-			mapStart = new Date().getTime();
-
-			var stepSize = stepSizeForRadius(radius, 750);
-			testLongLat(-180, -90, stepSize, cameraId, function() {
-				fixName(cameraId, planetName);
-				var diff = (new Date().getTime() - mapStart) / 1000;
-				var perSec = cnt / diff;
-				console.log("mapped out "+cnt+" locations for planet "+planetName+" in "+diff+" seconds, that is a mapping rate of "+perSec+" locations per second");
-				finish();
-			});
-		});
-	};
-	
-	console.log("to map out the planet run mapPlanet([[<cameraId>, 'exact planet name'], [<cameraId>, 'exact planet name'], [<more planets>]]);");
-	console.log("to get the camera id of planets make a ping somewhere on them, the debugger will print their id for you, sadly there is no way for the code alone to now the mapping of id to name");
-	
-	var oldH = handlers.server_state;
-	var myArmyId = 0;
-	handlers.server_state = function(payload) {
-		if (payload && payload.data && payload.data.client && payload.data.client.army_id) {
-			myArmyId = payload.data.client.army_id;
-			console.log("client army is: "+myArmyId);
-		} else {
-			console.log(payload);
-		}
-		return oldH(payload);
-	};
-	
 	var placeMexOnCurrentPlanet = function(cameraId, finish) {
 		api.camera.lookAt({planet_id: cameraId, location: {x: 1, y: 1, z: 1}, zoom: 'air'});
 		api.select.empty();
-		model.send_message('create_unit', {
-			  army: myArmyId,
-			  what: "/pa/units/commanders/avatar/avatar.json",
-			  planet: cameraId,
-			  location: {x:1, y:1, z:1}
-		});
-		api.select.allFabbersOnScreen();
+		
+		// spawning in a fabber and selecting it is a friggn pain to get working reliably...
+		engine.call("unit.debug.setSpecId", "/pa/units/commanders/avatar/avatar.json");
+		engine.call("unit.debug.paste");
+		api.select.allFabbers();
 		setTimeout(function() {
-			api.select.allFabbersOnScreen();
+			engine.call("unit.debug.setSpecId", "/pa/units/commanders/avatar/avatar.json");
+			engine.call("unit.debug.paste");
+			api.select.allFabbers();
 			api.camera.lookAt({planet_id: cameraId, location: {x: 1, y: 1, z: 1}, zoom: 'orbital'});
-		}, 750);
+		}, 1000);
 		setTimeout(function() {
-			api.select.allFabbersOnScreen();
+			engine.call("unit.debug.setSpecId", "/pa/units/commanders/avatar/avatar.json");
+			engine.call("unit.debug.paste");
+			api.select.allFabbers();
 			setTimeout(function() {
 				api.arch.beginFabMode("/pa/units/land/metal_extractor/metal_extractor.json").then(function(ok) {
 					var screenx = model.holodeck.div.clientWidth / 2;
@@ -226,8 +167,121 @@ console.log("loaded geomapper");
 						});
 					}, 250);
 				});
-			}, 1000);
-		}, 1000);
+			}, 1500);
+		}, 2500);
+	};
+	
+	var cnt = 0;
+	var mapStart = new Date().getTime();
+	var nextPingPlanet = undefined;
+	var rePingPlanets = [];
+	var toMap = [];
+	
+	var checkName = function(indices) {
+		var index = Number(indices.pop());
+		if (index === 0 || index) {
+			var name = planetIndexNameMap[index];
+			api.camera.focusPlanet(index);
+			setTimeout(function() {
+				nextPingPlanet = name;
+				rePingPlanets = indices;
+				var screenx = model.holodeck.div.clientWidth / 2;
+				var screeny = model.holodeck.div.clientHeight / 2;
+				model.holodeck.unitCommand('ping', screenx, screeny, false);
+			}, 2000);
+		} else {
+			mapPlanets(toMap);
+		}
+	};
+	
+	alertsManager.addListener(function(data) {
+		for (var i = 0; i < data.list.length; i++) {
+			var notice = data.list[i];
+			if (notice.watch_type === 3) {
+				console.log("Add planet "+nextPingPlanet+" with id " + notice.planet_id);
+				toMap.push([notice.planet_id, nextPingPlanet]);
+				
+				console.log("initiating mex placement on "+nextPingPlanet);
+				placeMexOnCurrentPlanet(notice.planet_id, function() {
+					checkName(rePingPlanets);
+				});
+			}
+		}
+	});
+	
+	detectPlanetsAndMapThem = function() {
+		var ids = [];
+		
+		var target = {planet_id: 0, location: {x: 1, y: 1, z: 1}, zoom: 'air'};
+		api.camera.lookAt(target);
+		
+		for (prop in planetIndexNameMap) {
+			if (planetIndexNameMap.hasOwnProperty(prop)) {
+				ids.push(prop);
+			}
+		}
+		
+		toMap = [];
+		checkName(ids);
+	};
+	
+	mapPlanets = function(tasks) {
+		console.log("will now map planets");
+		console.log(cp(tasks));
+		var task = tasks.pop();
+		
+		if (task) {
+			var target = {planet_id: task[0], location: {x: 1, y: 1, z: 1}, zoom: 'orbital'};
+			api.camera.lookAt(target);
+			
+			setTimeout(function() {
+				mapPlanet(task[0], task[1], planetNameRadiusMap[task[1]], function() {
+					mapPlanets(tasks);
+				});
+			}, 3000);
+		} else {
+			
+			var waitForMetal = function() {
+				if (new Date().getTime() - lastMetalTime < 15000) {
+					console.log("it seems mex are still being placed, please wait...");
+					setTimeout(waitForMetal, 5000);
+				} else {
+					printmap();
+				}
+			};
+			
+			waitForMetal();
+		}
+	};
+
+	var mapPlanet = function(cameraId, planetName, radius, finish) {
+		console.log("starting to map planet "+planetName);
+		cnt = 0;
+		mapStart = new Date().getTime();
+
+		var stepSize = stepSizeForRadius(radius, 750);
+		testLongLat(-180, -90, stepSize, cameraId, function() {
+			fixName(cameraId, planetName);
+			var diff = (new Date().getTime() - mapStart) / 1000;
+			var perSec = cnt / diff;
+			console.log("mapped out "+cnt+" locations for planet "+planetName+" in "+diff+" seconds, that is a mapping rate of "+perSec+" locations per second");
+			finish();
+		});
+	};
+	
+	console.log("to map out the planet run mapPlanet([[<cameraId>, 'exact planet name'], [<cameraId>, 'exact planet name'], [<more planets>]]);");
+	console.log("to get the camera id of planets make a ping somewhere on them, the debugger will print their id for you, sadly there is no way for the code alone to now the mapping of id to name");
+	
+	var oldH = handlers.server_state;
+	var myArmyId = 0;
+	handlers.server_state = function(payload) {
+		if (payload && payload.data && payload.data.client && payload.data.client.army_id) {
+			myArmyId = payload.data.client.army_id;
+			console.log("client army is: "+myArmyId);
+		} else {
+			console.log(payload);
+		}
+		return oldH(payload);
 	};
 	
 	var testLongLat = function(long, lat, stepSize, cameraId, finish) {
@@ -305,7 +359,7 @@ console.log("loaded geomapper");
 			cp.sea = mappingFrom(cp.sea);
 			
 			for (var j = 0; j < spawns.length; j++) {
-				if (planetNameIndexMap[spawns[j].planet_index] === cp.name) {
+				if (planetIndexNameMap[spawns[j].planet_index] === cp.name) {
 					var spawnCp = JSON.parse(JSON.stringify(spawns[j]));
 					cp.spawns = mappingFrom(spawnCp.spawns);
 				}
