@@ -259,7 +259,7 @@ console.log("loaded geomapper");
 		cnt = 0;
 		mapStart = new Date().getTime();
 
-		var stepSize = stepSizeForRadius(radius, 750);
+		var stepSize = stepSizeForRadius(radius, 1000);
 		testLongLat(-180, -90, stepSize, cameraId, function() {
 			fixName(cameraId, planetName);
 			var diff = (new Date().getTime() - mapStart) / 1000;
