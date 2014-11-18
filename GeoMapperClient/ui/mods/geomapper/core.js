@@ -269,8 +269,7 @@ console.log("loaded geomapper");
 		});
 	};
 	
-	console.log("to map out the planet run mapPlanet([[<cameraId>, 'exact planet name'], [<cameraId>, 'exact planet name'], [<more planets>]]);");
-	console.log("to get the camera id of planets make a ping somewhere on them, the debugger will print their id for you, sadly there is no way for the code alone to now the mapping of id to name");
+	console.log("watch this for a tutorial on how to map out planets: https://www.youtube.com/watch?v=E8GO6aWGCRc");
 	
 	var oldH = handlers.server_state;
 	var myArmyId = 0;
