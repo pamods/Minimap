@@ -26,14 +26,14 @@
   "guard_layer": "WL_WaterSurface", 
   "max_health": 0, 
   "mesh_bounds": [
-    1, 
-    1, 
-    1
+    7, 
+    7, 
+    7
   ], 
   "placement_size": [
-    1, 
-    1
-  ],   
+    7, 
+    7
+  ],
   "model": {
     "animations": {
       "idle": "/pa/units/sea/torpedo_launcher/torpedo_launcher_anim_idle.papa"

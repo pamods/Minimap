@@ -20,9 +20,9 @@
   }, 
   "max_health": 0, 
   "mesh_bounds": [
-    1, 
-    1, 
-    1
+    7, 
+    7, 
+    7
   ], 
   "model": [
     {
@@ -47,8 +47,8 @@
     "type": "Structure"
   }, 
   "placement_size": [
-    1, 
-    1
+    7, 
+    7
   ],
   "recon": {
           "observable": {

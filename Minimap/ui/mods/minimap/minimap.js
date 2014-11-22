@@ -1,29 +1,35 @@
 console.log("loaded minimap.js");
 
 var models = [];
-
 var handlers = {};
 
 loadScript("coui://ui/mods/minimap/unitInfoParser.js");
 loadScript("coui://ui/mods/minimap/alertsManager.js");
 
-ko.bindingHandlers.numericValue = {
-	    init : function(element, valueAccessor, allBindings, data, context) {
-	        var interceptor = ko.computed({
-	            read: function() {
-	                return ko.unwrap(valueAccessor());
-	            },
-	            write: function(value) {
-	                if (!isNaN(value)) {
-	                    valueAccessor()(parseFloat(value));
-	                }                
-	            },
-	            disposeWhenNodeIsRemoved: element
-	        });
-	        
-	        ko.applyBindingsToNode(element, { value: interceptor }, context);
-	    }
+(function() {
+	var initDefaultConfig = function() {
+		var makeDefaultConfig = function(key, value) {
+			if (localStorage[key] === undefined) {
+				localStorage[key] = value;
+			}
+		};
+		
+		// default configs for the ranked maps
+		
+		// map 1v1 1-1-6
+		makeDefaultConfig('info.nanodesu.minimap.configOsiris0p-id-0', '{"dotSize":"2","projection":"Winkel Tripel","rotation":[136.8,0],"geo-dots":"2.5","spawns-dots":"3.5","metal-dots":"3","others-dots":"3.7","width":"320","height":"200"}');
+		
+		// map "1v1 1-3-8"
+		makeDefaultConfig('info.nanodesu.minimap.configOdin0p-id-0', '{"dotSize":2.5,"rotation":[108,-0.9000000000000057],"projection":"Winkel Tripel","geo-dots":"2.4","spawns-dots":4,"metal-dots":4,"others-dots":4,"width":"320"}');
+		makeDefaultConfig('info.nanodesu.minimap.configYmir12639p-id-12639', '{"dotSize":4,"projection":"Winkel Tripel","rotation":[-162,0],"geo-dots":"2.6","spawns-dots":"4","metal-dots":"3","others-dots":"3.2","height":"130"}');
+		
+		// map 1v1 1-2-6
+		makeDefaultConfig('info.nanodesu.minimap.configHephaestus0p-id-0', '{"geo-dots":"2.7","spawns-dots":"4","metal-dots":"2.7","others-dots":2,"width":"320","rotation":[59.400000000000006,1.7999999999999972]}');
 	};
+
+	initDefaultConfig();
+}());
+
 
 $(document).ready(function() {
 	var unitSpecMapping = undefined;
@@ -31,7 +37,7 @@ $(document).ready(function() {
 		unitSpecMapping = mapping;
 	});
 	
-	var defProjection = "Azimuthal Equidistant";
+	var defProjection = "Winkel Tripel";
 	
 	function MinimapModel(planet) {
 		var self = this;
@@ -51,16 +57,29 @@ $(document).ready(function() {
 				self.selectableProjections.push(x);
 			}
 		}
-		self.projectionKey.subscribe(function(v) {
-			var cfg = loadConfig();
-			cfg.projection = v;;
-			storeConfig(cfg);
-		});
+		
+		var makeStoreSubscriber = function(name) {
+			return function(v) {
+				var cfg = loadConfig();
+				cfg[name] = v;
+				storeConfig(cfg);
+			};
+		};
+		
+		self.projectionKey.subscribe(makeStoreSubscriber('projection'));
 		self.selectableProjections.sort(function(left, right) {
 			return left == right ? 0 : (left < right ? -1 : 1)
 		});
+		
+		self.width = ko.observable(loadConfig().width || width);
+		self.height = ko.observable(loadConfig().height || height);
+		
+		self.width.subscribe(makeStoreSubscriber('width'));
+		self.height.subscribe(makeStoreSubscriber('height'));
+		
 		self.projection =  ko.computed(function() {
-			return projections[self.projectionKey()] || projections[defProjection];
+			var c = projections[self.projectionKey()] || projections[defProjection];
+			return c(self.width(), self.height());
 		});
 		
 		var graticule = d3.geo.graticule();
@@ -76,21 +95,39 @@ $(document).ready(function() {
 			}
 		};
 		
-		
-		self.dotSize = ko.computed({
-			read: function() {
-				return self.path.pointRadius();
-			},
-			write: function(value) {
-				self.path.pointRadius(value);
+		var makeStoringPathObservable = function(name) {
+			var obs = ko.observable();
+			obs.subscribe(function(value) {
 				self.acceptPathChange();
 				var cfg = loadConfig();
-				cfg.dotSize = value;
+				cfg[name] = value;
 				storeConfig(cfg);
-			}
-		});
+			});
+			obs(loadConfig()[name] || 2);
+			return obs;
+		};
 		
-		self.dotSize(loadConfig().dotSize || 4.5);
+		self.geoDotSize = makeStoringPathObservable("geo-dots");
+		self.spawnDotSize = makeStoringPathObservable("spawns-dots");
+		self.metalDotSize = makeStoringPathObservable("metal-dots");
+		self.othersDotSize = makeStoringPathObservable("others-dots");
+		
+		self.path.pointRadius(function(o) {
+			if (o && o.properties && o.properties.type) {
+				var t = o.properties.type;
+				switch (t) {
+				case "spawns":
+					return self.spawnDotSize();
+				case "metal":
+					return self.metalDotSize();
+				case "sea":
+				case "land":
+					return self.geoDotSize();
+				}
+				
+			}
+			return self.othersDotSize();
+		});
 		
 		self.rotation = ko.observable([0, 0]);
 		
@@ -116,18 +153,24 @@ $(document).ready(function() {
 		});
 		
 		self.settingsVisible = ko.observable(false);
-		
+
 		var prepareSvg = function(targetDivId) {
 			self.svgId = targetDivId;
-			$('#minimap_div').prepend('<div style="width: '+width+'px;" class="minimapdiv" id="'+targetDivId+'"></div>');
+			$('#minimap_div').prepend('<div class="minimapdiv" id="'+targetDivId+'"></div>');
 			$('#'+targetDivId).append("<div class='minimap_head'>"+planet.name+" <input style='pointer-events: all;' type='checkbox' data-bind='checked: settingsVisible'/></div>");
 			$('#'+targetDivId).append("<div class='minimap_config' " +
 					"data-bind='visible: settingsVisible'>" +
 					"Projection: <select data-bind='options: selectableProjections, value: projectionKey'></select>" +
-					"<div>dotSize: <input type='number' step='0.5' data-bind='numericValue: dotSize'/> </div>"+
+					"<div>geo: <input style='width: 40px' type='number' step='0.1' data-bind='value: geoDotSize'/> " +
+					"spawns: <input style='width: 40px' type='number' step='0.1' data-bind='value: spawnDotSize'/> <br/> " +
+					" metal: <input style='width: 40px' type='number' step='0.1' data-bind='value: metalDotSize'/> " +
+					"others: <input style='width: 40px' type='number' step='0.1' data-bind='value: othersDotSize'/> <br/>" +
+					" width: <input style='width: 60px' type='number' step='10' data-bind='value: width'/> " +
+					" height: <input style='width: 60px' type='number' step='10' data-bind='value: height'/> " +
+					" </div>"+
 					"</div>");
-			var svg = d3.select("#"+targetDivId).append("svg").attr("width", width).attr("height", height).attr("id", targetDivId+"-svg").attr('class', 'receiveMouse');
-			$('#'+targetDivId+"-svg").attr('data-bind', "click: lookAtMinimap, event: {mousemove: movemouse, contextmenu: moveByMinimap, mouseleave: mouseleave}");
+			var svg = d3.select("#"+targetDivId).append("svg").attr("width", self.width()).attr("height", self.height()).attr("id", targetDivId+"-svg").attr('class', 'receiveMouse');
+			$('#'+targetDivId+"-svg").attr('data-bind', "click: lookAtMinimap, event: {mousemove: movemouse, contextmenu: moveByMinimap, mouseleave: mouseleave}, style: {width: width, height: height}");
 			var defs = svg.append("defs");
 			defs.append("path").datum({type: "Sphere"}).attr("id", targetDivId+"-sphere").attr("d", path);
 			var sphereId = "#"+targetDivId+"-sphere";

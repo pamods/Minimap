@@ -259,7 +259,7 @@ console.log("loaded geomapper");
 		cnt = 0;
 		mapStart = new Date().getTime();
 
-		var stepSize = stepSizeForRadius(radius, 1000);
+		var stepSize = stepSizeForRadius(radius, 2250);
 		testLongLat(-180, -90, stepSize, cameraId, function() {
 			fixName(cameraId, planetName);
 			var diff = (new Date().getTime() - mapStart) / 1000;
@@ -329,7 +329,7 @@ console.log("loaded geomapper");
 		});
 	};
 	
-	var mappingFrom = function(ar) {
+	var mappingFrom = function(ar, type) {
 		if (ar === undefined || ar.length === 0) {
 			return undefined;
 		}
@@ -338,10 +338,22 @@ console.log("loaded geomapper");
 		for (var i = 0; i < ar.length; i++) {
 			var magic = convertToLangLong(ar[i].x, ar[i].y, ar[i].z);
 			magic.length = 2;
+			magic[0] = Number(magic[0].toFixed(3));
+			magic[1] = Number(magic[1].toFixed(3));
 			fs.push(magic);
 		}
-		var fbar =  { "type": "FeatureCollection", "features": 
-			[ {"type": "Feature", "geometry": {"type": "MultiPoint", "coordinates": fs}}]
+		var fbar = {
+			"type" : "FeatureCollection",
+			"features" : [ {
+				"type" : "Feature",
+				"geometry" : {
+					"type" : "MultiPoint",
+					"coordinates" : fs
+				}
+			}],
+			"properties": {
+				"type": type
+			}
 		};
 		
 		return fbar;
@@ -353,14 +365,14 @@ console.log("loaded geomapper");
 		
 		for (var i = 0; i < planets.length; i++) {
 			var cp = JSON.parse(JSON.stringify(planets[i]));
-			cp.land = mappingFrom(cp.land);
-			cp.metal = mappingFrom(cp.metal);
-			cp.sea = mappingFrom(cp.sea);
+			cp.land = mappingFrom(cp.land, "land");
+			cp.metal = mappingFrom(cp.metal, "metal");
+			cp.sea = mappingFrom(cp.sea, "sea");
 			
 			for (var j = 0; j < spawns.length; j++) {
 				if (planetIndexNameMap[spawns[j].planet_index] === cp.name) {
 					var spawnCp = JSON.parse(JSON.stringify(spawns[j]));
-					cp.spawns = mappingFrom(spawnCp.spawns);
+					cp.spawns = mappingFrom(spawnCp.spawns, "spawns");
 				}
 			}
 			

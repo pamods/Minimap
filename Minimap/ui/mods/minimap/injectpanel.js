@@ -18,6 +18,19 @@ console.log("inject minimap");
 	handlers.changeMinimapZ = function(payload) {
 		$('#minimap_panel').css('z-index', payload.z);
 	}
+	
+	var oldShowAlertPreview = model.showAlertPreview;
+	model.showAlertPreview = function(target) {
+		var oldLookAt = api.camera.lookAt;
+		api.camera.lookAt = function(target) {
+			oldLookAt(target);
+			// locks the poles for the alerts preview pip
+			api.camera.alignToPole();
+		};
+		oldShowAlertPreview(target);
+		api.camera.lookAt = oldLookAt;
+	};
+	
 }());
 $(document).ready(function() {
 	var func = function(v) {
