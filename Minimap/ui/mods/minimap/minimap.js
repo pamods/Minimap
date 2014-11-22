@@ -199,6 +199,7 @@ $(document).ready(function() {
 			if (ll) {
 				var c = convertToCartesian(ll[1], ll[0]);
 				api.camera.lookAt({planet_id: planetCameraId, location: {x: c[0], y: c[1], z: c[2]}, zoom: 'orbital'});
+				api.camera.alignToPole();
 			}
 		};
 		
