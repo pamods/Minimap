@@ -1,7 +1,5 @@
 var width = 200;
 var height = 200;
-var λ = d3.scale.linear().domain([ 0, width ]).range([ -180, 180 ]);
-var φ = d3.scale.linear().domain([ 0, height ]).range([ 90, -90 ]);
 
 var convertToLonLan = function(x, y, z, r) {
 	var r = r === undefined ? Math.sqrt(x * x + y * y + z * z) : r;

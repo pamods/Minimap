@@ -238,9 +238,16 @@ $(document).ready(function() {
 			}
 		};
 		
+		self.scaleX = ko.computed(function() {
+			return d3.scale.linear().domain([ 0, self.width() ]).range([ -180, 180 ]);
+		});
+		self.scaleY = ko.computed(function() {
+			return d3.scale.linear().domain([ 0, self.height() ]).range([ 90, -90 ]);
+		});
+		
 		self.movemouse = function(data, e) {
 			if (e.altKey) {
-				self.rotation([ λ(e.offsetX), φ(e.offsetY)]);
+				self.rotation([ self.scaleX()(e.offsetX), self.scaleY()(e.offsetY)]);
 			}
 			self.showPreviewByMapXY(e.offsetX, e.offsetY);
 		}
