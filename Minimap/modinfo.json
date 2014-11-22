@@ -4,7 +4,7 @@
     "display_name": "Alerts Minimap",
     "description": "shows terrain minimap for known planets with alerts on them",
     "author": "Cola_Colin",
-    "version": "3",
+    "version": "3.1",
     "build": "75330-pte",
     "date": "2014/11/23",
     "signature": "not yet implemented",
