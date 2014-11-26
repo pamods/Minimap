@@ -21,7 +21,7 @@ loadScript("coui://ui/mods/minimap/alertsManager.js");
 		
 		// map "1v1 1-3-8"
 		makeDefaultConfig('info.nanodesu.minimap.configOdin0p-id-0', '{"dotSize":2.5,"rotation":[108,-0.9000000000000057],"projection":"Winkel Tripel","geo-dots":"2.4","spawns-dots":4,"metal-dots":4,"others-dots":4,"width":"320"}');
-		makeDefaultConfig('info.nanodesu.minimap.configYmir12639p-id-12639', '{"dotSize":4,"projection":"Winkel Tripel","rotation":[-162,0],"geo-dots":"2.6","spawns-dots":"4","metal-dots":"3","others-dots":"3.2","height":"130"}');
+		makeDefaultConfig('info.nanodesu.minimap.configYmir12696p-id-12696', '{"dotSize":4,"projection":"Winkel Tripel","rotation":[-162,0],"geo-dots":"2.6","spawns-dots":"4","metal-dots":"3","others-dots":"3.2","height":"130"}');
 		
 		// map 1v1 1-2-6
 		makeDefaultConfig('info.nanodesu.minimap.configHephaestus0p-id-0', '{"geo-dots":"2.7","spawns-dots":"4","metal-dots":"2.7","others-dots":2,"width":"320","rotation":[59.400000000000006,1.7999999999999972]}');
