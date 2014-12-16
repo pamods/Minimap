@@ -14,7 +14,7 @@ loadScript("coui://ui/mods/minimap/alertsManager.js");
 			}
 		};
 		
-		// default configs for the ranked maps
+		// default configs for some ranked maps, the map names may be outdated though. People will have to do this kind of config themselves usually
 		
 		// map 1v1 1-1-6
 		makeDefaultConfig('info.nanodesu.minimap.configOsiris0p-id-0', '{"dotSize":"2","projection":"Winkel Tripel","rotation":[136.8,0],"geo-dots":"2.5","spawns-dots":"3.5","metal-dots":"3","others-dots":"3.7","width":"320","height":"200"}');
@@ -349,13 +349,23 @@ $(document).ready(function() {
 			alertsManager.addListener(models[i].handleAlerts);
 		}
 	};
-	
+
 	handlers.celestial_data = function(payload) {
 		var mapData = minimapSystems[payload.name];
 		if (mapData) {
+			console.log("found minimap data in systems.js");
 			initBySystem(mapData);
 		} else {
-			console.log("No minimap data available for map with name "+payload.name);
+			var dbName = "info.nanodesu.info.minimaps";
+			var mapList = decode(localStorage["info.nanodesu.minimapkeys"]);
+			if (mapList[payload.name]) {
+				console.log("found minimap data in indexdb, will load key "+mapList[payload.name]);
+				DataUtility.readObject(dbName, mapList[payload.name]).then(function(data) {
+					initBySystem(data);
+				});
+			} else {
+				console.log("No minimap data available for map with name "+payload.name);				
+			}
 		}
 	};
 	

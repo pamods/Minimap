@@ -1,7 +1,32 @@
 console.log("loaded geomapper");
 
 (function() {
-
+	
+	var testsToDoPerSqKm  = 2250;
+	
+	var oldChatHandler = handlers.chat_message;
+	handlers.chat_message = function(msg) {
+		if (oldChatHandler) {
+			oldChatHandler(msg);
+		}
+		if (msg.message === "startmapping") {
+			sendChatMessage("will begin to map planets now. Please do not touch the game while this is happening. You can put PA into background, but do NOT minimize it");
+			detectPlanetsAndMapThem();
+		}
+	};
+	
+	var sendChatMessage = function(txt) {
+		if (model.send_message) {
+			model.send_message("chat_message", {message: txt});
+		} else {
+			setTimeout(function() {
+				sendChatMessage(txt);
+			}, 500);
+		}
+	};
+	
+	sendChatMessage("GeoMapper is enabled. Disable it for normal play. To start mapping the loaded system enter the commmand 'startmapping' via chat. It is recommended to first spawn the commander and place it somewhere safe (or up the forced spawn time, read the forums thread of this mod!). Notice that to get all spawnzones in your mapping you need to use a local server with a small modification. Read the forums for more info.");
+	
 	var mapName = "unknown";
 	var planets = [];
 	var spawns = [];
@@ -16,14 +41,14 @@ console.log("loaded geomapper");
 		return [lon, lat];
 	};
 	
-	var convertToCartesian = function(lat, long, r) {
+	var convertToCartesian = function(lat,longi,r) {
 		var r = r === undefined ? 500 : r;
 		lat *= Math.PI/180;
-		long *= Math.PI/180;
+		longi *= Math.PI/180;
 
 		// "PA" Cartesian coordinates
-		var x = r * Math.cos(lat) * Math.sin(long);
-		var y = -r * Math.cos(lat) * Math.cos(long);
+		var x = r * Math.cos(lat) * Math.sin(longi);
+		var y = -r * Math.cos(lat) * Math.cos(longi);
 		var z = r * Math.sin(lat);
 		
 		return [x, y, z];
@@ -125,10 +150,14 @@ console.log("loaded geomapper");
 		}
 	});
 	
-	var stepSizeForRadius = function(radius, testsPerSqKm) {
+	var testCountForRadius = function(radius, testsPerSqKm) {
 		var sqkm = (4 * Math.PI * radius * radius) / 10E5;
 		var testCount = (sqkm * testsPerSqKm);
-		return Math.sqrt((360*180) / testCount);
+		return testCount;
+	}
+	
+	var stepSizeForRadius = function(radius, testsPerSqKm) {
+		return Math.sqrt((360*180) / testCountForRadius(radius, testsPerSqKm));
 	};
 	
 	var placeMexOnCurrentPlanet = function(cameraId, finish) {
@@ -171,6 +200,7 @@ console.log("loaded geomapper");
 		}, 2500);
 	};
 	
+	var allCnt = 0;
 	var cnt = 0;
 	var mapStart = new Date().getTime();
 	var nextPingPlanet = undefined;
@@ -190,6 +220,7 @@ console.log("loaded geomapper");
 				model.holodeck.unitCommand('ping', screenx, screeny, false);
 			}, 2000);
 		} else {
+			
 			mapPlanets(toMap);
 		}
 	};
@@ -198,10 +229,10 @@ console.log("loaded geomapper");
 		for (var i = 0; i < data.list.length; i++) {
 			var notice = data.list[i];
 			if (notice.watch_type === 3) {
-				console.log("Add planet "+nextPingPlanet+" with id " + notice.planet_id);
+				sendChatMessage("Add planet "+nextPingPlanet+" with id " + notice.planet_id);
 				toMap.push([notice.planet_id, nextPingPlanet]);
 				
-				console.log("initiating mex placement on "+nextPingPlanet);
+				sendChatMessage("initiating mex placement on "+nextPingPlanet);
 				placeMexOnCurrentPlanet(notice.planet_id, function() {
 					checkName(rePingPlanets);
 				});
@@ -226,7 +257,7 @@ console.log("loaded geomapper");
 	};
 	
 	mapPlanets = function(tasks) {
-		console.log("will now map planets");
+		sendChatMessage("will now map planets");
 		console.log(cp(tasks));
 		var task = tasks.pop();
 		
@@ -243,7 +274,7 @@ console.log("loaded geomapper");
 			
 			var waitForMetal = function() {
 				if (new Date().getTime() - lastMetalTime < 15000) {
-					console.log("it seems mex are still being placed, please wait...");
+					sendChatMessage("it seems mex are still being placed, please wait...");
 					setTimeout(waitForMetal, 5000);
 				} else {
 					printmap();
@@ -254,17 +285,28 @@ console.log("loaded geomapper");
 		}
 	};
 
+	var getNumberOfLocationsToMap = function() {
+		var sum = 0;
+		for (var p in planetNameRadiusMap) {
+			if (planetNameRadiusMap.hasOwnProperty(p)) {
+				var radius = planetNameRadiusMap[p];
+				sum += testCountForRadius(radius, testsToDoPerSqKm);
+			}
+		}
+		return sum;
+	};
+	
 	var mapPlanet = function(cameraId, planetName, radius, finish) {
-		console.log("starting to map planet "+planetName);
+		sendChatMessage("starting to map planet "+planetName);
 		cnt = 0;
 		mapStart = new Date().getTime();
 
-		var stepSize = stepSizeForRadius(radius, 2250);
+		var stepSize = stepSizeForRadius(radius, testsToDoPerSqKm);
 		testLongLat(-180, -90, stepSize, cameraId, function() {
 			fixName(cameraId, planetName);
 			var diff = (new Date().getTime() - mapStart) / 1000;
 			var perSec = cnt / diff;
-			console.log("mapped out "+cnt+" locations for planet "+planetName+" in "+diff+" seconds, that is a mapping rate of "+perSec+" locations per second");
+			sendChatMessage("mapped out "+cnt+" locations for planet "+planetName+" in "+diff.toFixed(2)+" seconds, that is a mapping rate of "+perSec.toFixed(2)+" locations per second");
 			finish();
 		});
 	};
@@ -283,14 +325,20 @@ console.log("loaded geomapper");
 		return oldH(payload);
 	};
 	
-	var testLongLat = function(long, lat, stepSize, cameraId, finish) {
+	var testLongLat = function(longi, lat, stepSize, cameraId, finish) {
 		cnt++;
+		allCnt++;
 		if (lat > 90) {
-			testLongLat(long + stepSize, -90, stepSize, cameraId, finish);
-		} else if (long <= 180) {
-			var p = convertToCartesian(lat, long);
+			var percent = Math.min(100, ((allCnt/getNumberOfLocationsToMap())*100)).toFixed(2);
+			var perSec = allCnt / ((new Date().getTime() - mapStart)/1000);
+			var todo = getNumberOfLocationsToMap() - allCnt;
+			var estimateMin = ((todo/perSec)/60 + 1).toFixed(0);
+			sendChatMessage("completed "+percent+"%. ETA "+estimateMin+" minutes");
+			testLongLat(longi + stepSize, -90, stepSize, cameraId, finish);
+		} else if (longi <= 180) {
+			var p = convertToCartesian(lat, longi);
 			testPosition(cameraId, p[0], p[1], p[2], function() {
-				testLongLat(long, lat + stepSize, stepSize, cameraId, finish);
+				testLongLat(longi, lat + stepSize, stepSize, cameraId, finish);
 			});
 		} else {
 			if (finish) {
@@ -360,8 +408,7 @@ console.log("loaded geomapper");
 	};
 
 	printmap = function() {
-		var mapData = {};
-		mapData[mapName] = {planets:[]};
+		var mapData = {planets:[]};
 		
 		for (var i = 0; i < planets.length; i++) {
 			var cp = JSON.parse(JSON.stringify(planets[i]));
@@ -376,10 +423,37 @@ console.log("loaded geomapper");
 				}
 			}
 			
-			mapData[mapName].planets.push(cp);
+			mapData.planets.push(cp);
 		}
+		
+		var dbName = "info.nanodesu.info.minimaps";
+		var mapList = decode(localStorage["info.nanodesu.minimapkeys"]) || {};
 
-		console.log(JSON.stringify(mapData));
+		if (mapList[mapName]) {
+			sendChatMessage("upadting entry for the mapdata of map named "+mapName+" ...");
+			DataUtility.updateObject(dbName, mapList[mapName], mapData).then(function() {
+				console.log("update entry complete:");
+				console.log(arguments);
+			});
+		} else {
+			sendChatMessage("creating a new entry for the mapdata of map named "+mapName);
+			DataUtility.addObject(dbName, mapData).then(function(key) {
+				mapList[mapName] = key;
+				localStorage["info.nanodesu.minimapkeys"] = encode(mapList);
+				sendChatMessage("created a new entry for the mapdata of map named "+mapName+", now has key "+key);
+			});
+		}
+		
+		var keybindFor = function (key) {
+            var binding = api.settings.value('keyboard', key);
+            if (!binding)
+                return 'not bound';
+            return binding;
+        };
+		
+		sendChatMessage("Mapping completed, press " + keybindFor("reload_view") +  " to reload the view");
+		
+//		console.log(JSON.stringify(mapData));
 	};
 	
 }());
