@@ -23,6 +23,10 @@
 	display: inline;
 }
 
+#minimap_div {
+	max-width: 450px;
+}
+
 .minimapdiv {
 	float: left;
 	position: relative;

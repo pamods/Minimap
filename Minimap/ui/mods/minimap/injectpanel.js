@@ -33,6 +33,7 @@ console.log("inject minimap");
 	
 }());
 $(document).ready(function() {
+	$('.div_sidebar_left').css("z-index", "99999");
 	var func = function(v) {
 		if (!v) {
 			var $panel = $('<panel id="minimap_panel"></panel>').css({
