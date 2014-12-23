@@ -2,6 +2,8 @@ console.log("loaded geomapper");
 
 (function() {
 	
+	var exportData = undefined;
+	
 	var testsToDoPerSqKm  = 2250;
 	
 	var oldChatHandler = handlers.chat_message;
@@ -12,6 +14,9 @@ console.log("loaded geomapper");
 		if (msg.message === "startmapping") {
 			sendChatMessage("will begin to map planets now. Please do not touch the game while this is happening. You can put PA into background, but do NOT minimize it");
 			detectPlanetsAndMapThem();
+		}
+		if (msg.message === "exportMapping") {
+			exportData();
 		}
 	};
 	
@@ -58,6 +63,8 @@ console.log("loaded geomapper");
 		return JSON.parse(JSON.stringify(o));
 	};
 
+	var gasPlanets = [];
+	
 	var oldCelestialData = handlers.celestial_data;
 	handlers.celestial_data = function(payload) {
 		mapName = payload.name;
@@ -66,6 +73,9 @@ console.log("loaded geomapper");
 		for (var i = 0; i < payload.planets.length; i++) {
 			planetIndexNameMap[payload.planets[i].index] = payload.planets[i].name;
 			planetNameRadiusMap[payload.planets[i].name] = payload.planets[i].radius;
+			if (payload.planets[i].biome === "gas") {
+				gasPlanets.push(payload.planets[i].name);
+			}
 		}
 		console.log(planetIndexNameMap);
 		console.log(planetNameRadiusMap);
@@ -261,6 +271,15 @@ console.log("loaded geomapper");
 		console.log(cp(tasks));
 		var task = tasks.pop();
 		
+		console.log("HAHAHAH");
+		console.log(task);
+		console.log(gasPlanets);
+		
+		while(task !== undefined && gasPlanets.indexOf(task[1]) !== -1) {
+			sendChatMessage("skip planet "+task[1]+": it is a gas planet");
+			task = tasks.pop();
+		}
+		
 		if (task) {
 			var target = {planet_id: task[0], location: {x: 1, y: 1, z: 1}, zoom: 'orbital'};
 			api.camera.lookAt(target);
@@ -407,6 +426,8 @@ console.log("loaded geomapper");
 		return fbar;
 	};
 
+	var dbName = "info.nanodesu.info.minimaps";
+	
 	printmap = function() {
 		var mapData = {planets:[]};
 		
@@ -426,7 +447,7 @@ console.log("loaded geomapper");
 			mapData.planets.push(cp);
 		}
 		
-		var dbName = "info.nanodesu.info.minimaps";
+		
 		var mapList = decode(localStorage["info.nanodesu.minimapkeys"]) || {};
 
 		if (mapList[mapName]) {
@@ -456,4 +477,42 @@ console.log("loaded geomapper");
 //		console.log(JSON.stringify(mapData));
 	};
 	
+	exportData = function() {
+		var mapList = decode(localStorage["info.nanodesu.minimapkeys"])
+		
+		var configs = [];
+		
+		for (var key in localStorage) {
+			if (key.startsWith("info.nanodesu.minimap.config")) {
+				configs.push([key, localStorage[key]]);
+			}
+		}
+		
+		var systems = {};
+		var endCnt = 0;
+		
+		var compileSystemsJs = function() {
+			var file = "var minimapSystems = "+JSON.stringify(systems)+";"+
+				"var minimapConfigs = "+JSON.stringify(configs)+";";
+			api.file.saveDialog("systems.js", file);
+		};
+		
+		var putResult = function(name, key) {
+			DataUtility.readObject(dbName, key).then(function(data) {
+				systems[name] = data;
+				endCnt--;
+				if (endCnt === 0) {
+					compileSystemsJs();
+				}
+			});
+		};
+		
+		for (var mapName in mapList) {
+			if (mapList.hasOwnProperty(mapName)) {
+				var mapKey = mapList[mapName];
+				endCnt++;
+				putResult(mapName, mapKey);
+			}
+		}
+	};
 }());
