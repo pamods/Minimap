@@ -34,6 +34,7 @@ $(document).ready(function() {
 	
 	function MinimapModel(planet) {
 		var self = this;
+		self.planetName = planet.name;
 		var planetCameraId = planet.cameraId;
 		var configStorageKey = "info.nanodesu.minimap.config"+planet.name+planetCameraId+planet.id;
 		var loadConfig = function() {
@@ -187,6 +188,13 @@ $(document).ready(function() {
 			}
 		};
 		
+		var removed = false;
+		self.removeMap = function() {
+			removed = true;
+			console.log(planet.id+" remove!");
+			$('#'+planet.id).remove();
+		};
+		
 		var lookAtByMinimapXY = function(x, y) {
 			var ll = self.projection().invert([x, y]);
 			if (ll) {
@@ -294,6 +302,10 @@ $(document).ready(function() {
 		}
 		
 		self.handleAlert = function(alert) {
+			if (removed) {
+				return;
+			}
+			
 			var types = unitSpecMapping[alert.spec_id];
 			if (alert.watch_type === 0) { // created
 				if (contains(types, 'Structure')) {
@@ -342,24 +354,51 @@ $(document).ready(function() {
 			alertsManager.addListener(models[i].handleAlerts);
 		}
 	};
-
-	handlers.celestial_data = function(payload) {
-		console.log("celesitial data");
-		console.log(payload);
-		var mapData = minimapSystems[payload.name];
-		var mapList = decode(localStorage["info.nanodesu.minimapkeys"]) || {};
-		var dbName = "info.nanodesu.info.minimaps";
-		if (mapList[payload.name]) {
-			console.log("found minimap data in indexdb, will load key "+mapList[payload.name]);
-			DataUtility.readObject(dbName, mapList[payload.name]).then(function(data) {
-				initBySystem(data);
-			});
-		} else if (mapData) {
-			console.log("found minimap data in systems.js");
-			initBySystem(mapData);
-		} else {
-			console.log("No minimap data available for map with name "+payload.name);				
+	
+	var processRemovals = function(payload) {
+		var toKill = [];
+		for (var i = 0; i < models.length; i++) {
+			var found = false;
+			for (var p = 0; p < payload.planets.length; p++) { 
+				if (payload.planets[p].name === models[i].planetName && payload.planets[p].dead) {
+					found = true;
+					break;
+				}
+			}
+			if (found) {
+				toKill.push(models[i]);
+			}
 		}
+		for (var i = 0; i < toKill.length; i++) {
+			var killIndex = models.indexOf(toKill[i]);
+			if (killIndex !== -1) {
+				models[killIndex].removeMap();
+				models.splice(killIndex, 1);
+			}
+		}
+	};
+	
+	handlers.celestial_data = function(payload) {
+		if (models.length === 0) {
+			console.log("celesitial data");
+			console.log(payload);
+			var mapData = minimapSystems[payload.name];
+			var mapList = decode(localStorage["info.nanodesu.minimapkeys"]) || {};
+			var dbName = "info.nanodesu.info.minimaps";
+			if (mapList[payload.name]) {
+				console.log("found minimap data in indexdb, will load key "+mapList[payload.name]);
+				DataUtility.readObject(dbName, mapList[payload.name]).then(function(data) {
+					initBySystem(data);
+					processRemovals(payload);
+				});
+			} else if (mapData) {
+				console.log("found minimap data in systems.js");
+				initBySystem(mapData);
+			} else {
+				console.log("No minimap data available for map with name "+payload.name);
+			}
+		}
+		processRemovals(payload);
 	};
 	
 	handlers.setSize = function(size) {
