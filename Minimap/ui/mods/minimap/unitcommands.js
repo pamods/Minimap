@@ -69,6 +69,12 @@ var unitCommands =
 			});
 		};
 		
+		self.ping = function(x, y, z) {
+			runLocationCommand(x, y, z, false, function() {
+				self.hdeck.unitCommand("ping", clickTarget, clickTarget, false);
+			});
+		};
+		
 		// TODO add other commands
 	}
 	
@@ -105,15 +111,21 @@ var unitCommands =
 		return r;
 	};
 	
+	var getHackDeck = function(p) {
+		var hackDeck = hackPlanetMapping[p];
+		if (hackDeck === undefined) { // TODO this should not be required if I had all planet ids at the start... with this it will fail on the first command due to the setuptime
+			hackDeck = new HackDeck(p);
+			hackPlanetMapping[p] = hackDeck;
+		}
+		return hackDeck;
+	};
+	
 	return {
+		ping: function(x, y, z, p) {
+			getHackDeck(p).ping(x, y, z);
+		},
 		moveSelected: function(x, y, z, p, queue) {
-			var hackDeck = hackPlanetMapping[p];
-			if (hackDeck === undefined) { // TODO this should not be required if I had all planet ids at the start... with this it will fail on the first command due to the setuptime
-				hackDeck = new HackDeck(p);
-				hackPlanetMapping[p] = hackDeck;
-			} else {
-				hackDeck.moveSelected(x, y, z, queue);
-			}
+			getHackDeck(p).moveSelected(x, y, z, queue);
 		}
 	};
 }()) : unitCommands;
