@@ -80,44 +80,42 @@ var unitCommands =
 	
 	var hackPlanetMapping = {};
 	
+	var getHackDeck = function(p) {
+		var hackDeck = hackPlanetMapping[p];
+		if (hackDeck === undefined) {
+			hackDeck = new HackDeck(p);
+			hackPlanetMapping[p] = hackDeck;
+			console.log("created hackdeck for planet with id "+p);
+		}
+		return hackDeck;
+	};
+	
 	var oldCelestialData = handlers.celestial_data
 	handlers.celestial_data = function(payload) {
 		var r = oldCelestialData(payload);
 		
-		console.log("does it include the camera id?");
-		console.log(payload);
-		
-
-		hackPlanetMapping[0] = 0;
+		if (payload.planets) {
+			for (var i = 0; i < payload.planets.length; i++) {
+				if (hackPlanetMapping[payload.planets[i].id] === undefined) {
+					var planet = payload.planets[i];
+					console.log("prepare for creation of hackdeck for planet");
+					console.log(planet);
+					hackPlanetMapping[payload.planets[i].id] = 42;
+				}
+			}
+		}
 		
 		$(document).ready(function() {
 			for (p in hackPlanetMapping) {
-				if (hackPlanetMapping.hasOwnProperty(p)) {
+				if (hackPlanetMapping[p] === 42) {
+					console.log("create hackdeck for planet id "+p);
 					var pid = hackPlanetMapping[p];
-					hackPlanetMapping[p] = new HackDeck(pid);
+					hackPlanetMapping[p] = new HackDeck(p);
 				}
 			}
 		});
 		
-//		if (payload.planets) {
-//			for (var i = 0; i < payload.planets.length; i++) {
-//				var planet = payload.planets[i];
-//				console.log(planet);
-//				
-//				hackPlanetMapping[payload.planets[i].index] = "";
-//			}
-//			console.log(hackPlanetMapping);
-//		}
 		return r;
-	};
-	
-	var getHackDeck = function(p) {
-		var hackDeck = hackPlanetMapping[p];
-		if (hackDeck === undefined) { // TODO this should not be required if I had all planet ids at the start... with this it will fail on the first command due to the setuptime
-			hackDeck = new HackDeck(p);
-			hackPlanetMapping[p] = hackDeck;
-		}
-		return hackDeck;
 	};
 	
 	return {
