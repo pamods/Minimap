@@ -330,8 +330,6 @@ console.log("loaded geomapper");
 		});
 	};
 	
-	console.log("watch this for a tutorial on how to map out planets: https://www.youtube.com/watch?v=E8GO6aWGCRc");
-	
 	var oldH = handlers.server_state;
 	var myArmyId = 0;
 	handlers.server_state = function(payload) {
