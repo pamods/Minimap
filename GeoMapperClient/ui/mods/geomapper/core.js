@@ -30,7 +30,7 @@ console.log("loaded geomapper");
 		}
 	};
 	
-	sendChatMessage("GeoMapper is enabled. Disable it for normal play. To start mapping the loaded system enter the commmand 'startmapping' via chat. It is recommended to first spawn the commander and place it somewhere safe (or up the forced spawn time, read the forums thread of this mod!). Notice that to get all spawnzones in your mapping you need to use a local server with a small modification. Read the forums for more info.");
+	sendChatMessage("GeoMapper is enabled. Disable it for normal play. To start mapping the loaded system enter the commmand 'startmapping' via chat. It is recommended to first spawn the commander and place it somewhere safe (or up the forced spawn time, read the forums thread of this mod!). Notice that to get all spawnzones in your mapping you need to use a local server with a small modification. To create a systems.js that can be used to backup or share mappings use the command 'exportMapping' Read the forums for more info.");
 	
 	var mapName = "unknown";
 	var planets = [];
