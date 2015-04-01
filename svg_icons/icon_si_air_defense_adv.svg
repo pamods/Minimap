@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="210mm"
+   height="297mm"
+   viewBox="0 0 744.09448819 1052.3622047"
+   id="svg3355"
+   version="1.1"
+   inkscape:version="0.91 r13725"
+   sodipodi:docname="icon_si_air_defense_adv.svg">
+  <defs
+     id="defs3357" />
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="5.6"
+     inkscape:cx="5.4122216"
+     inkscape:cy="1038.1296"
+     inkscape:document-units="px"
+     inkscape:current-layer="svg3355"
+     showgrid="false"
+     inkscape:window-width="1920"
+     inkscape:window-height="1028"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1" />
+  <metadata
+     id="metadata3360">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Ebene 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <g
+       id="g3374">
+      <path
+         style="fill:#c8c8c8"
+         d="m -10.239841,-2.237061 0,-13.75 11.25,0 11.25,0 0,13.75 0,13.75 -11.25,0 -11.25,0 0,-13.75 z m 8.3569363,9.7821075 2.8930637,-2.7178925 2.8930637,2.7178925 2.8930638,2.7178925 2.1069362,0 2.1069363,0 0,-12.5 0,-12.5 -10,0 -10,0 0,12.5 0,12.5 2.1069363,0 2.1069362,0 2.8930638,-2.7178925 z m 1.0180637,-16.0321075 3.5927275,-3.75 1.875,0 1.875,0 -3.5927275,3.75 -3.5927275,3.75 -1.875,0 -1.875,0 3.5927275,-3.75 z m 3.375,17.25 -1.5,-1.5 -1.5,1.5 -1.5,1.5 3,0 3,0 -1.5,-1.5 z"
+         id="path3376"
+         inkscape:connector-curvature="0" />
+    </g>
+  </g>
+  <path
+     style="fill:#a0a0a0;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+     d="M -8.9101562 -14.660156 L -8.9101562 -2.25 L -8.9101562 10.162109 L -6.8105469 10.154297 L -4.7128906 10.148438 L -1.8671875 7.4785156 L 0.97851562 4.8085938 L 1.4726562 5.2089844 C 1.7444277 5.4285898 3.0435613 6.6325335 4.3613281 7.8847656 L 6.7578125 10.162109 L 8.8359375 10.162109 L 10.912109 10.162109 L 10.912109 -2.25 L 10.912109 -14.660156 L 1.0019531 -14.660156 L -8.9101562 -14.660156 z M 2.7636719 -12.337891 L 4.6210938 -12.337891 C 5.6523414 -12.337891 6.4510188 -12.267344 6.4179688 -12.177734 C 6.3852306 -12.088969 4.7641783 -10.360733 2.8144531 -8.3378906 L -0.73046875 -4.6601562 L -2.609375 -4.6601562 C -4.3728941 -4.6601562 -4.4741186 -4.6793147 -4.2441406 -4.9726562 C -4.1093916 -5.1445313 -2.4766686 -6.8727678 -0.6171875 -8.8125 L 2.7636719 -12.337891 z M 0.99414062 7.3046875 L -0.42773438 8.7324219 L -1.8476562 10.162109 L 0.9609375 10.162109 C 2.5055084 10.162109 3.7695312 10.140141 3.7695312 10.113281 C 3.7695313 10.086424 3.1442591 9.442516 2.3808594 8.6835938 L 0.99414062 7.3046875 z "
+     id="path3392" />
+</svg>

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="210mm"
+   height="297mm"
+   viewBox="0 0 744.09448819 1052.3622047"
+   id="svg3477"
+   version="1.1"
+   inkscape:version="0.91 r13725"
+   sodipodi:docname="icon_si_torpedo_launcher_adv.svg">
+  <defs
+     id="defs3479" />
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="7.9195959"
+     inkscape:cx="-11.827367"
+     inkscape:cy="1050.0424"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     inkscape:window-width="1920"
+     inkscape:window-height="1028"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1" />
+  <metadata
+     id="metadata3482">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Ebene 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <path
+       style="fill:#000000"
+       d="m -10.492386,0.414597 0,-11.25 11.25,0 11.25,0 0,11.25 0,11.25 -11.25,0 -11.25,0 0,-11.25 z m 8.3569363,7.2821075 2.8930637,-2.7178925 2.8930637,2.7178925 2.8930638,2.7178925 2.1069362,0 2.1069363,0 0,-10 0,-10 -10,0 -10,0 0,10 0,10 2.1069363,0 2.1069362,0 2.8930638,-2.7178925 z m 1.0180637,-11.0321075 -3.5927275,-3.75 1.875,0 1.875,0 3.5927275,3.75 3.5927275,3.75 -1.875,0 -1.875,0 -3.5927275,-3.75 z m 3.375,12.25 -1.5,-1.5 -1.5,1.5 -1.5,1.5 3,0 3,0 -1.5,-1.5 z"
+       id="path3496"
+       inkscape:connector-curvature="0" />
+    <path
+       style="fill:#a0a0a0;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="M -9.2011719 -9.5234375 L -9.2011719 0.38867188 L -9.2011719 10.300781 L -7.0859375 10.296875 L -4.9707031 10.292969 L -2.1699219 7.6445312 C -0.62957725 6.187991 0.68368957 4.9960938 0.74804688 4.9960938 C 0.8124042 4.9960938 2.1362243 6.1903075 3.6914062 7.6484375 L 6.5195312 10.298828 L 8.6347656 10.298828 L 10.75 10.300781 L 10.75 0.38867188 L 10.75 -9.5234375 L 0.7734375 -9.5234375 L -9.2011719 -9.5234375 z M -4.8378906 -7.125 L -2.8710938 -7.125 L -0.90234375 -7.125 L 2.6191406 -3.4472656 C 4.5561475 -1.4246993 6.1604448 0.27897044 6.1835938 0.33984375 C 6.206744 0.4007171 5.3748112 0.45117188 4.3359375 0.45117188 L 2.4472656 0.45117188 L -0.43359375 -2.5488281 C -2.018215 -4.1982178 -3.6575371 -5.9018875 -4.0761719 -6.3359375 L -4.8378906 -7.125 z M 0.70703125 7.5214844 L -0.67773438 8.9101562 L -2.0625 10.300781 L 0.68164062 10.300781 C 2.19095 10.300781 3.4257812 10.284175 3.4257812 10.265625 C 3.4257812 10.247079 2.8141313 9.6223597 2.0664062 8.8769531 L 0.70703125 7.5214844 z "
+       id="path3498" />
+  </g>
+</svg>

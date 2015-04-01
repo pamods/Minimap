@@ -7,6 +7,7 @@ loadScript("coui://ui/mods/minimap/unitInfoParser.js");
 loadScript("coui://ui/mods/minimap/alertsManager.js");
 
 (function() {
+	
 	var initDefaultConfig = function() {
 		var makeDefaultConfig = function(key, value) {
 			if (localStorage[key] === undefined) {
@@ -25,6 +26,45 @@ loadScript("coui://ui/mods/minimap/alertsManager.js");
 
 
 $(document).ready(function() {
+	
+	var unitPositionPollingSpeed = 100;
+	
+	function contains(ar, val) {
+		return ar !== undefined && $.inArray(val, ar) !== -1;
+	}
+	
+	function UnitPositionsById() {
+		var self = this;
+		var byId = {};
+		
+		var queryActive = false;
+		
+		var refreshData = function() {
+			queryActive = true;
+			$.getJSON("http://127.0.0.1:8184/", function(data) {
+				byId = data;
+			}).complete(function() {
+				queryActive = false;
+			});
+		};
+		
+		self.getCurrentUnitPosition = function(unitId) {
+			return byId[unitId];
+		};
+		
+		self.startPolling = function() {
+			setInterval(function() {
+				if (!queryActive) {
+					refreshData();
+				} else {
+					console.log("query for unit positions cannot keep up!");
+				}
+			}, unitPositionPollingSpeed);
+		};
+	};
+	
+	var unitPositionsHolder = new UnitPositionsById();
+	
 	var unitSpecMapping = undefined;
 	unitInfoParser.loadUnitTypeMapping(function(mapping) {
 		unitSpecMapping = mapping;
@@ -297,10 +337,6 @@ $(document).ready(function() {
 		
 		var removeMapping = {};
 		
-		function contains(ar, val) {
-			return ar !== undefined && $.inArray(val, ar) !== -1;
-		}
-		
 		self.handleAlert = function(alert) {
 			if (removed) {
 				return;
@@ -308,16 +344,16 @@ $(document).ready(function() {
 			
 			var types = unitSpecMapping[alert.spec_id];
 			if (alert.watch_type === 0) { // created
-				if (contains(types, 'Structure')) {
-					var dotId = self.createDot(alert.location.x, alert.location.y, alert.location.z, "building");
-					removeMapping[alert.id] = dotId;
-				}
+				//if (contains(types, 'Structure')) {
+				//	var dotId = self.createDot(alert.location.x, alert.location.y, alert.location.z, "building");
+				//	removeMapping[alert.id] = dotId;
+				//}
 			} else if (alert.watch_type === 2) { // destroyed
-				if (contains(types, 'Structure')) {
-					if (removeMapping[alert.id]) {
-						$('#'+removeMapping[alert.id]).remove();
-					}
-				}
+				//if (contains(types, 'Structure')) {
+				//	if (removeMapping[alert.id]) {
+				//		$('#'+removeMapping[alert.id]).remove();
+				//	}
+				//}
 				self.createTemporaryDot(alert.location.x, alert.location.y, alert.location.z, 'destruction-warning', 10000);
 			} else if (alert.watch_type === 4 || alert.watch_type === 6) { // sight || first_contact
 				if (contains(types, 'Structure')) {
@@ -339,8 +375,111 @@ $(document).ready(function() {
 			}
 		}
 		
+		var getProjectedUnitPosition = function(id) {
+			var unitPosition = unitPositionsHolder.getCurrentUnitPosition(id);
+			var ll = convertToLonLan(unitPosition.x, unitPosition.y, unitPosition.z);
+			var projected = self.projection()(ll);
+			return projected;
+		};
+		
+		var makePath = function(path, color, id) {
+			return svgElem.append("path")
+			  .attr("d",path)
+			  .attr("fill", color)
+			  .attr("id", id);
+		};
+		
+		self.markSelectedId = function(id) {
+			console.log("mark "+id);
+			if (movingUnits[id]) {
+				movingUnits[id].icon[0].attr('fill', "#FFFFFF");
+			}
+		};
+		
+		self.unmarkSelectedId = function(id) {
+			console.log("unmark "+id);
+			if (movingUnits[id]) {
+				movingUnits[id].icon[0].attr('fill', "#000000");
+			}
+		};
+		
+		var iconScale = 1;
+		
+		var movingUnits = {};
+		
+		self.addMovingUnit = function(id, spec, army) {
+			console.log("add moving unit " + id + " spec " + spec);
+			var projected = getProjectedUnitPosition(id);
+			
+			var borderId = "unit"+id+"_border";
+			var fillId = "unit"+id+"_fill";
+			
+			var borderSvg = strategicIconPaths[spec+"_border"] || strategicIconPaths.fallback_border;
+			var fillSvg = strategicIconPaths[spec+"_fill"] || strategicIconPaths.fallback_fill;
+			
+			var blackFrame = makePath(borderSvg,"#000000", borderId)
+				.attr("transform", "translate(" + projected[0] + "," + projected[1] + "), scale("+iconScale+")");
+			var teamColoredFill = makePath(fillSvg, armyColors[army], fillId)
+				.attr("transform", "translate(" + projected[0] + "," + projected[1] + "), scale("+iconScale+")");
+			
+			movingUnits[id] = {spec: spec, icon: [blackFrame, teamColoredFill]};
+		};
+		
+		self.updateUnitPositions = function() {
+			_.forEach(movingUnits, function(unit, id) {
+				var unitPosition = unitPositionsHolder.getCurrentUnitPosition(id);
+				if (unitPosition !== undefined) {
+					var projected = getProjectedUnitPosition(id);
+					for (var i = 0; i < unit.icon.length; i++) {
+						unit.icon[i].attr('transform', "translate(" + projected[0] + "," + projected[1] + "), scale("+iconScale+")");
+					}
+				}
+			});
+		};
+		
+		self.recheckUnitExistence = function() {
+			_.forEach(movingUnits, function(unit, id) {
+				var unitPosition = unitPositionsHolder.getCurrentUnitPosition(id); 
+				if (mobileUnits[id] === undefined || unitPosition === undefined || unitPosition.planet !== self.planetName) {
+					console.log("remove moving unit " + id);
+					$('#unit'+id+"_border").remove();
+					$('#unit'+id+"_fill").remove();
+					delete movingUnits[id];
+				}
+			});
+			
+			_.forEach(mobileUnits, function(unit, id) {
+				var unitPosition = unitPositionsHolder.getCurrentUnitPosition(id); 
+				if (mobileUnits[id] && movingUnits[id] === undefined && unitPosition !== undefined && unitPosition.planet === self.planetName) {
+					self.addMovingUnit(id, mobileUnits[id].spec, mobileUnits[id].army);
+				}
+			});
+		};
+		
 		self.initForMap(planet);
+		
+		setInterval(self.recheckUnitExistence, 500);
+		setInterval(self.updateUnitPositions, unitPositionPollingSpeed);
 	}
+	
+	var armyColors = {};
+	
+	var mobileUnits = {};
+	alertsManager.addListener(function(payload) {
+		for (var i = 0; i < payload.list.length; i++) {
+			var alert = payload.list[i];
+			var types = unitSpecMapping[alert.spec_id];
+			if (alert.watch_type === 0) {
+				console.log(alert);
+				mobileUnits[alert.id] = {
+					spec: alert.spec_id,
+					army: alert.army_id
+				};
+			} else if (alert.watch_type === 2) {
+				mobileUnits[alert.id] = undefined;
+			}
+		}
+	});
 	
 	var initBySystem = function(sys) {
 		for (var i = 0; i < sys.planets.length; i++) {
@@ -405,6 +544,66 @@ $(document).ready(function() {
 		$('.body_panel').css('width', size);
 	};
 	
+	handlers.setCommanderId = function(params) {
+		console.log("got commander id " + params);
+		mobileUnits[params[0]] = {
+			spec: "commander",
+			army: params[1]
+		};
+	};
+	
+	handlers.setArmyColors = function(clrs) {
+		console.log("got colors");
+		console.log(clrs);
+		armyColors = clrs;
+	};
+	
+	handlers.startPlaying = function() {
+		console.log("started polling for positions");
+		unitPositionsHolder.startPolling();
+		api.Panel.message(api.Panel.parentId, 'queryCommanderId');
+		api.Panel.message(api.Panel.parentId, 'queryArmyColors');
+	};
+	
+	var wasSelected = {};
+	
+	handlers.selection = function(payload) {
+		console.log(payload);
+		
+		var newSelection = {};
+		_.forEach(payload.spec_ids, function(ids) {
+			_.forEach(ids, function(id) {
+				newSelection[id] = true;
+			});
+		});
+		
+		console.log("===");
+		console.log(newSelection);
+		console.log(wasSelected);
+		
+		_.forEach(newSelection, function(v, id) {
+			if (!wasSelected[id]) {
+				_.forEach(models, function(model) {
+					model.markSelectedId(id);
+				});
+			}
+		});
+		_.forEach(wasSelected, function(v, id) {
+			if (!newSelection[id]) {
+				_.forEach(models, function(model) {
+					model.unmarkSelectedId(id);
+				});
+			}
+		});
+		
+		wasSelected = newSelection;
+	};
+	
 	app.registerWithCoherent(model, handlers);
-	api.Panel.message(api.Panel.parentId, 'queryViewportSize');
+	
+	setTimeout(function() {
+		api.Panel.message(api.Panel.parentId, 'queryViewportSize');
+		api.Panel.message(api.Panel.parentId, 'queryArmyColors');
+		api.Panel.message(api.Panel.parentId, 'queryIsPlaying');
+	}, 100);
 });

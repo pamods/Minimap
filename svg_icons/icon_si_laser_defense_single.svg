@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="210mm"
+   height="297mm"
+   viewBox="0 0 744.09448819 1052.3622047"
+   id="svg3354"
+   version="1.1"
+   inkscape:version="0.91 r13725"
+   sodipodi:docname="icon_si_laser_defense_single.svg">
+  <defs
+     id="defs3356" />
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="22.4"
+     inkscape:cx="-10.003707"
+     inkscape:cy="1055.9811"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     inkscape:window-width="1920"
+     inkscape:window-height="1028"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1" />
+  <metadata
+     id="metadata3359">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Ebene 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <path
+       style="fill:#000000"
+       d="m -7.358414,-0.049011 0,-8.75 7.5,0 7.5,0 0,8.75 0,8.75 -7.5,0 -7.5,0 z m 13.75,0 0,-7.5 -6.25,0 -6.25,0 0,7.5 0,7.5 6.25,0 6.25,0 z m -10.4420215,-2.7114356 8.7154993,-0.063135 0.025142,1.2187827 -4.37500003,0 -4.37499997,0 z"
+       id="path3375"
+       inkscape:connector-curvature="0"
+       sodipodi:nodetypes="cccccccccccccccccccccccc" />
+    <path
+       style="fill:#a0a0a0;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m -6.0840645,-0.06083258 0,-7.47767862 6.2276786,0 6.2276786,0 0,7.47767862 0,7.47767858 -6.2276786,0 -6.2276786,0 0,-7.47767858 z M 4.7192762,-1.7907433 c -1.34e-4,-0.1043527 -0.013143,-0.3847143 -0.028925,-0.6230263 l -0.028694,-0.4332938 -3.73223576,0.021605 c -2.05272944,0.011883 -4.01850804,0.033172 -4.36839644,0.04731 l -0.6361607,0.025705 0,0.5757161 0,0.575716 4.39732143,0 4.39732147,0 -2.232e-4,-0.1897321 -7.6e-6,0 z"
+       id="path3377"
+       inkscape:connector-curvature="0" />
+  </g>
+</svg>

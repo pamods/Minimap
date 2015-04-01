@@ -19,6 +19,45 @@ console.log("inject minimap");
 		$('#minimap_panel').css('z-index', payload.z);
 	}
 	
+	var colorByArmyId = {};
+	var commanderId = undefined;
+	var commanderArmy = undefined;
+	
+	var playing = false;
+	
+	var oldServerState = handlers.server_state;
+	handlers.server_state = function(msg) {
+		oldServerState(msg);
+		if (msg.data.client && msg.data.client.commander && msg.data.client.commander.id && msg.data.client.commander.army) {
+			commanderId = msg.data.client.commander.id;
+			commanderArmy = msg.data.client.commander.army.id;
+		}
+		if (msg.data.armies) {
+			for (var i = 0; i < msg.data.armies.length; i++) {
+				colorByArmyId[msg.data.armies[i].id] = msg.data.armies[i].color;
+			}
+		}
+		
+		playing = msg.state === "playing";
+		handlers.queryIsPlaying();
+	};
+	
+	handlers.queryCommanderId = function() {
+		console.log("query commander id called...");
+		api.panels.minimap_panel.message("setCommanderId", [commanderId, commanderArmy]);
+	};
+	
+	handlers.queryArmyColors = function() {
+		console.log("query army colors called...");
+		api.panels.minimap_panel.message("setArmyColors", colorByArmyId);
+	};
+	
+	handlers.queryIsPlaying = function() {
+		if (playing) {
+			api.panels.minimap_panel.message("startPlaying");
+		}
+	};
+	
 	var oldShowAlertPreview = model.showAlertPreview;
 	model.showAlertPreview = function(target) {
 		var oldLookAt = api.camera.lookAt;

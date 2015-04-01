@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="210mm"
+   height="297mm"
+   viewBox="0 0 744.09448819 1052.3622047"
+   id="svg3424"
+   version="1.1"
+   inkscape:version="0.91 r13725"
+   sodipodi:docname="icon_si_air_factory_adv.svg">
+  <defs
+     id="defs3426" />
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="44.8"
+     inkscape:cx="0.59331516"
+     inkscape:cy="1043.3633"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     inkscape:window-width="1920"
+     inkscape:window-height="1028"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1" />
+  <metadata
+     id="metadata3429">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Ebene 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <g
+       id="g3443">
+      <path
+         style="fill:#c8c8c8"
+         d="m -12.113489,11.165827 -5.26026,-5.3598138 0,-6.8799262 0,-6.879925 5.359815,-5.26026 5.3598138,-5.26026 6.7803712,0 6.7803713,0 5.3598137,5.26026 5.359815,5.26026 0,6.879925 0,6.8799262 -5.26026,5.3598138 -5.26026,5.359815 -6.97948,0 -6.97948,0 -5.26026,-5.359815 z m 9.3466763,1.391922 2.8930637,-2.717892 3.1436813,2.953335 3.1436812,2.953335 4.9813185,-4.864128 4.981319,-4.864127 0,-6.88111125 0,-6.88111255 -4.628685,-4.7402022 -4.628685,-4.740204 -6.88111125,0 -6.88111245,0 -4.7402023,4.628685 -4.740204,4.628685 0,6.8811112 0,6.8811125 4.628685,4.7402023 c 2.5457763,2.607113 4.9001475,4.740204 5.2319363,4.740204 0.3317875,0 1.90513,-1.223051 3.496315,-2.717893 z m -1.1453975,-15.0705682 4.0384612,-4.0384613 4.0384613,4.0384613 4.0384612,4.0384612 -8.0769225,0 -8.0769225,0 4.0384613,-4.0384612 z m 5.5384612,16.2884612 -1.5,-1.5 -1.5,1.5 -1.5,1.5 3,0 3,0 -1.5,-1.5 z"
+         id="path3445"
+         inkscape:connector-curvature="0" />
+    </g>
+    <path
+       style="fill:#a0a0a0;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="M -16.107422 -6.7109375 L -16.107422 -0.45507812 L -16.107422 5.8027344 L -14.007812 7.9550781 C -11.661958 10.359961 -10.172216 11.863471 -9.3886719 12.617188 C -7.8491771 14.098078 -6.6630441 15.118548 -6.3339844 15.246094 L -6.2382812 15.283203 L -6.0117188 15.167969 C -5.7361482 15.027772 -5.3238373 14.736849 -4.7578125 14.283203 C -3.8694739 13.571236 -3.4792899 13.221158 -1.2753906 11.150391 L 0.12890625 9.8300781 L 0.25390625 9.9492188 C 0.32182679 10.01535 1.7325416 11.341626 3.3886719 12.896484 C 5.0448022 14.451342 6.409899 15.720797 6.421875 15.716797 C 6.4338526 15.712806 8.6749713 13.530739 11.404297 10.867188 L 16.367188 6.0234375 L 16.369141 -0.34375 L 16.369141 -6.7109375 L 0.13085938 -6.7109375 L -16.107422 -6.7109375 z M 0.13085938 -6.5546875 L 4.1660156 -2.5195312 C 6.3850565 -0.30051499 8.2011719 1.5164513 8.2011719 1.5195312 C 8.2011719 1.5226112 4.5661146 1.5253906 0.125 1.5253906 L -7.9492188 1.5253906 L -3.9082031 -2.5136719 L 0.13085938 -6.5546875 z M 0.13085938 12.285156 L -1.3652344 13.779297 L -2.859375 15.275391 L 0.125 15.275391 C 1.7669858 15.275391 3.1113281 15.272631 3.1113281 15.269531 C 3.1113281 15.266428 2.4406036 14.594832 1.6210938 13.775391 L 0.13085938 12.285156 z "
+       id="path3463" />
+  </g>
+</svg>
