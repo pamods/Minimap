@@ -44,7 +44,7 @@ $(document).ready(function() {
 		}
 		return undefined;
 	});
-	
+	focusedModel.extend({ rateLimit: 500 }); // prevent short focus fluctatons from affecting the display of the zoomed out view
 	var zoomLevel = ko.observable();
 	
 	function contains(ar, val) {
@@ -112,13 +112,11 @@ $(document).ready(function() {
 		}
 		
 		self.fullScreened = ko.computed(function() {
-			return focusedModel() === self && zoomLevel() === "celestial";
+			return focusedModel() === self && (zoomLevel() === "celestial");
 		});
 		self.fullScreened.subscribe(function(v) {
 			_.delay(self.acceptPathChange);
-			if (!v) {
-				api.Panel.message(api.Panel.parentId, "fullMainView");
-			}
+			api.Panel.message(api.Panel.parentId, "fullMainView");
 		});
 
 		self.visible = ko.computed(function() {
@@ -361,7 +359,9 @@ $(document).ready(function() {
 		};
 		
 		self.lookAtMinimap = function(data, e) {
-			lookAtByMinimapXY(e.offsetX, e.offsetY);
+			if (!self.fullScreened()) {
+				lookAtByMinimapXY(e.offsetX, e.offsetY);
+			}
 		};
 		
 		self.showPreviewByMapXY = function(x, y) {
@@ -395,8 +395,8 @@ $(document).ready(function() {
 				self.showPreviewByMapXY(e.offsetX, e.offsetY);
 			} else {
 				if (e) {
-					var x = e.screenX;
-					var y = e.screenY;
+					var x = e.offsetX;
+					var y = e.offsetY;
 					var ll = self.projection().invert([x, y]);
 					var c = undefined;
 					if (ll) {

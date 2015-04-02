@@ -1,12 +1,71 @@
 console.log("inject minimap");
 (function() {
 	
-
-	/*
+	// http://stackoverflow.com/questions/2360655/jquery-event-handlers-always-execute-in-order-they-were-bound-any-way-around-t
+	// [name] is the name of the event "click", "mouseover", ..
+	// same as you'd pass it to bind()
+	// [fn] is the handler function
+	$.fn.bindFirst = function(name, fn) {
+		// bind as you normally would
+		// don't want to miss out on any jQuery magic
+		this.on(name, fn);
+	
+		// Thanks to a comment by @Martin, adding support for
+		// namespaced events too.
+		this.each(function() {
+			var handlers = $._data(this, 'events')[name.split('.')[0]];
+			// take out the handler we just inserted from the end
+			var handler = handlers.pop();
+			// move it at the beginning
+			handlers.splice(0, 0, handler);
+		});
+	};
+	
+	var planetIdToIndexMap = {};
+	
+	var oldCelestialH = handlers.celestial_data;
+	handlers.celestial_data = function(payload) {
+		oldCelestialH(payload);
+		var ps = payload.planets;
+		for (var i = 0; i < ps.length; i++) {
+			planetIdToIndexMap[ps[i].id] = ps[i].index;
+		}
+	};
+	
+	var focusView = false;
+	var focusLocation = undefined;
+	var focusInterval = undefined;
+	
+	var clearFocusInterval = function() {
+		clearInterval(focusInterval);
+		focusInterval = undefined;
+	};
+	
 	var lastWheelMove = 0;
 	$(window).bind('mousewheel DOMMouseScroll', function(event){
 		lastWheelMove = new Date().getTime();
-	});*/
+		if (focusView) {
+			if (focusLocation !== undefined && focusInterval === undefined) {
+				focusInterval = setInterval(function() {
+					var focusP = planetIdToIndexMap[focusLocation[2]];
+					api.camera.focusPlanet(focusP);
+					lookAtFocus();
+					if (new Date().getTime() - lastWheelMove > 1000) {
+						clearFocusInterval()
+					}
+				}, 10);
+			}
+		}
+	});
+	
+	var mouseDownHandler = function(e) {
+		if (e.button === 1) {
+			console.log("clear focus due to mouse movement");
+			clearFocusInterval();
+		}
+	};
+	$(document).bindFirst("mousedown", mouseDownHandler);
+	$('holodeck').bindFirst("mousedown", mouseDownHandler);
 	
 	var holodeck = $('.primary');
 	var hMidX = 0;
@@ -15,8 +74,24 @@ console.log("inject minimap");
 	var hy = 0;
 	var w = 100;
 	var h = 100;
+	
+	var lookAtFocus = function() {
+		var lookTarget = {
+			location: {
+				x: focusLocation[0],
+				y: focusLocation[1],
+				z: focusLocation[2],
+			},
+			planet_id: focusLocation[3],
+			zoom: 'invalid' // by pure chance I found that when I pass in an unknown string it just keeps the current zoom level. YEY that is what I wanted to do.
+		};
+		console.log(lookTarget);
+		api.camera.lookAt(lookTarget);
+		api.camera.alignToPole();
+	};
+	
 	handlers.focusMainViewHack = function(params) {
-		return;
+		/*
 		var x = params[0];
 		var y = params[1];
 		var leftX = x - w/2;
@@ -26,18 +101,13 @@ console.log("inject minimap");
 		hMidX = x;
 		hMidY = y;
 		holodeck.attr("style", "top: "+topY+"px; left: "+leftX+"px; width: "+w+"px; height: "+h+"px");
+		*/
+		
+		focusView = true;
 		
 		if (params[2]/* && (new Date().getTime() - lastWheelMove > 1000)*/) {
-			api.camera.lookAt({
-				location: {
-					x: params[2][0],
-					y: params[2][1],
-					z: params[2][2],
-				},
-				planet_id: params[2][3],
-				zoom: 'invalid' // by pure chance I found that when I pass in an unknown string it just keeps the current zoom level. YEY that is what I wanted to do.
-			});
-			api.camera.alignToPole();
+			focusLocation = params[2];
+			lookAtFocus();
 		}
 	};
 	
@@ -61,7 +131,10 @@ console.log("inject minimap");
 //		console.log("topY = "+topY);
 		
 //		holodeck.attr("style", "top: "+topY+"px; left: "+leftX+"px; width: "+extendW+"px; height: "+extendH+"px");
-//		holodeck.attr("style", "");
+		//holodeck.attr("style", "");
+		
+		focusView = false;
+		api.camera.freeze(false);
 	};
 	
 	handlers.queryViewportSize = function() {
