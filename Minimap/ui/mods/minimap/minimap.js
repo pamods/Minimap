@@ -26,8 +26,26 @@ loadScript("coui://ui/mods/minimap/alertsManager.js");
 
 
 $(document).ready(function() {
+	var assumedSize = 300;
+	var unitPositionPollingSpeed = 250;
 	
-	var unitPositionPollingSpeed = 100;
+	var mainViewWidth = undefined;
+	var mainViewHeight = undefined;
+	
+	var focusedPlanet = ko.observable(0);
+	var signalFocusModel = ko.observable(0);
+	var focusedModel = ko.computed(function() {
+		focusedPlanet();
+		signalFocusModel();
+		for (var i = 0; i < models.length; i++) {
+			if (focusedPlanet() === models[i].planetId) {
+				return models[i];
+			}
+		}
+		return undefined;
+	});
+	
+	var zoomLevel = ko.observable();
 	
 	function contains(ar, val) {
 		return ar !== undefined && $.inArray(val, ar) !== -1;
@@ -75,6 +93,7 @@ $(document).ready(function() {
 	function MinimapModel(planet) {
 		var self = this;
 		self.planetName = planet.name;
+		self.planetId = planet.cameraId;
 		var planetCameraId = planet.cameraId;
 		var configStorageKey = "info.nanodesu.minimap.config"+planet.name+planetCameraId+planet.id;
 		var loadConfig = function() {
@@ -92,11 +111,31 @@ $(document).ready(function() {
 			}
 		}
 		
-		var makeStoreSubscriber = function(name) {
-			return function(v) {
+		self.fullScreened = ko.computed(function() {
+			return focusedModel() === self && zoomLevel() === "celestial";
+		});
+		self.fullScreened.subscribe(function(v) {
+			_.delay(self.acceptPathChange);
+			if (!v) {
+				api.Panel.message(api.Panel.parentId, "fullMainView");
+			}
+		});
+
+		self.visible = ko.computed(function() {
+			return !focusedModel() || !focusedModel().fullScreened() || focusedModel() === self;
+		});
+		
+		var storeFunc = function(name, v) {
+			if (!self.fullScreened()) {
 				var cfg = loadConfig();
 				cfg[name] = v;
 				storeConfig(cfg);
+			}
+		};
+		
+		var makeStoreSubscriber = function(name) {
+			return function(v) {
+				storeFunc(name, v);
 			};
 		};
 		
@@ -105,11 +144,57 @@ $(document).ready(function() {
 			return left == right ? 0 : (left < right ? -1 : 1)
 		});
 		
-		self.width = ko.observable(loadConfig().width || 320);
-		self.height = ko.observable(loadConfig().height || 200);
+		self.normalWidth = ko.observable(loadConfig().width || 320);
+		self.normalHeight = ko.observable(loadConfig().height || 200);
 		
-		self.width.subscribe(makeStoreSubscriber('width'));
-		self.height.subscribe(makeStoreSubscriber('height'));
+		self.normalWidth.subscribe(makeStoreSubscriber('width'));
+		self.normalHeight.subscribe(makeStoreSubscriber('height'));
+		
+		var bordersFactor = 0.9;
+		
+		self.width = ko.computed(function() {
+			if (self.fullScreened()) {
+				var ratio = self.normalWidth()/self.normalHeight();
+				var height = mainViewWidth * bordersFactor * 1/ratio;
+				if (height > mainViewHeight * bordersFactor) {
+					return mainViewHeight * bordersFactor * ratio;  
+				} else {
+					return mainViewWidth * bordersFactor;
+				}
+			} else {
+				return self.normalWidth();
+			}
+		});
+		
+		self.height = ko.computed(function() {
+			if (self.fullScreened()) {
+				var ratio = self.normalHeight()/self.normalWidth();
+				var width = mainViewHeight * bordersFactor * 1/ratio;
+				if (width > mainViewWidth * bordersFactor) {
+					return mainViewWidth * bordersFactor * ratio;  
+				} else {
+					return mainViewHeight * bordersFactor;
+				}
+			} else {
+				return self.normalHeight();
+			}
+		});
+		
+		self.leftPosition = ko.computed(function() {
+			if (self.fullScreened()) {
+				return (mainViewWidth - self.width()) / 2;
+			} else {
+				return 0;
+			}
+		});
+		
+		self.topPosition = ko.computed(function() {
+			if (self.fullScreened()) {
+				return (mainViewHeight - self.height()) / 2;
+			} else {
+				return 0;
+			}
+		});
 		
 		self.projection =  ko.computed(function() {
 			var c = projections[self.projectionKey()] || projections[defProjection];
@@ -123,9 +208,13 @@ $(document).ready(function() {
 		var svgElem =  undefined;
 		self.svgId = "";
 
+		var mapPaths = [];
+		
 		self.acceptPathChange = function() {
 			if (svgElem) {
-				svgElem.selectAll("path").attr("d", path);
+				for (var i = 0; i < mapPaths.length; i++) {
+					mapPaths[i].attr("d", path);
+				}
 			}
 		};
 		
@@ -133,9 +222,7 @@ $(document).ready(function() {
 			var obs = ko.observable();
 			obs.subscribe(function(value) {
 				self.acceptPathChange();
-				var cfg = loadConfig();
-				cfg[name] = value;
-				storeConfig(cfg);
+				storeFunc(name, value);
 			});
 			obs(loadConfig()[name] || 2.5);
 			return obs;
@@ -145,22 +232,30 @@ $(document).ready(function() {
 		self.spawnDotSize = makeStoringPathObservable("spawns-dots");
 		self.metalDotSize = makeStoringPathObservable("metal-dots");
 		self.othersDotSize = makeStoringPathObservable("others-dots");
+		self.iconBaseSize = makeStoringPathObservable("iconBaseSize");
+		
+		var sizeModification = ko.computed(function() {
+			return (Math.max(self.width(), self.height()) / assumedSize);
+		});
+		
+		var iconSizeScale = ko.computed(function() {
+			return self.iconBaseSize() * sizeModification(); 
+		});
 		
 		self.path.pointRadius(function(o) {
 			if (o && o.properties && o.properties.type) {
 				var t = o.properties.type;
 				switch (t) {
 				case "spawns":
-					return self.spawnDotSize();
+					return self.spawnDotSize() * sizeModification();
 				case "metal":
-					return self.metalDotSize();
+					return self.metalDotSize() * sizeModification();
 				case "sea":
 				case "land":
-					return self.geoDotSize();
+					return self.geoDotSize() * sizeModification();
 				}
-				
 			}
-			return self.othersDotSize();
+			return self.othersDotSize() * sizeModification();
 		});
 		
 		self.rotation = ko.observable([0, 0]);
@@ -187,18 +282,23 @@ $(document).ready(function() {
 		});
 		
 		self.settingsVisible = ko.observable(false);
-
+		
+		self.settingsVisibleComp = ko.computed(function() {
+			return self.settingsVisible() && !self.fullScreened();
+		});
+		
 		var prepareSvg = function(targetDivId) {
 			self.svgId = targetDivId;
-			$('#minimap_div').prepend('<div class="minimapdiv" id="'+targetDivId+'"></div>');
-			$('#'+targetDivId).append("<div class='minimap_head'>"+planet.name+" <input style='pointer-events: all;' type='checkbox' data-bind='checked: settingsVisible'/></div>");
+			$('#minimap_div').prepend('<div class="minimapdiv" id="'+targetDivId+'" data-bind="visible: visible, style: {top: topPosition()+\'px\', left: leftPosition()+\'px\'}"></div>');
+			$('#'+targetDivId).append("<div class='minimap_head'>"+planet.name+" <input style='pointer-events: all;' type='checkbox' data-bind='checked: settingsVisible, visible: !fullScreened()'/></div>");
 			$('#'+targetDivId).append("<div class='minimap_config' " +
-					"data-bind='visible: settingsVisible'>" +
+					"data-bind='visible: settingsVisibleComp'>" +
 					"Projection: <select data-bind='options: selectableProjections, value: projectionKey'></select>" +
 					"<div>geo: <input style='width: 40px' type='number' step='0.1' data-bind='value: geoDotSize'/> " +
 					"spawns: <input style='width: 40px' type='number' step='0.1' data-bind='value: spawnDotSize'/> <br/> " +
 					" metal: <input style='width: 40px' type='number' step='0.1' data-bind='value: metalDotSize'/> " +
 					"others: <input style='width: 40px' type='number' step='0.1' data-bind='value: othersDotSize'/> <br/>" +
+					"icons: <input style='width: 40px' type='number' step='0.1' data-bind='value: iconBaseSize'/> <br/>" +
 					" width: <input style='width: 60px' type='number' step='10' data-bind='value: width'/> " +
 					" height: <input style='width: 60px' type='number' step='10' data-bind='value: height'/> " +
 					" </div>"+
@@ -206,12 +306,12 @@ $(document).ready(function() {
 			var svg = d3.select("#"+targetDivId).append("svg").attr("width", self.width()).attr("height", self.height()).attr("id", targetDivId+"-svg").attr('class', 'receiveMouse');
 			$('#'+targetDivId+"-svg").attr('data-bind', "click: lookAtMinimap, event: {mousemove: movemouse, contextmenu: moveByMinimap, mouseleave: mouseleave}, style: {width: width, height: height}");
 			var defs = svg.append("defs");
-			defs.append("path").datum({type: "Sphere"}).attr("id", targetDivId+"-sphere").attr("d", path);
+			mapPaths.push(defs.append("path").datum({type: "Sphere"}).attr("id", targetDivId+"-sphere").attr("d", path));
 			var sphereId = "#"+targetDivId+"-sphere";
 			defs.append("clipPath").attr("id", targetDivId+"-clip").append("use").attr("xlink:href", sphereId);
 			svg.append("use").attr("class", "stroke").attr("xlink:href", sphereId);
 			svg.append("use").attr("class", "fill").attr("xlink:href", sphereId);
-			svg.append("path").datum(graticule).attr("class", "graticule").attr("clip-path", "url(#"+targetDivId+"-clip)").attr("d", path);
+			mapPaths.push(svg.append("path").datum(graticule).attr("class", "graticule").attr("clip-path", "url(#"+targetDivId+"-clip)").attr("d", path));
 			return svg;
 		};
 		
@@ -221,7 +321,7 @@ $(document).ready(function() {
 			for (var i = 0; i < layers.length; i++) {
 				var layer = layers[i];
 				if (map[layer]) {
-					svgElem.insert("path", ".graticule").datum(map[layer]).attr("class", layer+"").attr("d", path);
+					mapPaths.push(svgElem.insert("path", ".graticule").datum(map[layer]).attr("class", layer+" minimap_layer").attr("d", path));
 				} else {
 					console.log("layer "+layer+" is not defined");
 				}
@@ -254,7 +354,7 @@ $(document).ready(function() {
 				};
 				api.Panel.message(api.Panel.parentId, 'runUnitCommand', payload);
 			}
-		}
+		};
 		
 		self.moveByMinimap = function(data, e) {
 			moveToByMiniMapXY(e.offsetX, e.offsetY, e.shiftKey);
@@ -277,7 +377,7 @@ $(document).ready(function() {
 					planet_id: planetCameraId,
 					zoom: 'orbital'
 				});
-			}
+			};
 		};
 		
 		self.scaleX = ko.computed(function() {
@@ -288,10 +388,24 @@ $(document).ready(function() {
 		});
 		
 		self.movemouse = function(data, e) {
-			if (e.altKey) {
-				self.rotation([ self.scaleX()(e.offsetX), self.scaleY()(e.offsetY)]);
+			if (!self.fullScreened()) {
+				if (e.altKey) {
+					self.rotation([ self.scaleX()(e.offsetX), self.scaleY()(e.offsetY)]);
+				}
+				self.showPreviewByMapXY(e.offsetX, e.offsetY);
+			} else {
+				if (e) {
+					var x = e.screenX;
+					var y = e.screenY;
+					var ll = self.projection().invert([x, y]);
+					var c = undefined;
+					if (ll) {
+						c = convertToCartesian(ll[1], ll[0]);
+						c.push(planetCameraId);
+					}
+					api.Panel.message(api.Panel.parentId, "focusMainViewHack", [x, y, c]);
+				}
 			}
-			self.showPreviewByMapXY(e.offsetX, e.offsetY);
 		}
 		
 		self.mouseleave = function(data, e) {
@@ -390,20 +504,16 @@ $(document).ready(function() {
 		};
 		
 		self.markSelectedId = function(id) {
-			console.log("mark "+id);
 			if (movingUnits[id]) {
 				movingUnits[id].icon[0].attr('fill', "#FFFFFF");
 			}
 		};
 		
 		self.unmarkSelectedId = function(id) {
-			console.log("unmark "+id);
 			if (movingUnits[id]) {
 				movingUnits[id].icon[0].attr('fill', "#000000");
 			}
 		};
-		
-		var iconScale = 1;
 		
 		var movingUnits = {};
 		
@@ -418,9 +528,11 @@ $(document).ready(function() {
 			var fillSvg = strategicIconPaths[spec+"_fill"] || strategicIconPaths.fallback_fill;
 			
 			var blackFrame = makePath(borderSvg,"#000000", borderId)
-				.attr("transform", "translate(" + projected[0] + "," + projected[1] + "), scale("+iconScale+")");
+				.attr("transform", "translate(" + projected[0] + "," + projected[1] + "), scale("+iconSizeScale()+")")
+				.attr("class", "si_icon");
 			var teamColoredFill = makePath(fillSvg, armyColors[army], fillId)
-				.attr("transform", "translate(" + projected[0] + "," + projected[1] + "), scale("+iconScale+")");
+				.attr("transform", "translate(" + projected[0] + "," + projected[1] + "), scale("+iconSizeScale()+")")
+				.attr("class", "si_icon");
 			
 			movingUnits[id] = {spec: spec, icon: [blackFrame, teamColoredFill]};
 		};
@@ -431,7 +543,7 @@ $(document).ready(function() {
 				if (unitPosition !== undefined) {
 					var projected = getProjectedUnitPosition(id);
 					for (var i = 0; i < unit.icon.length; i++) {
-						unit.icon[i].attr('transform', "translate(" + projected[0] + "," + projected[1] + "), scale("+iconScale+")");
+						unit.icon[i].attr('transform', "translate(" + projected[0] + "," + projected[1] + "), scale("+iconSizeScale()+")");
 					}
 				}
 			});
@@ -492,6 +604,8 @@ $(document).ready(function() {
 		for (var i = 0; i < models.length; i++) {
 			alertsManager.addListener(models[i].handleAlerts);
 		}
+		
+		signalFocusModel(new Date().getTime());
 	};
 	
 	var processRemovals = function(payload) {
@@ -541,15 +655,19 @@ $(document).ready(function() {
 	};
 	
 	handlers.setSize = function(size) {
-		$('.body_panel').css('width', size);
+		$('.body_panel').css('width', size[0]);
+		mainViewWidth = size[0];
+		mainViewHeight= size[1];
 	};
 	
 	handlers.setCommanderId = function(params) {
-		console.log("got commander id " + params);
-		mobileUnits[params[0]] = {
-			spec: "commander",
-			army: params[1]
-		};
+		if (params[0]) {
+			console.log("got commander id " + params);
+			mobileUnits[params[0]] = {
+				spec: "commander",
+				army: params[1]
+			};
+		}
 	};
 	
 	handlers.setArmyColors = function(clrs) {
@@ -565,21 +683,28 @@ $(document).ready(function() {
 		api.Panel.message(api.Panel.parentId, 'queryArmyColors');
 	};
 	
+	var myArmyId = undefined;
+	
+	handlers.setMyArmyId = function(armyId) {
+		myArmyId = armyId;
+	};
+	
 	var wasSelected = {};
 	
 	handlers.selection = function(payload) {
-		console.log(payload);
-		
 		var newSelection = {};
-		_.forEach(payload.spec_ids, function(ids) {
+		_.forEach(payload.spec_ids, function(ids, spec) {
 			_.forEach(ids, function(id) {
 				newSelection[id] = true;
+				
+				if (contains(unitSpecMapping[spec], "Commander") && !mobileUnits[id]) {
+					mobileUnits[id] = {
+						spec: "commander",
+						army: myArmyId
+					};
+				}
 			});
 		});
-		
-		console.log("===");
-		console.log(newSelection);
-		console.log(wasSelected);
 		
 		_.forEach(newSelection, function(v, id) {
 			if (!wasSelected[id]) {
@@ -599,6 +724,14 @@ $(document).ready(function() {
 		wasSelected = newSelection;
 	};
 	
+	handlers.focus_planet_changed = function (payload) {
+		focusedPlanet(payload.focus_planet_id);
+	};
+	
+	handlers.zoom_level = function(payload) {
+		zoomLevel(payload.zoom_level);
+	};
+
 	app.registerWithCoherent(model, handlers);
 	
 	setTimeout(function() {
