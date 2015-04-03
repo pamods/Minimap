@@ -26,6 +26,30 @@ loadScript("coui://ui/mods/minimap/alertsManager.js");
 
 
 $(document).ready(function() {
+	var selectUnitsById = function(ids) {
+		engine.call("select.byIds", []).then(function() {
+			engine.call("select.byIds", ids).then(function() {
+				api.audio.playSound("/SE/UI/UI_Unit_Select");
+			});
+		});
+	};
+	
+	var selector = makeSelector();
+	$('body').append("<div id='selection_layer' style='position: fixed; top: 0px; left: 0px; z-index: -999'></div>");
+	selector.bindToElement("#selection_layer");
+	
+	var shiftState = ko.observable(false);
+	var ctrlState = ko.observable(false);
+	
+	var selectedUnits = {};
+	var selectedUnitsCount = function() {
+		var cnt = 0;
+		_.forEach(selectedUnits, function(u) {
+			cnt++;
+		});
+		return cnt;
+	};
+	
 	var assumedSize = 300;
 	var unitPositionPollingSpeed = 250;
 	
@@ -44,7 +68,32 @@ $(document).ready(function() {
 		}
 		return undefined;
 	});
-	focusedModel.extend({ rateLimit: 500 }); // prevent short focus fluctatons from affecting the display of the zoomed out view
+	focusedModel.extend({ rateLimit: 500 }); // prevent short focus fluctuations from affecting the display of the zoomed out view
+	
+	var anyFullScreened = ko.computed(function() {
+		return focusedModel() && focusedModel().fullScreened();
+	});
+	
+	var fullScreenListener = function(v) {
+		selector.setEnabled(v);
+		var $layer = $('#selection_layer');
+		if (v) {
+			$layer.addClass("receiveMouse");
+			$layer.removeClass("ignoreMouse");
+		} else {
+			$layer.removeClass("receiveMouse");
+			$layer.addClass("ignoreMouse");
+		}
+	};
+	anyFullScreened.subscribe(fullScreenListener);
+	fullScreenListener(anyFullScreened());
+
+	selector.addListener(function(x, y, w, h) {
+		_.forEach(models, function(m) {
+			m.rubberbandSelect(x, y, w, h, shiftState(), ctrlState());
+		});
+	});
+	
 	var zoomLevel = ko.observable();
 	
 	function contains(ar, val) {
@@ -119,10 +168,6 @@ $(document).ready(function() {
 			api.Panel.message(api.Panel.parentId, "fullMainView");
 		});
 
-		self.visible = ko.computed(function() {
-			return !focusedModel() || !focusedModel().fullScreened() || focusedModel() === self;
-		});
-		
 		var storeFunc = function(name, v) {
 			if (!self.fullScreened()) {
 				var cfg = loadConfig();
@@ -285,9 +330,13 @@ $(document).ready(function() {
 			return self.settingsVisible() && !self.fullScreened();
 		});
 		
+		self.cssPosition = ko.computed(function() {
+			return self.fullScreened() ? "absolute" : "relative";
+		});
+		
 		var prepareSvg = function(targetDivId) {
 			self.svgId = targetDivId;
-			$('#minimap_div').prepend('<div class="minimapdiv" id="'+targetDivId+'" data-bind="visible: visible, style: {top: topPosition()+\'px\', left: leftPosition()+\'px\'}"></div>');
+			$('#minimap_div').prepend('<div class="minimapdiv" id="'+targetDivId+'" data-bind="style: {top: topPosition()+\'px\', left: leftPosition()+\'px\', position: cssPosition()}"></div>');
 			$('#'+targetDivId).append("<div class='minimap_head'>"+planet.name+" <input style='pointer-events: all;' type='checkbox' data-bind='checked: settingsVisible, visible: !fullScreened()'/></div>");
 			$('#'+targetDivId).append("<div class='minimap_config' " +
 					"data-bind='visible: settingsVisibleComp'>" +
@@ -297,12 +346,14 @@ $(document).ready(function() {
 					" metal: <input style='width: 40px' type='number' step='0.1' data-bind='value: metalDotSize'/> " +
 					"others: <input style='width: 40px' type='number' step='0.1' data-bind='value: othersDotSize'/> <br/>" +
 					"icons: <input style='width: 40px' type='number' step='0.1' data-bind='value: iconBaseSize'/> <br/>" +
-					" width: <input style='width: 60px' type='number' step='10' data-bind='value: width'/> " +
-					" height: <input style='width: 60px' type='number' step='10' data-bind='value: height'/> " +
+					" width: <input style='width: 60px' type='number' step='10' data-bind='value: normalWidth'/> " +
+					" height: <input style='width: 60px' type='number' step='10' data-bind='value: normalHeight'/> " +
 					" </div>"+
 					"</div>");
 			var svg = d3.select("#"+targetDivId).append("svg").attr("width", self.width()).attr("height", self.height()).attr("id", targetDivId+"-svg").attr('class', 'receiveMouse');
-			$('#'+targetDivId+"-svg").attr('data-bind', "click: lookAtMinimap, event: {mousemove: movemouse, contextmenu: moveByMinimap, mouseleave: mouseleave}, style: {width: width, height: height}");
+			var svgIdStr = '#'+targetDivId+"-svg";
+			$(svgIdStr).attr('data-bind', "click: lookAtMinimap, event: {mousemove: movemouse, contextmenu: moveByMinimap, mouseleave: mouseleave}, style: {width: width, height: height}");
+			selector.bindToElement(svgIdStr);
 			var defs = svg.append("defs");
 			mapPaths.push(defs.append("path").datum({type: "Sphere"}).attr("id", targetDivId+"-sphere").attr("d", path));
 			var sphereId = "#"+targetDivId+"-sphere";
@@ -333,12 +384,17 @@ $(document).ready(function() {
 			$('#'+planet.id).remove();
 		};
 		
-		var lookAtByMinimapXY = function(x, y) {
+		var lookAtByMinimapXY = function(x, y, fullscreen) {
 			var ll = self.projection().invert([x, y]);
 			if (ll) {
 				var c = convertToCartesian(ll[1], ll[0]);
-				api.camera.lookAt({planet_id: planetCameraId, location: {x: c[0], y: c[1], z: c[2]}, zoom: 'orbital'});
-				api.camera.alignToPole();
+				c.push(planetCameraId);
+				if (fullscreen) {
+					api.Panel.message(api.Panel.parentId, "focusMainViewHack", c);
+				} else {
+					api.camera.lookAt({planet_id: planetCameraId, location: {x: c[0], y: c[1], z: c[2]}, zoom: "orbital"});
+					api.camera.alignToPole();
+				}
 			}
 		};
 		
@@ -360,7 +416,11 @@ $(document).ready(function() {
 		
 		self.lookAtMinimap = function(data, e) {
 			if (!self.fullScreened()) {
-				lookAtByMinimapXY(e.offsetX, e.offsetY);
+				lookAtByMinimapXY(e.offsetX, e.offsetY, anyFullScreened());
+			} else if (!shiftState() && selectedUnitsCount() > 0) {
+				engine.call("select.byIds", []).then(function() {
+					api.audio.playSound("/SE/UI/UI_Unit_UnSelect");
+				});
 			}
 		};
 		
@@ -388,12 +448,12 @@ $(document).ready(function() {
 		});
 		
 		self.movemouse = function(data, e) {
-			if (!self.fullScreened()) {
+			if (!self.fullScreened() && !anyFullScreened()) {
 				if (e.altKey) {
 					self.rotation([ self.scaleX()(e.offsetX), self.scaleY()(e.offsetY)]);
 				}
 				self.showPreviewByMapXY(e.offsetX, e.offsetY);
-			} else {
+			} else if (self.fullScreened()) {
 				if (e) {
 					var x = e.offsetX;
 					var y = e.offsetY;
@@ -403,7 +463,7 @@ $(document).ready(function() {
 						c = convertToCartesian(ll[1], ll[0]);
 						c.push(planetCameraId);
 					}
-					api.Panel.message(api.Panel.parentId, "focusMainViewHack", [x, y, c]);
+					api.Panel.message(api.Panel.parentId, "focusMainViewHack", c);
 				}
 			}
 		}
@@ -518,7 +578,6 @@ $(document).ready(function() {
 		var movingUnits = {};
 		
 		self.addMovingUnit = function(id, spec, army) {
-			console.log("add moving unit " + id + " spec " + spec);
 			var projected = getProjectedUnitPosition(id);
 			
 			var borderId = "unit"+id+"_border";
@@ -527,14 +586,44 @@ $(document).ready(function() {
 			var borderSvg = strategicIconPaths[spec+"_border"] || strategicIconPaths.fallback_border;
 			var fillSvg = strategicIconPaths[spec+"_fill"] || strategicIconPaths.fallback_fill;
 			
+			var clickHandler = function() {
+				if (anyFullScreened()) {
+					var jq = $(this);
+					var id = jq.attr("id");
+					var unitId = Number(id.replace("unit", "").replace("_border", "").replace("_fill", ""));
+					if (shiftState() && ctrlState() && selectedUnits[unitId]) {
+						var toSelect = []; // write general code to handle this way better.... 
+						_.forEach(selectedUnits, function(u, id) {
+							if (Number(id) !== unitId) {
+								toSelect.push(Number(id));
+							}
+						});
+						selectUnitsById(toSelect);
+					} else if ((shiftState() || ctrlState()) && !selectedUnits[unitId]) {
+						var toSelect = [unitId];
+						_.forEach(selectedUnits, function(u, id) {
+							if (Number(id) !== unitId) {
+								toSelect.push(Number(id));
+							}
+						});
+						selectUnitsById(toSelect);
+					} else {
+						selectUnitsById([unitId]);
+					}
+				}
+			};
+			
 			var blackFrame = makePath(borderSvg,"#000000", borderId)
 				.attr("transform", "translate(" + projected[0] + "," + projected[1] + "), scale("+iconSizeScale()+")")
 				.attr("class", "si_icon");
 			var teamColoredFill = makePath(fillSvg, armyColors[army], fillId)
 				.attr("transform", "translate(" + projected[0] + "," + projected[1] + "), scale("+iconSizeScale()+")")
 				.attr("class", "si_icon");
+
+			$(blackFrame[0][0]).click(clickHandler);
+			$(teamColoredFill[0][0]).click(clickHandler);
 			
-			movingUnits[id] = {spec: spec, icon: [blackFrame, teamColoredFill]};
+			movingUnits[id] = {spec: spec, icon: [blackFrame, teamColoredFill], position: projected};
 		};
 		
 		self.updateUnitPositions = function() {
@@ -542,6 +631,7 @@ $(document).ready(function() {
 				var unitPosition = unitPositionsHolder.getCurrentUnitPosition(id);
 				if (unitPosition !== undefined) {
 					var projected = getProjectedUnitPosition(id);
+					unit.position = projected;
 					for (var i = 0; i < unit.icon.length; i++) {
 						unit.icon[i].attr('transform', "translate(" + projected[0] + "," + projected[1] + "), scale("+iconSizeScale()+")");
 					}
@@ -553,7 +643,6 @@ $(document).ready(function() {
 			_.forEach(movingUnits, function(unit, id) {
 				var unitPosition = unitPositionsHolder.getCurrentUnitPosition(id); 
 				if (mobileUnits[id] === undefined || unitPosition === undefined || unitPosition.planet !== self.planetName) {
-					console.log("remove moving unit " + id);
 					$('#unit'+id+"_border").remove();
 					$('#unit'+id+"_fill").remove();
 					delete movingUnits[id];
@@ -566,6 +655,42 @@ $(document).ready(function() {
 					self.addMovingUnit(id, mobileUnits[id].spec, mobileUnits[id].army);
 				}
 			});
+		};
+		
+		self.rubberbandSelect = function(x, y, w, h, shift, ctrl) {
+			var offset = $(svgElem[0][0]).offset();
+			x -= offset.left;
+			y -= offset.top;
+			
+			var toSelect = [];
+			
+			_.forEach(movingUnits, function(u, id) {
+				var ux = u.position[0];
+				var uy = u.position[1];
+				
+				if (ux >= x && ux <= x + w && uy >= y && uy <= y + h) {
+					toSelect.push(Number(id));
+				}
+			});
+			
+			if (toSelect.length > 0) {
+				if (ctrl && shift) { // ctrl + shift removes
+					var deselect = toSelect;
+					toSelect = [];
+					_.forEach(selectedUnits, function(u, id) {
+						if (!contains(deselect, Number(id))) {
+							toSelect.push(Number(id));
+						}
+					});
+				} else if (shift || ctrl) { // ctrl or shift adds
+					_.forEach(selectedUnits, function(u, id) {
+						toSelect.push(Number(id));
+					});
+				} // else just select what was selected
+				
+				selectUnitsById(toSelect);
+			}
+			
 		};
 		
 		self.initForMap(planet);
@@ -582,7 +707,6 @@ $(document).ready(function() {
 			var alert = payload.list[i];
 			var types = unitSpecMapping[alert.spec_id];
 			if (alert.watch_type === 0) {
-				console.log(alert);
 				mobileUnits[alert.id] = {
 					spec: alert.spec_id,
 					army: alert.army_id
@@ -658,6 +782,8 @@ $(document).ready(function() {
 		$('.body_panel').css('width', size[0]);
 		mainViewWidth = size[0];
 		mainViewHeight= size[1];
+		$('#selection_layer').css("height", mainViewHeight+"px").css("width", mainViewWidth+"px");
+		$('#minimap_div').css("height", size[1]);
 	};
 	
 	handlers.setCommanderId = function(params) {
@@ -689,8 +815,6 @@ $(document).ready(function() {
 		myArmyId = armyId;
 	};
 	
-	var wasSelected = {};
-	
 	handlers.selection = function(payload) {
 		var newSelection = {};
 		_.forEach(payload.spec_ids, function(ids, spec) {
@@ -707,13 +831,13 @@ $(document).ready(function() {
 		});
 		
 		_.forEach(newSelection, function(v, id) {
-			if (!wasSelected[id]) {
+			if (!selectedUnits[id]) {
 				_.forEach(models, function(model) {
 					model.markSelectedId(id);
 				});
 			}
 		});
-		_.forEach(wasSelected, function(v, id) {
+		_.forEach(selectedUnits, function(v, id) {
 			if (!newSelection[id]) {
 				_.forEach(models, function(model) {
 					model.unmarkSelectedId(id);
@@ -721,17 +845,27 @@ $(document).ready(function() {
 			}
 		});
 		
-		wasSelected = newSelection;
+		selectedUnits = newSelection;
 	};
 	
 	handlers.focus_planet_changed = function (payload) {
-		focusedPlanet(payload.focus_planet_id);
+		if (payload.focus_planet_id !== undefined) {
+			focusedPlanet(payload.focus_planet_id);
+		}
 	};
 	
 	handlers.zoom_level = function(payload) {
 		zoomLevel(payload.zoom_level);
 	};
 
+	handlers.setShiftState = function(payload) {
+		shiftState(payload);
+	};
+	
+	handlers.setCtrlState = function(payload) {
+		ctrlState(payload);
+	};
+	
 	app.registerWithCoherent(model, handlers);
 	
 	setTimeout(function() {

@@ -47,7 +47,7 @@ console.log("inject minimap");
 		if (focusView) {
 			if (focusLocation !== undefined && focusInterval === undefined) {
 				focusInterval = setInterval(function() {
-					var focusP = planetIdToIndexMap[focusLocation[2]];
+					var focusP = planetIdToIndexMap[focusLocation[3]];
 					api.camera.focusPlanet(focusP);
 					lookAtFocus();
 					if (new Date().getTime() - lastWheelMove > 1000) {
@@ -60,21 +60,12 @@ console.log("inject minimap");
 	
 	var mouseDownHandler = function(e) {
 		if (e.button === 1) {
-			console.log("clear focus due to mouse movement");
 			clearFocusInterval();
 		}
 	};
 	$(document).bindFirst("mousedown", mouseDownHandler);
 	$('holodeck').bindFirst("mousedown", mouseDownHandler);
-	
-	var holodeck = $('.primary');
-	var hMidX = 0;
-	var hMidY = 0;
-	var hx = 0;
-	var hy = 0;
-	var w = 100;
-	var h = 100;
-	
+
 	var lookAtFocus = function() {
 		var lookTarget = {
 			location: {
@@ -85,56 +76,24 @@ console.log("inject minimap");
 			planet_id: focusLocation[3],
 			zoom: 'invalid' // by pure chance I found that when I pass in an unknown string it just keeps the current zoom level. YEY that is what I wanted to do.
 		};
-		console.log(lookTarget);
 		api.camera.lookAt(lookTarget);
 		api.camera.alignToPole();
 	};
 	
+	var holodeck = $('.primary');
+	
 	handlers.focusMainViewHack = function(params) {
-		/*
-		var x = params[0];
-		var y = params[1];
-		var leftX = x - w/2;
-		var topY = y - h/2;
-		hx = leftX;
-		hy = topY;
-		hMidX = x;
-		hMidY = y;
-		holodeck.attr("style", "top: "+topY+"px; left: "+leftX+"px; width: "+w+"px; height: "+h+"px");
-		*/
-		
 		focusView = true;
-		
-		if (params[2]/* && (new Date().getTime() - lastWheelMove > 1000)*/) {
-			focusLocation = params[2];
+		if (params) {
+			focusLocation = params;
 			lookAtFocus();
 		}
+		holodeck.attr("style", "top: "+(window.screen.height/2).toFixed(0)+"px; left: "+(window.screen.width/2).toFixed(0)+"px; width: "+50+"px; height: "+50+"px");
 	};
 	
 	handlers.fullMainView = function() {
-//		var leftExtend = hx;
-//		var rightExtend = window.screen.width - leftExtend;
-//		var extendW = Math.max(leftExtend, rightExtend) * 2;
-//		
-//		console.log("extendW = " + extendW);
-//		
-//		var topExtend = hy;
-//		var bottomExtend = window.screen.height - topExtend;
-//		var extendH = Math.max(topExtend, bottomExtend) * 2;
-//		
-//		console.log("extendH = "+extendH);
-//		
-//		var leftX = hMidX - extendW/2;
-//		var topY = hMidY - extendH/2;
-//		
-//		console.log("leftX = "+leftX);
-//		console.log("topY = "+topY);
-		
-//		holodeck.attr("style", "top: "+topY+"px; left: "+leftX+"px; width: "+extendW+"px; height: "+extendH+"px");
-		//holodeck.attr("style", "");
-		
+		holodeck.attr("style", "");
 		focusView = false;
-		api.camera.freeze(false);
 	};
 	
 	handlers.queryViewportSize = function() {
@@ -210,6 +169,23 @@ console.log("inject minimap");
 		oldShowAlertPreview(target);
 		api.camera.lookAt = oldLookAt;
 	};
+	
+
+	$(document).keydown(function(e) {
+		if (e.keyCode === 16) {
+			api.panels.minimap_panel.message("setShiftState", true);
+		} else if (e.keyCode === 17) {
+			api.panels.minimap_panel.message("setCtrlState", true);
+		}
+	});
+	
+	$(document).keyup(function(e) {
+		if (e.keyCode === 16) {
+			api.panels.minimap_panel.message("setShiftState", false);
+		} else if (e.keyCode === 17) {
+			api.panels.minimap_panel.message("setCtrlState", false);
+		}
+	});
 	
 }());
 $(document).ready(function() {

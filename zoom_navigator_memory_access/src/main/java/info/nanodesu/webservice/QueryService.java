@@ -15,8 +15,8 @@ public class QueryService extends ServerResource {
         new Server(Protocol.HTTP, 8184, QueryService.class).start();
     }
     
-    public static int baseAdr = 0x2ADFE38;
-    public static int pid = 4968;
+    public static int baseAdr = 0x2BBFE38;
+    public static int pid = 10192;
     
     public static ObjectMapper mapper = new ObjectMapper();
     
