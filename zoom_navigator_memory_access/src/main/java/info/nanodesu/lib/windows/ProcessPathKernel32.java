@@ -1,4 +1,4 @@
-package info.nanodesu.lib;
+package info.nanodesu.lib.windows;
 
 import java.util.Arrays;
 import java.util.List;

@@ -1,11 +1,10 @@
-package info.nanodesu.lib;
+package info.nanodesu.lib.windows;
 
 import java.util.Arrays;
 import java.util.List;
 
 import com.sun.jna.Native;
 import com.sun.jna.platform.win32.Kernel32;
-import com.sun.jna.platform.win32.Kernel32Util;
 import com.sun.jna.platform.win32.Tlhelp32;
 import com.sun.jna.platform.win32.WinDef;
 import com.sun.jna.platform.win32.WinNT;
@@ -17,7 +16,8 @@ public class ProcessPathAll {
     public static void main(String ... args) {
         Kernel32 kernel32 = (Kernel32) Native.loadLibrary(Kernel32.class, W32APIOptions.DEFAULT_OPTIONS);
         Tlhelp32.PROCESSENTRY32.ByReference processEntry = new Tlhelp32.PROCESSENTRY32.ByReference() {
-        	protected List getFieldOrder() {
+        	@SuppressWarnings("rawtypes")
+			protected List getFieldOrder() {
 	            return Arrays.asList(new String[] { "dwSize", "cntUsage", "th32ProcessID", "th32DefaultHeapID", "th32ModuleID", "cntThreads", "th32ParentProcessID", "pcPriClassBase", "dwFlags", "szExeFile" });
 	        }
         };

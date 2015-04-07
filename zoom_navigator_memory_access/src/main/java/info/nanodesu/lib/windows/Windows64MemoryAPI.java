@@ -1,4 +1,6 @@
-package info.nanodesu.lib;
+package info.nanodesu.lib.windows;
+
+import info.nanodesu.lib.Memory64API;
 
 import java.io.BufferedReader;
 import java.io.File;

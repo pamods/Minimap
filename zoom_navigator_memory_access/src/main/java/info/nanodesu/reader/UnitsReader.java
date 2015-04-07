@@ -1,6 +1,6 @@
 package info.nanodesu.reader;
 
-import info.nanodesu.lib.Windows64MemoryAPI;
+import info.nanodesu.lib.windows.Windows64MemoryAPI;
 
 import java.util.ArrayList;
 import java.util.HashMap;

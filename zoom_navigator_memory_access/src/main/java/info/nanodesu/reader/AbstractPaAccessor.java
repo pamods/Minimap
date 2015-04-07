@@ -1,7 +1,7 @@
 package info.nanodesu.reader;
 
 import info.nanodesu.lib.Memory64API;
-import info.nanodesu.lib.Windows64MemoryAPI;
+import info.nanodesu.lib.windows.Windows64MemoryAPI;
 
 import com.sun.jna.Platform;
 
