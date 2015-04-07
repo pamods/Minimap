@@ -1,14 +1,28 @@
 package info.nanodesu.lib;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.Reader;
+import java.util.Arrays;
+import java.util.List;
+
+import org.restlet.engine.io.IoUtils;
+
 import com.sun.jna.Memory;
 import com.sun.jna.Native;
 import com.sun.jna.Platform;
 import com.sun.jna.Pointer;
+import com.sun.jna.platform.win32.Tlhelp32;
+import com.sun.jna.platform.win32.WinDef.DWORD;
 import com.sun.jna.platform.win32.WinNT.HANDLE;
 import com.sun.jna.ptr.IntByReference;
-import com.sun.jna.win32.StdCallLibrary;
+import com.sun.jna.win32.W32APIOptions;
 
 public class Windows64MemoryAPI implements Memory64API {
+	
     public Windows64MemoryAPI() {
     	if (!Platform.isWindows()) {
             throw new RuntimeException("This works only with windows! Maybe somebody could implement it for Linux, I cannot.");
@@ -157,7 +171,7 @@ public class Windows64MemoryAPI implements Memory64API {
         Kernel32.INSTANCE.ReadProcessMemory(process, adr, mem, output.length, bytesRead);
         
         System.arraycopy(mem.getByteArray(0, bytesRead.getValue()), 0, output, 0, bytesRead.getValue());
-        
+
         return output;
     }
     
@@ -173,12 +187,12 @@ public class Windows64MemoryAPI implements Memory64API {
         return bytesWritten.getValue();
     }
     
-    private static interface Kernel32 extends StdCallLibrary {
+    private static interface Kernel32 extends com.sun.jna.platform.win32.Kernel32 {
         public static int PROCESS_VM_OPERATION = 0x0008;
         public static int PROCESS_VM_READ = 0x0010;
         public static int PROCESS_VM_WRITE = 0x0020;
         
-        Kernel32 INSTANCE = (Kernel32) Native.loadLibrary("kernel32.dll", Kernel32.class);
+        Kernel32 INSTANCE = (Kernel32) Native.loadLibrary(Kernel32.class, W32APIOptions.DEFAULT_OPTIONS);
 
         public HANDLE OpenProcess(int dwDesiredAccess, boolean bInheritHandle, int dwProcessId);
 
@@ -189,6 +203,59 @@ public class Windows64MemoryAPI implements Memory64API {
         
         public boolean WriteProcessMemory(HANDLE hProcess, long inBaseAddress, Pointer inpputBuffer, int size,
                 IntByReference outNumberOfBytesRead);
+        
+        
     }
+
+	@Override
+	public int findPAProcess() {
+		HANDLE hProcessSnap = Kernel32.INSTANCE.CreateToolhelp32Snapshot(Tlhelp32.TH32CS_SNAPPROCESS, new DWORD(0));
+		if (hProcessSnap != null) {
+			try {
+				Tlhelp32.PROCESSENTRY32.ByReference ref = new Tlhelp32.PROCESSENTRY32.ByReference() {
+					@SuppressWarnings("rawtypes")
+					protected List getFieldOrder() {
+			            return Arrays.asList(new String[] { "dwSize", "cntUsage", "th32ProcessID", "th32DefaultHeapID", "th32ModuleID", "cntThreads", "th32ParentProcessID", "pcPriClassBase", "dwFlags", "szExeFile" });
+			        }
+				};
+				while (Kernel32.INSTANCE.Process32Next(hProcessSnap, ref)) {
+					if ("PA.exe".equals(Native.toString(ref.szExeFile))) {
+						return ref.th32ProcessID.intValue();
+					}
+				}
+				throw new RuntimeException("cannot find process PA.exe Please ensure your PA executable is called PA.exe and that PA is running");
+			} finally {
+				Kernel32.INSTANCE.CloseHandle(hProcessSnap);
+			}
+		} else {
+			throw new RuntimeException("cannot find pa process: process snap handle is null");
+		}
+	}
+
+	@Override
+	public String findPAVersion() {
+		DWORD paProc = new DWORD(findPAProcess());
+		HANDLE moduleSnapshot = 
+                Kernel32.INSTANCE.CreateToolhelp32Snapshot(Tlhelp32.TH32CS_SNAPMODULE, paProc);
+		try {
+			 ProcessPathKernel32.MODULEENTRY32.ByReference me = new ProcessPathKernel32.MODULEENTRY32.ByReference();
+	         ProcessPathKernel32.INSTANCE.Module32First(moduleSnapshot, me);
+	         File exePath = new File(me.szExePath());
+	         File versionFile = new File(exePath.getParentFile().getParentFile(), "version.txt");
+	         Reader reader = new BufferedReader(new FileReader(versionFile));
+	         try {
+	        	 return IoUtils.toString(reader);
+	         } finally {
+	        	 try {
+					reader.close();
+				} catch (IOException e) {
+				}
+	         }
+		} catch (FileNotFoundException e) {
+			throw new RuntimeException("cannot find version file", e);
+		} finally {
+			Kernel32.INSTANCE.CloseHandle(moduleSnapshot);
+		}
+	}
 }
 

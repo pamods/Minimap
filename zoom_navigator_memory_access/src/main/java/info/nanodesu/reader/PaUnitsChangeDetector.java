@@ -12,9 +12,6 @@ public class PaUnitsChangeDetector {
 		
 	public PaUnitsChangeDetector(PaClientMemoryAccessor acc) {
 		this.pa = acc;
-		if (acc.isAttached()) {
-			throw new RuntimeException("The given PaClientMemoryAccessor should be attached!");
-		}
 		this.unitsMap = new HashMap<>();
 	}
 	
@@ -35,10 +32,22 @@ public class PaUnitsChangeDetector {
 	public PaUnitInfoUpdate generateUpdate(long lastUpdateId, float minPositionChange) {
 		PaUnitInfoUpdate update = new PaUnitInfoUpdate();
 		
-		List<FullUnitInfo> units = pa.readUnitInfos();
+		long f = System.currentTimeMillis();
+		pa.attach();
+		System.out.println((System.currentTimeMillis() - f)+"ms A");
+		List<FullUnitInfo> units = null;
+		try {
+			f = System.currentTimeMillis();
+			units = pa.readUnitInfos();
+			System.out.println((System.currentTimeMillis() - f)+"ms B");
+		} finally {
+			f = System.currentTimeMillis();
+			pa.detach();
+			System.out.println((System.currentTimeMillis() - f)+"ms C");
+		}
 		
 		if (update.getUpdateId() - lastUpdateId > 1) {
-			System.out.println("received a bad update id. Will send a reset update!");
+			System.out.println("received a bad update id " + update.getUpdateId() + " vs " + lastUpdateId + ". Will send a reset update!");
 			unitsMap.clear();
 			update.setReset(true);
 		}

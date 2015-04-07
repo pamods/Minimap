@@ -30,8 +30,7 @@ public abstract class AbstractPaAccessor implements PaClientMemoryAccessor {
 	
 	@Override
 	public void attach() {
-		pa.openProcessByPid(pid);
-		attached = true;
+		attached = pa.openProcessByPid(pid);
 	}
 	
 	@Override

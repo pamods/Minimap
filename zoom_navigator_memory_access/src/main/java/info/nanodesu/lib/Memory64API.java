@@ -9,6 +9,10 @@ import java.io.Closeable;
  */
 public interface Memory64API extends Closeable {
 
+	int findPAProcess();
+	
+	String findPAVersion();
+	
 	boolean openProcessByPid(int pid);
 
 	void close();
