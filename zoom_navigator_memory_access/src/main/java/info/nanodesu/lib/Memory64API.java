@@ -1,17 +1,16 @@
 package info.nanodesu.lib;
 
-import java.io.Closeable;
 
 /**
  * There is no support for 32 bit systems. It would be possible to rewrite this with int for the addresses, but I see
  * little value in the extra work just for systems that will crash all the time anyway, as running the zoom system will require extra memory
  * @author ColaColin
  */
-public interface Memory64API extends Closeable {
+public interface Memory64API {
 
 	int findPAProcess();
 	
-	String findPAVersion();
+	String findPAVersion(int process);
 	
 	boolean openProcessByPid(int pid);
 

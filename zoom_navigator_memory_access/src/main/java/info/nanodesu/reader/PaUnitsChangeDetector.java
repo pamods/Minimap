@@ -32,18 +32,12 @@ public class PaUnitsChangeDetector {
 	public PaUnitInfoUpdate generateUpdate(long lastUpdateId, float minPositionChange) {
 		PaUnitInfoUpdate update = new PaUnitInfoUpdate();
 		
-		long f = System.currentTimeMillis();
 		pa.attach();
-		System.out.println((System.currentTimeMillis() - f)+"ms A");
 		List<FullUnitInfo> units = null;
 		try {
-			f = System.currentTimeMillis();
 			units = pa.readUnitInfos();
-			System.out.println((System.currentTimeMillis() - f)+"ms B");
 		} finally {
-			f = System.currentTimeMillis();
 			pa.detach();
-			System.out.println((System.currentTimeMillis() - f)+"ms C");
 		}
 		
 		if (update.getUpdateId() - lastUpdateId > 1) {

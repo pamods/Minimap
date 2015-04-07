@@ -4,8 +4,6 @@ import info.nanodesu.reader.PaClientMemoryAccessor;
 import info.nanodesu.reader.PaUnitInfoUpdate;
 import info.nanodesu.reader.PaUnitsChangeDetector;
 
-import java.util.concurrent.ConcurrentHashMap;
-
 import org.restlet.Context;
 import org.restlet.Request;
 import org.restlet.Response;

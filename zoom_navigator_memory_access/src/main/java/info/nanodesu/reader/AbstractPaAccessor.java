@@ -19,7 +19,7 @@ public abstract class AbstractPaAccessor implements PaClientMemoryAccessor {
 				throw new RuntimeException("support is implemented only for windows. If you know how to implement this on linux or OSX please help me implement it.");
 			}
 		} else {
-			throw new RuntimeException("this program only supports 64 bits systems");
+			throw new RuntimeException("this program only supports 64 bit systems");
 		}
 	}
 	

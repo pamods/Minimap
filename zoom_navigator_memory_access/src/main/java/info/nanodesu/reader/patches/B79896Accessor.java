@@ -1,4 +1,7 @@
-package info.nanodesu.reader;
+package info.nanodesu.reader.patches;
+
+import info.nanodesu.reader.AbstractPaAccessor;
+import info.nanodesu.reader.FullUnitInfo;
 
 import java.util.ArrayList;
 import java.util.List;

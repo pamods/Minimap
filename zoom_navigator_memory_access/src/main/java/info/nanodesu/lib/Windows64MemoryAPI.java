@@ -233,8 +233,8 @@ public class Windows64MemoryAPI implements Memory64API {
 	}
 
 	@Override
-	public String findPAVersion() {
-		DWORD paProc = new DWORD(findPAProcess());
+	public String findPAVersion(int process) {
+		DWORD paProc = new DWORD(process);
 		HANDLE moduleSnapshot = 
                 Kernel32.INSTANCE.CreateToolhelp32Snapshot(Tlhelp32.TH32CS_SNAPMODULE, paProc);
 		try {
