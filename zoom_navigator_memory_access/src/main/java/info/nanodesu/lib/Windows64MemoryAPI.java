@@ -1,7 +1,5 @@
 package info.nanodesu.lib;
 
-import java.io.Closeable;
-
 import com.sun.jna.Memory;
 import com.sun.jna.Native;
 import com.sun.jna.Platform;
@@ -10,36 +8,22 @@ import com.sun.jna.platform.win32.WinNT.HANDLE;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.win32.StdCallLibrary;
 
-public class MemoryAPI implements Closeable {
-    
-    static {
-        if (!Platform.isWindows()) {
+public class Windows64MemoryAPI implements Memory64API {
+    public Windows64MemoryAPI() {
+    	if (!Platform.isWindows()) {
             throw new RuntimeException("This works only with windows! Maybe somebody could implement it for Linux, I cannot.");
+        } else if (!Platform.is64Bit()) {
+        	throw new RuntimeException("This assumes a 64 bit runtime! Please install a 64bit jvm");
         }
     }
-
+    
     private HANDLE process = null;
-    
-    private HANDLE window = null;
-    
-    public boolean processWindowHasFocus() {
-        return window.equals(User32.INSTANCE.GetForegroundWindow());
-    }
-    
-    public boolean openProcessByWindow(String windowClass, String windowName) {
-        if (process != null) {
-            close();
-        }
-        
-        IntByReference pid = new IntByReference();
-        User32.INSTANCE.GetWindowThreadProcessId(window = User32.INSTANCE.FindWindowA(windowClass, windowName), pid);
-        return openProcessByPid(pid);
-    }
-    
-    public boolean openProcessByPid(IntByReference pid) {
+
+    @Override
+	public boolean openProcessByPid(int pid) {
         int accessCode = Kernel32.PROCESS_VM_OPERATION | Kernel32.PROCESS_VM_READ | Kernel32.PROCESS_VM_WRITE;
         
-        process = Kernel32.INSTANCE.OpenProcess(accessCode, false, pid.getValue());
+        process = Kernel32.INSTANCE.OpenProcess(accessCode, false, pid);
         
         return process != null;
     }
@@ -52,19 +36,28 @@ public class MemoryAPI implements Closeable {
         }
     }
     
-    public byte readByte(int adr) {
+    @Override
+	public byte readByte(long adr) {
         return readMemory(adr, 1)[0];
     }
     
-    public int readInt(int adr) {
+    @Override
+	public int readInt(long adr) {
         return bytesToInt(readMemory(adr, 4));
     }
     
-    public float readFloat(int adr) {
+	@Override
+	public long readLong(long adr) {
+		return bytesToLong(readMemory(adr, 8));
+	}
+    
+    @Override
+	public float readFloat(long adr) {
         return Float.intBitsToFloat(bytesToInt(readMemory(adr, 4)));
     }
     
-    public String readNullTerminatedString(int adr) {
+    @Override
+	public String readNullTerminatedString(long adr) {
     	StringBuilder builder = new StringBuilder();
     	byte[] r = null;
     	loop:	
@@ -84,18 +77,40 @@ public class MemoryAPI implements Closeable {
     	return builder.toString();
     }
     
-    public void writeByte(int adr, byte b) {
+    @Override
+	public void writeByte(long adr, byte b) {
         writeMemory(adr, new byte[] {b});
     }
     
-    public void writeInt(int adr, int i) {
+    @Override
+	public void writeInt(long adr, int i) {
         writeMemory(adr, intToBytes(i));
     }
     
-    public void writeFloat(int adr, float f) {
+    @Override
+	public void writeFloat(long adr, float f) {
         writeMemory(adr, intToBytes(Float.floatToIntBits(f)));
     }
     
+	@Override
+	public void writeLong(long adr, long l) {
+		writeMemory(adr, longToBytes(l));
+	}
+    
+	private static byte[] longToBytes(long i) {
+        byte[] dest = new byte[8];
+        dest[7] = (byte) (i >>> 56);
+        dest[6] = (byte) (i >>> 48);
+        dest[5] = (byte) (i >>> 40);
+        dest[4] = (byte) (i >>> 32);
+        dest[3] = (byte) (i >>> 24);
+        dest[2] = (byte) (i >>> 16);
+        dest[1] = (byte) (i >>> 8);
+        dest[0] = (byte) (i);
+
+        return dest;
+	}
+	
     private static byte[] intToBytes(int i) {
         byte[] dest = new byte[4];
         dest[3] = (byte) (i >>> 24);
@@ -116,8 +131,24 @@ public class MemoryAPI implements Closeable {
 
         return result;   
     }
+
+    private static long bytesToLong(byte[] b) {
+        long result = 0;
+
+        result |= (long) (0xFF & b[7]) << 56;
+        result |= (long) (0xFF & b[6]) << 48;
+        result |= (long) (0xFF & b[5]) << 40;
+        result |= (long) (0xFF & b[4]) << 32;
+        result |= (long) (0xFF & b[3]) << 24;
+        result |= (long) (0xFF & b[2]) << 16;
+        result |= (long) (0xFF & b[1]) << 8;
+        result |= (long) (0xFF & b[0]);
+
+        return result;    	
+    }
     
-    public byte[] readMemory(int adr, int count) {
+    @Override
+	public byte[] readMemory(long adr, int count) {
         IntByReference bytesRead = new IntByReference();
         
         byte[] output = new byte[count];
@@ -130,7 +161,8 @@ public class MemoryAPI implements Closeable {
         return output;
     }
     
-    public int writeMemory(int adr, byte[] bytesToWrite) {
+    @Override
+	public int writeMemory(long adr, byte[] bytesToWrite) {
         IntByReference bytesWritten = new IntByReference();
         
         Memory mem = new Memory(bytesToWrite.length);
@@ -152,21 +184,11 @@ public class MemoryAPI implements Closeable {
 
         public boolean CloseHandle(HANDLE handle);
 
-        public boolean ReadProcessMemory(HANDLE hProcess, int inBaseAddress, Pointer outputBuffer, int nSize,
+        public boolean ReadProcessMemory(HANDLE hProcess, long inBaseAddress, Pointer outputBuffer, int nSize,
                 IntByReference outNumberOfBytesRead);      
         
-        public boolean WriteProcessMemory(HANDLE hProcess, int inBaseAddress, Pointer inpputBuffer, int size,
+        public boolean WriteProcessMemory(HANDLE hProcess, long inBaseAddress, Pointer inpputBuffer, int size,
                 IntByReference outNumberOfBytesRead);
-    }
-    
-    private static interface User32 extends StdCallLibrary {
-        User32 INSTANCE = (User32) Native.loadLibrary("user32.dll", User32.class);
-        
-        public HANDLE FindWindowA(String ClassName, String WindowName);
-        
-        public HANDLE GetForegroundWindow();
-        
-        public int GetWindowThreadProcessId(HANDLE hWnd, IntByReference lpdwProcessId);
     }
 }
 

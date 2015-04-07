@@ -1,14 +1,13 @@
 package info.nanodesu.reader;
 
+import info.nanodesu.lib.Windows64MemoryAPI;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.sun.jna.ptr.IntByReference;
-
-import info.nanodesu.lib.MemoryAPI;
-
+// legacy stuff that worked against the server of version 79719-pte
 public class UnitsReader {
 	
 	public static class Unit {
@@ -43,7 +42,7 @@ public class UnitsReader {
 	public boolean log = true;
 	private int rootAddress;
 	
-	private MemoryAPI mem = new MemoryAPI();
+	private Windows64MemoryAPI mem = new Windows64MemoryAPI();
 
 	public UnitsReader(int b) {
 		rootAddress = b + 0x8;
@@ -62,7 +61,7 @@ public class UnitsReader {
 	}
 	
 	public boolean open(int pid) {
-		return mem.openProcessByPid(new IntByReference(pid));
+		return mem.openProcessByPid(pid);
 	}
 	
 	public void close() {
