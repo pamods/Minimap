@@ -4,6 +4,7 @@ import info.nanodesu.lib.Memory64API;
 import info.nanodesu.lib.windows.Windows64MemoryAPI;
 import info.nanodesu.reader.PaClientMemoryAccessor;
 import info.nanodesu.reader.patches.B79896Accessor;
+import info.nanodesu.reader.patches.B80187Accessor;
 
 import java.util.logging.Level;
 
@@ -31,6 +32,8 @@ public class MemoryApiWebservice extends Application {
 			case "79896-pte":
 			case "80155-pte":
 				return new B79896Accessor(useProcessId);
+			case "80187":
+				return new B80187Accessor(useProcessId);
 			default:
 				System.out.println("ERROR: version "+version+ " is not supported");
 				return null;

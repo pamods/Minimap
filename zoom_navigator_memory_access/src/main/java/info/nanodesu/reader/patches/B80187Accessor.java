@@ -1,22 +1,21 @@
 package info.nanodesu.reader.patches;
 
 
-public class B79896Accessor extends PaAccessor1 {
-	
+public class B80187Accessor extends PaAccessor1 {
 	public static void main(String[] args) {
-		B79896Accessor t = new B79896Accessor(4768);
+		B80187Accessor t = new B80187Accessor(4768);
 		t.attach();
 		System.out.println(t.readUnitInfos());
 		t.detach();
 	}
 	
-	public B79896Accessor(int pid) {
+	public B80187Accessor(int pid) {
 		super(pid, new PaAccessor1Constants() {
 			{
 				baseAdr = 0x14068BB90L;
 				basePointer = new long[]{0x608, 0x18, 0x80};
 				finalBase = 0x1D0;
-				unitProcessingFunctionAdr = 0x1404C58D8L;
+				unitProcessingFunctionAdr = 0x1404C5A08L;
 				unitProcessingFunction = 0x30;
 				visibilityBit = 0x19D;
 				unitBase = 0x30;
