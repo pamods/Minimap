@@ -7,9 +7,18 @@ public class FullUnitInfo {
 	private float x;
 	private float y;
 	private float z;
+	private float planetId;
 	private float currentHp;
 	private float maxHp;
 		
+	public float getPlanetId() {
+		return planetId;
+	}
+	
+	public void setPlanetId(float planetId) {
+		this.planetId = planetId;
+	}
+	
 	public int getId() {
 		return id;
 	}

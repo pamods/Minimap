@@ -41,6 +41,7 @@ public class PaAccessor1 extends AbstractPaAccessor {
 		public long x;
 		public long y;
 		public long z;
+		public long planetId;
 	}
 	
 	protected static void l(long x) {
@@ -97,7 +98,8 @@ public class PaAccessor1 extends AbstractPaAccessor {
 		inf.setX(pa.readFloat(base + c.x));
 		inf.setY(pa.readFloat(base + c.y));
 		inf.setZ(pa.readFloat(base + c.z));
-		
+		inf.setPlanetId(pa.readInt(base + c.planetId));
+		l(base);
 		return inf;
 	}
 	

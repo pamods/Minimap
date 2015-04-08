@@ -255,6 +255,8 @@ public class Windows64MemoryAPI implements Memory64API {
 	         }
 		} catch (FileNotFoundException e) {
 			throw new RuntimeException("cannot find version file", e);
+		} catch (Exception e) {
+			throw new RuntimeException("error finding version", e);
 		} finally {
 			Kernel32.INSTANCE.CloseHandle(moduleSnapshot);
 		}

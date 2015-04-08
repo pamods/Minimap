@@ -19,38 +19,54 @@ import com.sun.jna.Platform;
 
 public class MemoryApiWebservice extends Application {
 	
-	public static PaClientMemoryAccessor findAccessor(Integer useProcessId) {
+	public static PaClientMemoryAccessor findAccessor(Integer useProcessId, String version) {
+		Memory64API api = null;
 		if (Platform.isWindows() && Platform.is64Bit()) {
-			Memory64API api = new Windows64MemoryAPI();
-			if (useProcessId == null) {
-				useProcessId = api.findPAProcess();
-			}
-			System.out.println("found PA Client pid "+useProcessId);
-			String version = api.findPAVersion(useProcessId).trim();
-			System.out.println("detected PA Client version "+version);
-			switch (version) {
-			case "79896-pte":
-			case "80155-pte":
-				return new B79896Accessor(useProcessId);
-			case "80187":
-				return new B80187Accessor(useProcessId);
-			default:
-				System.out.println("ERROR: version "+version+ " is not supported");
-				return null;
-			}
+			api = new Windows64MemoryAPI();
 		} else {
 			System.out.println("ERROR: currently only windows 64 bit is supported");
+			return null;
+		}
+		
+		if (useProcessId == null) {
+			useProcessId = api.findPAProcess();
+			System.out.println("automatically detected PA Client pid "+useProcessId);
+		}
+		
+		if (version == null) {
+			version = api.findPAVersion(useProcessId).trim();
+			System.out.println("automatically detected PA Client version "+version);
+		}
+		
+		switch (version) {
+		case "79896-pte":
+		case "80155-pte":
+			return new B79896Accessor(useProcessId);
+		case "80187":
+			return new B80187Accessor(useProcessId);
+		default:
+			System.out.println("ERROR: version "+version+ " is not supported");
 			return null;
 		}
 	}
 	
 	public static void main(String[] args) throws Exception {
+//		args = new String[]{"-pid", "1924", "-version", "80187"};
 		Integer forcedPid = null;
-		if (args.length == 1) {
-			forcedPid = Integer.parseInt(args[0]);
+		String forceVersion = null;
+		
+		for (int i = 0; i < args.length; i++) {
+			if (args[i] == "-version" && args.length > i+1) {
+				forceVersion = args[i+1];
+				System.out.println("will use version provided by arguments: "+forceVersion);
+			}
+			if (args[i] == "-pid" && args.length > i+1) {
+				forcedPid = Integer.parseInt(args[i+1]);
+				System.out.println("will use pid provided by arguments: "+forcedPid);
+			}
 		}
 
-		PaClientMemoryAccessor pa = findAccessor(forcedPid);
+		PaClientMemoryAccessor pa = findAccessor(forcedPid, forceVersion);
 		
 		if (pa != null) {
 			System.out.println("version appears to be supported, starting webservice");

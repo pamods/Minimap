@@ -30,6 +30,7 @@ public class B80187Accessor extends PaAccessor1 {
 				x = 0xC8;
 				y = 0xCC;
 				z = 0xD0;
+				planetId = 0x5C;
 			}
 		});
 	}

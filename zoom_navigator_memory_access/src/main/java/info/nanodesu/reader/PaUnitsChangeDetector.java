@@ -17,12 +17,16 @@ public class PaUnitsChangeDetector {
 	
 	private boolean positionChangeIsRelevant(FullUnitInfo newUnit, float minPositionChange) {
 		FullUnitInfo oldUnit = unitsMap.get(newUnit.getId());
-		float dx = newUnit.getX() - oldUnit.getX();
-		float dy = newUnit.getY() - oldUnit.getY();
-		float dz = newUnit.getZ() - oldUnit.getZ();
-		
-		float distSq = dx*dx + dy*dy + dz*dz;
-		return distSq >= minPositionChange * minPositionChange;
+		if (newUnit.getPlanetId() != oldUnit.getPlanetId()) {
+			return true;
+		} else {
+			float dx = newUnit.getX() - oldUnit.getX();
+			float dy = newUnit.getY() - oldUnit.getY();
+			float dz = newUnit.getZ() - oldUnit.getZ();
+			
+			float distSq = dx*dx + dy*dy + dz*dz;
+			return distSq >= minPositionChange * minPositionChange;
+		}
 	}
 	
 	private boolean hpChangeIsRelevant(FullUnitInfo newUnit) {
