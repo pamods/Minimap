@@ -25,7 +25,9 @@ public interface Memory64API {
 	float readFloat(long adr);
 
 	String readNullTerminatedString(long adr);
-
+	
+	String readAsString(long adr, int length);
+	
 	void writeByte(long adr, byte b);
 
 	void writeInt(long adr, int i);

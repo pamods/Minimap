@@ -16,9 +16,8 @@ public class B79896Accessor extends PaAccessor1 {
 				baseAdr = 0x14068BB90L;
 				basePointer = new long[]{0x608, 0x18, 0x80};
 				finalBase = 0x1D0;
-				unitProcessingFunctionAdr = 0x1404C58D8L;
-				unitProcessingFunction = 0x30;
 				visibilityBit = 0x19D;
+				classGuessStringLength= 2500;
 				unitBase = 0x30;
 				unitStruct = -0x18;
 				unitId = 0x20;

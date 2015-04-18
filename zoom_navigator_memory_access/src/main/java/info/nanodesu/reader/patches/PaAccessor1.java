@@ -26,9 +26,8 @@ public class PaAccessor1 extends AbstractPaAccessor {
 		public long baseAdr;
 		public long[] basePointer;
 		public long finalBase;
-		public long unitProcessingFunctionAdr;
-		public long unitProcessingFunction;
 		public long visibilityBit;
+		public int classGuessStringLength;
 		public long unitBase;
 		public long unitStruct;
 		public long unitId;
@@ -56,6 +55,7 @@ public class PaAccessor1 extends AbstractPaAccessor {
 	}
 	
 	private PaAccessor1Constants c;
+	private long cachedClientUnitClassAdr = -1; 
 	
 	public PaAccessor1(int pid, PaAccessor1Constants constants) {
 		super(pid);
@@ -78,8 +78,19 @@ public class PaAccessor1 extends AbstractPaAccessor {
 		return pa.readLong(listPointer + 0x8);
 	}
 	
+	private boolean isClientUnitClass(long clazzAdr) {
+		if (cachedClientUnitClassAdr == -1) {
+			String testStr = pa.readAsString(clazzAdr, c.classGuessStringLength);
+			if (testStr.contains("ClientUnit") && !testStr.contains("ClientPlanet")) {
+				cachedClientUnitClassAdr = clazzAdr;
+			}
+		}
+		
+		return clazzAdr == cachedClientUnitClassAdr;
+	}
+	
 	private boolean isInterestingUnit(long unit) {
-		return c.unitProcessingFunctionAdr == pa.readLong(unit) + c.unitProcessingFunction && pa.readByte(unit + c.visibilityBit) == 1;
+		return isClientUnitClass(pa.readLong(unit)) && pa.readByte(unit + c.visibilityBit) == 1;
 	}
 	
 	private FullUnitInfo readUnit(long unit) {
@@ -88,18 +99,17 @@ public class PaAccessor1 extends AbstractPaAccessor {
 		inf.setId(pa.readInt(base + c.unitId));
 		if (pa.readByte(pa.readLong(base + c.unitRadarPointer) + c.unitRadar) == 0) {
 			inf.setId(inf.getId() + Integer.MIN_VALUE);
-			inf.setUnitSpec("unknown");
+			inf.setSpec("unknown");
 		} else {
-			inf.setUnitSpec(pa.readNullTerminatedString(pa.readLong(base + c.unitSpec)));
+			inf.setSpec(pa.readNullTerminatedString(pa.readLong(base + c.unitSpec)));
 			inf.setCurrentHp(pa.readFloat(base + c.currentHp));
 			inf.setMaxHp(pa.readFloat(base + c.maxHp));
 		}
-		inf.setArmyId(pa.readInt(base + c.armyId));
+		inf.setArmy(pa.readInt(base + c.armyId));
 		inf.setX(pa.readFloat(base + c.x));
 		inf.setY(pa.readFloat(base + c.y));
 		inf.setZ(pa.readFloat(base + c.z));
 		inf.setPlanetId(pa.readInt(base + c.planetId));
-		l(base);
 		return inf;
 	}
 	

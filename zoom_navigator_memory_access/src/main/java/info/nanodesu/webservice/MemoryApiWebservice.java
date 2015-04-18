@@ -4,7 +4,6 @@ import info.nanodesu.lib.Memory64API;
 import info.nanodesu.lib.windows.Windows64MemoryAPI;
 import info.nanodesu.reader.PaClientMemoryAccessor;
 import info.nanodesu.reader.patches.B79896Accessor;
-import info.nanodesu.reader.patches.B80187Accessor;
 
 import java.util.logging.Level;
 
@@ -41,9 +40,9 @@ public class MemoryApiWebservice extends Application {
 		switch (version) {
 		case "79896-pte":
 		case "80155-pte":
-			return new B79896Accessor(useProcessId);
 		case "80187":
-			return new B80187Accessor(useProcessId);
+		case "80462":
+			return new B79896Accessor(useProcessId);
 		default:
 			System.out.println("ERROR: version "+version+ " is not supported");
 			return null;
@@ -69,10 +68,11 @@ public class MemoryApiWebservice extends Application {
 		PaClientMemoryAccessor pa = findAccessor(forcedPid, forceVersion);
 		
 		if (pa != null) {
-			System.out.println("version appears to be supported, starting webservice");
+			int port = 8184;
+			System.out.println("version appears to be supported, starting webservice on http://127.0.0.1:"+port+"/pa/updateId/0/minPositionChange/1.5");
 			Engine.setLogLevel(Level.WARNING);
 			Component component = new Component();
-			component.getServers().add(Protocol.HTTP, 8184);
+			component.getServers().add(Protocol.HTTP, port);
 			component.getDefaultHost().attach("/pa",
 					new MemoryApiWebservice(pa));
 			component.start();

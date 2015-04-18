@@ -92,7 +92,20 @@ public class Windows64MemoryAPI implements Memory64API {
     	
     	return builder.toString();
     }
-    
+   
+	@Override
+	public String readAsString(long adr, int length) {
+		StringBuilder builder = new StringBuilder();
+		
+		byte[] r = readMemory(adr, length);
+		
+		for (int i = 0; i < r.length; i++) {
+			builder.append((char) r[i]);
+		}
+		
+		return builder.toString();
+	}
+   
     @Override
 	public void writeByte(long adr, byte b) {
         writeMemory(adr, new byte[] {b});
@@ -261,5 +274,6 @@ public class Windows64MemoryAPI implements Memory64API {
 			Kernel32.INSTANCE.CloseHandle(moduleSnapshot);
 		}
 	}
+
 }
 

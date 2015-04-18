@@ -2,8 +2,8 @@ package info.nanodesu.reader;
 
 public class FullUnitInfo {
 	private int id;
-	private String unitSpec;
-	private int armyId;
+	private String spec;
+	private int army;
 	private float x;
 	private float y;
 	private float z;
@@ -27,20 +27,20 @@ public class FullUnitInfo {
 		this.id = id;
 	}
 
-	public String getUnitSpec() {
-		return unitSpec;
+	public String getSpec() {
+		return spec;
 	}
 
-	public void setUnitSpec(String unitSpec) {
-		this.unitSpec = unitSpec;
+	public void setSpec(String unitSpec) {
+		this.spec = unitSpec;
 	}
 
-	public int getArmyId() {
-		return armyId;
+	public int getArmy() {
+		return army;
 	}
 
-	public void setArmyId(int armyId) {
-		this.armyId = armyId;
+	public void setArmy(int armyId) {
+		this.army = armyId;
 	}
 
 	public float getX() {
@@ -85,8 +85,8 @@ public class FullUnitInfo {
 
 	@Override
 	public String toString() {
-		return "UnitAdd [id=" + id + ", unitSpec=" + unitSpec + ", armyId="
-				+ armyId + ", x=" + x + ", y=" + y + ", z=" + z
+		return "UnitAdd [id=" + id + ", unitSpec=" + spec + ", armyId="
+				+ army + ", x=" + x + ", y=" + y + ", z=" + z
 				+ ", currentHp=" + currentHp + ", maxHp=" + maxHp + "]";
 	}
 
@@ -94,12 +94,12 @@ public class FullUnitInfo {
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + armyId;
+		result = prime * result + army;
 		result = prime * result + Float.floatToIntBits(currentHp);
 		result = prime * result + id;
 		result = prime * result + Float.floatToIntBits(maxHp);
 		result = prime * result
-				+ ((unitSpec == null) ? 0 : unitSpec.hashCode());
+				+ ((spec == null) ? 0 : spec.hashCode());
 		result = prime * result + Float.floatToIntBits(x);
 		result = prime * result + Float.floatToIntBits(y);
 		result = prime * result + Float.floatToIntBits(z);
@@ -115,7 +115,7 @@ public class FullUnitInfo {
 		if (getClass() != obj.getClass())
 			return false;
 		FullUnitInfo other = (FullUnitInfo) obj;
-		if (armyId != other.armyId)
+		if (army != other.army)
 			return false;
 		if (Float.floatToIntBits(currentHp) != Float
 				.floatToIntBits(other.currentHp))
@@ -124,10 +124,10 @@ public class FullUnitInfo {
 			return false;
 		if (Float.floatToIntBits(maxHp) != Float.floatToIntBits(other.maxHp))
 			return false;
-		if (unitSpec == null) {
-			if (other.unitSpec != null)
+		if (spec == null) {
+			if (other.spec != null)
 				return false;
-		} else if (!unitSpec.equals(other.unitSpec))
+		} else if (!spec.equals(other.spec))
 			return false;
 		if (Float.floatToIntBits(x) != Float.floatToIntBits(other.x))
 			return false;
