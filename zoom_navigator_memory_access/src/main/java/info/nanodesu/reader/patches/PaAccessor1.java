@@ -47,13 +47,6 @@ public class PaAccessor1 extends AbstractPaAccessor {
 		System.out.println(Long.toHexString(x).toUpperCase());
 	}
 	
-	public static void main(String[] args) {
-		B79896Accessor t = new B79896Accessor(4768);
-		t.attach();
-		System.out.println(t.readUnitInfos());
-		t.detach();
-	}
-	
 	private PaAccessor1Constants c;
 	private long cachedClientUnitClassAdr = -1; 
 	
