@@ -149,7 +149,7 @@ public class MemoryApiWebservice extends Application {
 			Memory64API api = initNativeApi();
 			while(true) {
 				try {
-					Thread.sleep(1000);
+					Thread.sleep(15000);
 					int p = api.findPAProcess();
 					if (p != pa.getPid()) {
 						System.out.println("found a new pid for pa.exe, switching over to "+p);
