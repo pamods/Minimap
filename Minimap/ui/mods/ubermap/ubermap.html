@@ -1,0 +1,49 @@
+<html class="ignoreMouse">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<noloc>
+<title>UberMap</title>
+</noloc>
+<link href="coui://ui/main/shared/css/global.css" rel="stylesheet" type="text/css" />
+<link href="coui://ui/main/shared/js/thirdparty/jquery-ui-1.10.3.custom/css/alpha_theme/jquery-ui-1.10.3.custom.css" rel="stylesheet"
+	type="text/css" />
+<link href="coui://ui/main/shared/js/thirdparty/DataTables-1.9.4/media/css/jquery.dataTables.custom.css" rel="stylesheet" type="text/css" />
+<link href="ubermap.css" rel="stylesheet" type="text/css" />
+
+<script src="d3v3.js" type="text/javascript"></script>
+<script src="d3.geo.projection.v0.min.js" type="text/javascript"></script>
+<script src="d3.geo.polyhedron.v0.min.js" type="text/javascript"></script>
+
+<script src="coui://ui/main/shared/js/common.js" type="text/javascript"></script>
+
+<script src="systems.js" type="text/javascript"></script>
+<script src="projections.js" type="text/javascript"></script>
+<script src="strategic_icons.js"></script>
+<script src="selection.js"></script>
+<script src="ubermap.js" type="text/javascript"></script>
+
+</head>
+
+<body class="body_panel" data-bind="style: {width: bodyWidth()+'px', height: bodyHeight()+'px'}">
+	<div class="minimaps" data-bind="style: {'max-width': minimapAreaWidth()+'px'}">
+		<!-- ko foreach: minimaps -->
+		<div class="minimap" style="position: relative" data-bind="style: {width: $parent.minimapWidth()+'px', height: $parent.minimapHeight()+'px'}">
+			<div data-bind="text: name" class="mapname" style="position: absolute; top: 0px; left: 0px"></div>
+			<svg>
+				<defs>
+					<path data-bind="id: mappingObject().id+'-sphere', datum: {type: 'Sphere'}, d: path"></path>
+					<clipPath data-bind="id: mappingObject().id+'-clip'">
+						<use data-bind="svguse: mappingObject().id+'-sphere'"></use>
+					</clipPath>
+				</defs>
+				<use class="background" data-bind="svguse: mappingObject().id+'-sphere'"></use>
+				<path class="graticule" data-bind="datum: graticule, attr: {'clip-path': 'url(#'+mappingObject().id+'-clip)'}, d: path"></path>
+			</svg>
+		</div>
+		<!-- /ko -->
+		<div style="clear: both"></div>
+	</div>
+	
+	<div class="ubermaps"></div>
+</body>
+</html>

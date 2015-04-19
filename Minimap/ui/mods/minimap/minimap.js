@@ -102,20 +102,45 @@ $(document).ready(function() {
 	
 	function UnitPositionsById() {
 		var self = this;
+		var lastUpdate = 0;
+		var minPositionChange = 1.5;
 		var byId = {};
 		
 		var queryActive = false;
 		
 		var refreshData = function() {
 			queryActive = true;
-			$.getJSON("http://127.0.0.1:8184/", function(data) {
-				byId = data;
+			$.getJSON("http://127.0.0.1:8184/pa/updateId/"+lastUpdate+"/minPositionChange/"+minPositionChange, function(data) {
+				lastUpdate = data.updateId;
+				if (data.reset) {
+					byId = {};
+				}
+				
+				_.forEach(data.addedUnits, function(unit) {
+					byId[unit.id] = unit;
+				});
+				
+				_.forEach(data.updatedUnits, function(unit) {
+					var old = byId[unit.id];
+					old.x = unit.x;
+					old.y = unit.y;
+					old.z = unit.z;
+					old.currentHp = unit.currentHp;
+				});
+				
+				_.forEach(data.removedUnits, function(id) {
+					delete byId[id];
+				});
 			}).complete(function() {
 				queryActive = false;
 			});
 		};
 		
-		self.getCurrentUnitPosition = function(unitId) {
+		self.getUnits = function() {
+			return byId;
+		};
+		
+		self.getCurrentUnit = function(unitId) {
 			return byId[unitId];
 		};
 		
@@ -193,7 +218,7 @@ $(document).ready(function() {
 		self.normalWidth.subscribe(makeStoreSubscriber('width'));
 		self.normalHeight.subscribe(makeStoreSubscriber('height'));
 		
-		var bordersFactor = 0.9;
+		var bordersFactor = 0.7;
 		
 		self.width = ko.computed(function() {
 			if (self.fullScreened()) {
@@ -232,11 +257,7 @@ $(document).ready(function() {
 		});
 		
 		self.topPosition = ko.computed(function() {
-			if (self.fullScreened()) {
-				return (mainViewHeight - self.height()) / 2;
-			} else {
-				return 0;
-			}
+			return 0;
 		});
 		
 		self.projection =  ko.computed(function() {
@@ -360,7 +381,9 @@ $(document).ready(function() {
 			defs.append("clipPath").attr("id", targetDivId+"-clip").append("use").attr("xlink:href", sphereId);
 			svg.append("use").attr("class", "stroke").attr("xlink:href", sphereId);
 			svg.append("use").attr("class", "fill").attr("xlink:href", sphereId);
-			mapPaths.push(svg.append("path").datum(graticule).attr("class", "graticule").attr("clip-path", "url(#"+targetDivId+"-clip)").attr("d", path));
+			var fp = svg.append("path");
+			console.log(fp);
+			mapPaths.push(fp.datum(graticule).attr("class", "graticule").attr("clip-path", "url(#"+targetDivId+"-clip)").attr("d", path));
 			return svg;
 		};
 		
@@ -550,7 +573,7 @@ $(document).ready(function() {
 		}
 		
 		var getProjectedUnitPosition = function(id) {
-			var unitPosition = unitPositionsHolder.getCurrentUnitPosition(id);
+			var unitPosition = unitPositionsHolder.getCurrentUnit(id);
 			var ll = convertToLonLan(unitPosition.x, unitPosition.y, unitPosition.z);
 			var projected = self.projection()(ll);
 			return projected;
@@ -579,6 +602,10 @@ $(document).ready(function() {
 		
 		self.addMovingUnit = function(id, spec, army) {
 			var projected = getProjectedUnitPosition(id);
+			
+			if (contains(unitSpecMapping[spec], "Commander")) {
+				spec = "commander";
+			}
 			
 			var borderId = "unit"+id+"_border";
 			var fillId = "unit"+id+"_fill";
@@ -628,7 +655,7 @@ $(document).ready(function() {
 		
 		self.updateUnitPositions = function() {
 			_.forEach(movingUnits, function(unit, id) {
-				var unitPosition = unitPositionsHolder.getCurrentUnitPosition(id);
+				var unitPosition = unitPositionsHolder.getCurrentUnit(id);
 				if (unitPosition !== undefined) {
 					var projected = getProjectedUnitPosition(id);
 					unit.position = projected;
@@ -641,18 +668,18 @@ $(document).ready(function() {
 		
 		self.recheckUnitExistence = function() {
 			_.forEach(movingUnits, function(unit, id) {
-				var unitPosition = unitPositionsHolder.getCurrentUnitPosition(id); 
-				if (mobileUnits[id] === undefined || unitPosition === undefined || unitPosition.planet !== self.planetName) {
+				var unitPosition = unitPositionsHolder.getCurrentUnit(id); 
+				if (unitPositionsHolder.getUnits()[id] === undefined || unitPosition === undefined || unitPosition.planetId !== self.planetId) {
 					$('#unit'+id+"_border").remove();
 					$('#unit'+id+"_fill").remove();
 					delete movingUnits[id];
 				}
 			});
 			
-			_.forEach(mobileUnits, function(unit, id) {
-				var unitPosition = unitPositionsHolder.getCurrentUnitPosition(id); 
-				if (mobileUnits[id] && movingUnits[id] === undefined && unitPosition !== undefined && unitPosition.planet === self.planetName) {
-					self.addMovingUnit(id, mobileUnits[id].spec, mobileUnits[id].army);
+			_.forEach(unitPositionsHolder.getUnits(), function(unit, id) {
+				var unitPosition = unitPositionsHolder.getCurrentUnit(id); 
+				if (unitPositionsHolder.getUnits()[id] && movingUnits[id] === undefined && unitPosition !== undefined && unitPosition.planetId === self.planetId) {
+					self.addMovingUnit(id, unitPositionsHolder.getUnits()[id].spec, unitPositionsHolder.getUnits()[id].army);
 				}
 			});
 		};
@@ -701,21 +728,20 @@ $(document).ready(function() {
 	
 	var armyColors = {};
 	
-	var mobileUnits = {};
-	alertsManager.addListener(function(payload) {
-		for (var i = 0; i < payload.list.length; i++) {
-			var alert = payload.list[i];
-			var types = unitSpecMapping[alert.spec_id];
-			if (alert.watch_type === 0) {
-				mobileUnits[alert.id] = {
-					spec: alert.spec_id,
-					army: alert.army_id
-				};
-			} else if (alert.watch_type === 2) {
-				mobileUnits[alert.id] = undefined;
-			}
-		}
-	});
+//	alertsManager.addListener(function(payload) {
+//		for (var i = 0; i < payload.list.length; i++) {
+//			var alert = payload.list[i];
+//			var types = unitSpecMapping[alert.spec_id];
+//			if (alert.watch_type === 0) {
+//				mobileUnits[alert.id] = {
+//					spec: alert.spec_id,
+//					army: alert.army_id
+//				};
+//			} else if (alert.watch_type === 2) {
+//				mobileUnits[alert.id] = undefined;
+//			}
+//		}
+//	});
 	
 	var initBySystem = function(sys) {
 		for (var i = 0; i < sys.planets.length; i++) {
@@ -786,15 +812,15 @@ $(document).ready(function() {
 		$('#minimap_div').css("height", size[1]);
 	};
 	
-	handlers.setCommanderId = function(params) {
-		if (params[0]) {
-			console.log("got commander id " + params);
-			mobileUnits[params[0]] = {
-				spec: "commander",
-				army: params[1]
-			};
-		}
-	};
+//	handlers.setCommanderId = function(params) {
+//		if (params[0]) {
+//			console.log("got commander id " + params);
+//			mobileUnits[params[0]] = {
+//				spec: "commander",
+//				army: params[1]
+//			};
+//		}
+//	};
 	
 	handlers.setArmyColors = function(clrs) {
 		console.log("got colors");
@@ -820,13 +846,6 @@ $(document).ready(function() {
 		_.forEach(payload.spec_ids, function(ids, spec) {
 			_.forEach(ids, function(id) {
 				newSelection[id] = true;
-				
-				if (contains(unitSpecMapping[spec], "Commander") && !mobileUnits[id]) {
-					mobileUnits[id] = {
-						spec: "commander",
-						army: myArmyId
-					};
-				}
 			});
 		});
 		

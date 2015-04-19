@@ -1,27 +1,27 @@
 {
     "context": "client",
-    "identifier": "info.nanodesu.minimap",
-    "display_name": "Alerts Minimap",
-    "description": "shows terrain minimap for known planets with alerts on them",
+    "identifier": "info.nanodesu.ubermap",
+    "display_name": "UberMap",
+    "description": "Read the forumslink, successor of AlertsMinimap",
     "author": "Cola_Colin",
-    "version": "5.0",
-    "build": "79317",
-    "date": "2015/3/17",
+    "version": "1.0",
+    "build": "80462",
+    "date": "2015/4/20",
     "signature": "not yet implemented",
-    "id": "uimod-minimap",
+    "id": "uimod-ubermap",
     "priority": 100,
-    "forum": "https://forums.uberent.com/threads/wip-alerts-minimap.64595/",
+    "forum": "TODO",
     "scenes": {
         "live_game": [
-        	"coui://ui/mods/minimap/unitCommands.js",
-        	"coui://ui/mods/minimap/injectpanel.js"
+        	"coui://ui/mods/ubermap/unitCommands.js",
+        	"coui://ui/mods/ubermap/injectpanel.js"
         ],
         "live_game_unit_alert": [
-        	"coui://ui/mods/minimap/unitInfoParser.js",
-        	"coui://ui/mods/minimap/alertsManager.js"
+        	"coui://ui/mods/ubermap/unitInfoParser.js",
+        	"coui://ui/mods/ubermap/alertsManager.js"
         ],
         "live_game_players": [
-        	"coui://ui/mods/minimap/playerlist.js"
+        	"coui://ui/mods/ubermap/playerlist.js"
          ]
     },
 	

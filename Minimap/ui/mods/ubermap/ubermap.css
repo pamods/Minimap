@@ -1,0 +1,29 @@
+.graticule {
+	fill: none;
+	stroke: #777;
+	stroke-width: .5px;
+	stroke-opacity: .5;
+	z-index: 200;
+}
+
+.background {
+	stroke: #000;
+	stroke-width: 3px;
+	fill: #eee;
+	z-index: 100;
+}
+
+.mapname {
+	color: white;
+}
+
+.minimaps {
+	
+}
+
+.minimap {
+	float: left;
+}
+
+.ubermaps {
+}
