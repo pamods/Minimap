@@ -79,36 +79,9 @@ public class MemoryApiWebservice extends Application {
 	
 	public static void main(String[] args) throws Exception {
 		
-		EventQueue.invokeAndWait(new Runnable() {
-			@Override
-			public void run() {
-				JFrame frm = new JFrame();
-				frm.setTitle("PA Memory Accessor");
-				frm.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-				JPanel content = new JPanel(new BorderLayout());
-				frm.add(content);
-				final JTextArea txt = new JTextArea();
-				final JScrollPane scroll = new JScrollPane(txt);
-				txt.setEditable(false);
-				content.add(scroll, BorderLayout.CENTER);
-				PrintStream txtAreaStream = new PrintStream(new OutputStream() {
-					@Override
-					public void write(int b) throws IOException {
-						txt.append((char) b + "");
-						txt.setCaretPosition(txt.getDocument().getLength());
-					}
-				});
-				System.setOut(txtAreaStream);
-				System.setErr(txtAreaStream);
-				frm.setSize(new Dimension(800, 600));
-				frm.setLocationRelativeTo(null);
-				frm.setVisible(true);
-			}
-		});
-		
-//		args = new String[]{"-pid", "1924", "-version", "80187"};
 		Integer forcedPid = null;
 		String forceVersion = null;
+		boolean headless = false;
 		
 		for (int i = 0; i < args.length; i++) {
 			if (args[i] == "-version" && args.length > i+1) {
@@ -119,6 +92,38 @@ public class MemoryApiWebservice extends Application {
 				forcedPid = Integer.parseInt(args[i+1]);
 				System.out.println("will use pid provided by arguments: "+forcedPid);
 			}
+			if (args[i] == "-headless") {
+				headless = true;
+			}
+		}
+		
+		if (!headless) {
+			EventQueue.invokeAndWait(new Runnable() {
+				@Override
+				public void run() {
+					JFrame frm = new JFrame();
+					frm.setTitle("PA Memory Accessor");
+					frm.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+					JPanel content = new JPanel(new BorderLayout());
+					frm.add(content);
+					final JTextArea txt = new JTextArea();
+					final JScrollPane scroll = new JScrollPane(txt);
+					txt.setEditable(false);
+					content.add(scroll, BorderLayout.CENTER);
+					PrintStream txtAreaStream = new PrintStream(new OutputStream() {
+						@Override
+						public void write(int b) throws IOException {
+							txt.append((char) b + "");
+							txt.setCaretPosition(txt.getDocument().getLength());
+						}
+					});
+					System.setOut(txtAreaStream);
+					System.setErr(txtAreaStream);
+					frm.setSize(new Dimension(800, 600));
+					frm.setLocationRelativeTo(null);
+					frm.setVisible(true);
+				}
+			});
 		}
 
 		if (forcedPid == null) {
