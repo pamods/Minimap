@@ -5,7 +5,18 @@ import info.nanodesu.lib.windows.Windows64MemoryAPI;
 import info.nanodesu.reader.PaClientMemoryAccessor;
 import info.nanodesu.reader.patches.B79896Accessor;
 
+import java.awt.BorderLayout;
+import java.awt.Dimension;
+import java.awt.EventQueue;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintStream;
 import java.util.logging.Level;
+
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
 
 import org.restlet.Application;
 import org.restlet.Component;
@@ -18,14 +29,17 @@ import com.sun.jna.Platform;
 
 public class MemoryApiWebservice extends Application {
 	
-	public static PaClientMemoryAccessor findAccessor(Integer useProcessId, String version) {
-		Memory64API api = null;
+	public static Memory64API initNativeApi() {
 		if (Platform.isWindows() && Platform.is64Bit()) {
-			api = new Windows64MemoryAPI();
+			return new Windows64MemoryAPI();
 		} else {
 			System.out.println("ERROR: currently only windows 64 bit is supported");
 			return null;
 		}
+	}
+	
+	public static PaClientMemoryAccessor findAccessor(Integer useProcessId, String version) {
+		Memory64API api = initNativeApi();
 		
 		if (useProcessId == null) {
 			useProcessId = api.findPAProcess();
@@ -49,7 +63,49 @@ public class MemoryApiWebservice extends Application {
 		}
 	}
 	
+	public static void waitForPA() {
+		Memory64API api = initNativeApi();
+		while(true) {
+			try {
+				Thread.sleep(1000);
+				api.findPAProcess();
+				break;
+			} catch (Exception ex) {
+				// did not find pa.
+				System.out.println("cannot find a running PA so far");
+			}
+		}
+	}
+	
 	public static void main(String[] args) throws Exception {
+		
+		EventQueue.invokeAndWait(new Runnable() {
+			@Override
+			public void run() {
+				JFrame frm = new JFrame();
+				frm.setTitle("PA Memory Accessor");
+				frm.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+				JPanel content = new JPanel(new BorderLayout());
+				frm.add(content);
+				final JTextArea txt = new JTextArea();
+				final JScrollPane scroll = new JScrollPane(txt);
+				txt.setEditable(false);
+				content.add(scroll, BorderLayout.CENTER);
+				PrintStream txtAreaStream = new PrintStream(new OutputStream() {
+					@Override
+					public void write(int b) throws IOException {
+						txt.append((char) b + "");
+						txt.setCaretPosition(txt.getDocument().getLength());
+					}
+				});
+				System.setOut(txtAreaStream);
+				System.setErr(txtAreaStream);
+				frm.setSize(new Dimension(800, 600));
+				frm.setLocationRelativeTo(null);
+				frm.setVisible(true);
+			}
+		});
+		
 //		args = new String[]{"-pid", "1924", "-version", "80187"};
 		Integer forcedPid = null;
 		String forceVersion = null;
@@ -65,6 +121,10 @@ public class MemoryApiWebservice extends Application {
 			}
 		}
 
+		if (forcedPid == null) {
+			waitForPA();
+		}
+		
 		PaClientMemoryAccessor pa = findAccessor(forcedPid, forceVersion);
 		
 		if (pa != null) {
@@ -78,6 +138,22 @@ public class MemoryApiWebservice extends Application {
 			component.start();
 		} else {
 			System.out.println("could not find supported PA Client");
+		}
+		
+		if (forcedPid == null) {
+			Memory64API api = initNativeApi();
+			while(true) {
+				try {
+					Thread.sleep(1000);
+					int p = api.findPAProcess();
+					if (p != pa.getPid()) {
+						System.out.println("found a new pid for pa.exe, switching over to "+p);
+						pa.updatePid(p);
+					}
+				} catch (Exception ex) {
+					ex.printStackTrace();
+				}
+			}
 		}
 	}
 

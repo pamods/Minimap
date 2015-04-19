@@ -238,7 +238,7 @@ public class Windows64MemoryAPI implements Memory64API {
 						return ref.th32ProcessID.intValue();
 					}
 				}
-				throw new RuntimeException("cannot find process PA.exe Please ensure your PA executable is called PA.exe and that PA is running");
+				throw new RuntimeException("cannot find process PA.exe Please ensure your PA executable is called PA.exe and that PA is running.");
 			} finally {
 				Kernel32.INSTANCE.CloseHandle(hProcessSnap);
 			}

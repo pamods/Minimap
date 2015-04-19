@@ -7,4 +7,6 @@ public interface PaClientMemoryAccessor {
 	boolean isAttached();
 	List<FullUnitInfo> readUnitInfos();
 	void detach();
+	void updatePid(int pid);
+	int getPid();
 }

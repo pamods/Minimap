@@ -7,7 +7,7 @@ import com.sun.jna.Platform;
 
 public abstract class AbstractPaAccessor implements PaClientMemoryAccessor {
 	private boolean attached = false;
-	private int pid;
+	private volatile int pid;
 	protected Memory64API pa;
 	
 	public AbstractPaAccessor(int pid) {
@@ -29,13 +29,37 @@ public abstract class AbstractPaAccessor implements PaClientMemoryAccessor {
 	}
 	
 	@Override
+	public void updatePid(int pid) {
+		boolean wasAttached = false;
+		if (isAttached()) {
+			wasAttached = true;
+			detach();
+		}
+		
+		this.pid = pid;
+		
+		if (wasAttached) {
+			attach();
+		}
+	}
+	
+	@Override
+	public int getPid() {
+		return pid;
+	}
+	
+	@Override
 	public void attach() {
-		attached = pa.openProcessByPid(pid);
+		if (!isAttached()) {
+			attached = pa.openProcessByPid(pid);
+		}
 	}
 	
 	@Override
 	public void detach() {
-		pa.close();
-		attached = false;
+		if (attached) {
+			pa.close();
+			attached = false;
+		}
 	}
 }
