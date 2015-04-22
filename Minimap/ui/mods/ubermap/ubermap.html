@@ -16,6 +16,8 @@
 
 <script src="coui://ui/main/shared/js/common.js" type="text/javascript"></script>
 
+<script src="knockout-deferred-updates.3.3.1.js" type="text/javascript"></script>
+
 <script src="systems.js" type="text/javascript"></script>
 <script src="projections.js" type="text/javascript"></script>
 <script src="strategic_icons.js"></script>
@@ -27,17 +29,30 @@
 <body class="body_panel" data-bind="style: {width: bodyWidth()+'px', height: bodyHeight()+'px'}">
 	<div class="minimaps" data-bind="style: {'max-width': minimapAreaWidth()+'px'}">
 		<!-- ko foreach: minimaps -->
-		<div class="minimap" style="position: relative" data-bind="style: {width: $parent.minimapWidth()+'px', height: $parent.minimapHeight()+'px'}">
+		<div class="minimap" style="position: relative" data-bind="visible: !dead(), style: {width: $parent.minimapWidth()+'px', height: $parent.minimapHeight()+'px'}">
 			<div data-bind="text: name" class="mapname" style="position: absolute; top: 0px; left: 0px"></div>
-			<svg>
+			<svg class="receiveMouse" data-bind="click: lookAtMinimap, event: {mousemove: mousemove, mouseleave: mouseleave}">
 				<defs>
 					<path data-bind="id: mappingObject().id+'-sphere', datum: {type: 'Sphere'}, d: path"></path>
 					<clipPath data-bind="id: mappingObject().id+'-clip'">
 						<use data-bind="svguse: mappingObject().id+'-sphere'"></use>
 					</clipPath>
+					
+					<!-- ko foreach: unitSpecs -->
+					<path data-bind="id: $parent.mappingObject().id + $parent.usedSpecsMap[$data] + '_b', d: strategicIconPaths[$data + '_border'] || strategicIconsPaths.fallback_border"></path>
+					<path data-bind="id: $parent.mappingObject().id + $parent.usedSpecsMap[$data] + '_f', d: strategicIconPaths[$data + '_fill'] || strategicIconsPaths.fallback_fill"></path>
+					<!-- /ko -->
+					
 				</defs>
 				<use class="background" data-bind="svguse: mappingObject().id+'-sphere'"></use>
-				<path class="graticule" data-bind="datum: graticule, attr: {'clip-path': 'url(#'+mappingObject().id+'-clip)'}, d: path"></path>
+				<path class="graticule" data-bind="attr: {'clip-path': 'url(#'+mappingObject().id+'-clip)'}, d3b: d3b"></path>
+				<!-- ko foreach: layers -->
+				<path data-bind="css: layer, d3b: [data, $parent.path()], attr: {'clip-path': 'url(#'+$parent.mappingObject().id+'-clip)'}"></path>
+				<!-- /ko -->
+				<!-- ko foreach: units -->
+					<use data-bind="svguse: $parent.mappingObject().id + $parent.usedSpecsMap[spec()] + '_b', css: borderClass, attr: {transform: transformComputed}"></use>
+					<use data-bind="svguse: $parent.mappingObject().id + $parent.usedSpecsMap[spec()] + '_f', attr: {fill: armyColor, transform: transformComputed}"></use>
+				<!-- /ko -->
 			</svg>
 		</div>
 		<!-- /ko -->

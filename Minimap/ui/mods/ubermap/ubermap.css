@@ -27,3 +27,31 @@
 
 .ubermaps {
 }
+
+.land {
+	fill: #996633;
+}
+
+.sea {
+	fill: #3399FF;
+}
+
+.metal {
+	fill: #00FF00;
+	fill-opacity: .6;
+}
+
+.spawns {
+	fill: none;
+	stroke: #FF9900;
+	stroke-width: 4px;
+	stroke-opacity: .8;
+}
+
+.unselected_border {
+	fill: #000
+}
+
+.selected_border {
+	fill: #fff
+}
