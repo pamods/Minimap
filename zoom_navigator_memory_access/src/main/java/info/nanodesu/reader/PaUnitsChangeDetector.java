@@ -62,6 +62,7 @@ public class PaUnitsChangeDetector {
 				unitUpdate.setY(unit.getY());
 				unitUpdate.setZ(unit.getZ());
 				unitUpdate.setCurrentHp(unit.getCurrentHp());
+				unitUpdate.setPlanetId(unit.getPlanetId());
 				update.getUpdatedUnits().add(unitUpdate);
 			}
 			newKnownUnits.put(unit.getId(), unit);

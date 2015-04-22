@@ -5,12 +5,12 @@ public class UnitUpdate {
 	private float x;
 	private float y;
 	private float z;
-	private float planetId;
+	private int planetId;
 	private float currentHp;
-	public float getPlanetId() {
+	public int getPlanetId() {
 		return planetId;
 	}
-	public void setPlanetId(float planetId) {
+	public void setPlanetId(int planetId) {
 		this.planetId = planetId;
 	}
 	public int getId() {
