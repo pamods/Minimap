@@ -1,38 +1,26 @@
 console.log("inject ubermap");
 
 (function() {
+	var unoptimizeStarted = false;
+	var startUnoptimizeForPlanet = function(id, delay) {
+		var flip = 1;
+		setTimeout(function() {
+			setInterval(function() {
+				unitCommands.noopcam(0, 0, flip, id);
+				flip *= -1;
+			}, 250);
+		}, delay);
+	};
 	
-	// TODO optimize the unoptimization by doing fast constant camera movements instead of tons of static pips
-	// at best combine it with the hackdecks from unitcommands
-	var unoptimizeNetworkForPlanet = function(planetId) {
-		var makeHackHoloDeck = function(deckId) {
-			var deck = $('<holodeck class="network_unoptimization"></holodeck>');
-			var size = 1;
-			var yPosition = 1;
-			var xPosition = 1;
-			deck.attr('style', "top: "+yPosition+"px; left: "+xPosition+"px; width: "+size+"px; height: "+size+"px;z-index: -1;position:fixed;");
-			deck.attr('id', deckId);
-			$('body').append(deck);
-			return new api.Holodeck($('#'+deckId), {}, undefined);
-		};
-		
-		var setDeckCamera = function(deck, planet, x, y, z, zoom) {
-			var focusBefore = model.holodeck; // assumes live_game
-			deck.focus();
-			api.camera.lookAt({planet_id: planet, location: {x: x, y: y, z: z}, zoom: zoom});
-			if (focusBefore) {
-				focusBefore.focus();
+	var oldCelestialData = handlers.celestial_data;
+	handlers.celestial_data = function(payload) {
+		oldCelestialData(payload);
+		if (!unoptimizeStarted) {
+			unoptimizeStarted = true;
+			for (var i = 0; i < payload.planets.length; i++) {
+				startUnoptimizeForPlanet(payload.planets[i].id, 5000);
 			}
-		};
-		
-		var deckA = makeHackHoloDeck("network_unoptimization_planet_"+planetId+"_a");
-		var deckB = makeHackHoloDeck("network_unoptimization_planet_"+planetId+"_b");
-		setTimeout(function() {
-			setDeckCamera(deckA, planetId, 0, 0, 1, "orbital");	
-		}, 5000);
-		setTimeout(function() {
-			setDeckCamera(deckB, planetId, 0, 0, -1, "orbital");
-		}, 5000);
+		}
 	};
 	
 	handlers.queryViewportSize = function() {
@@ -100,7 +88,8 @@ console.log("inject ubermap");
 }());
 
 $(document).ready(function() {
-	
+	// the main menu should be on top of everything, always
+	$('.div_sidebar_left').css("z-index", "99999");
 	var func = function(v) {
 		if (!v) {
 			var $panel = $('<panel id="ubermap_panel"></panel>').css({

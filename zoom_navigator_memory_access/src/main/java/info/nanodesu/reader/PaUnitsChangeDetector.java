@@ -64,6 +64,13 @@ public class PaUnitsChangeDetector {
 				unitUpdate.setCurrentHp(unit.getCurrentHp());
 				unitUpdate.setPlanetId(unit.getPlanetId());
 				update.getUpdatedUnits().add(unitUpdate);
+			} else {
+				// if the unit position is not changed enough to be notified to the client, keep the last position that the client was told for the next time
+				FullUnitInfo oldUnit = unitsMap.get(unit.getId());
+				unit.setX(oldUnit.getX());
+				unit.setY(oldUnit.getY());
+				unit.setZ(oldUnit.getZ());
+				unit.setCurrentHp(oldUnit.getCurrentHp());
 			}
 			newKnownUnits.put(unit.getId(), unit);
 		}

@@ -133,7 +133,7 @@ $(document).ready(function() {
 		setTimeout(refreshData, 3000);
 	}
 	
-	var memoryPA = new MemoryDataReceiver(100);
+	var memoryPA = new MemoryDataReceiver(250);
 	
 	var unitSpecMapping = undefined;
 	unitInfoParser.loadUnitTypeMapping(function(mapping) {
@@ -242,6 +242,22 @@ $(document).ready(function() {
 			return model.selection()[self.id()];
 		});
 		
+		self.svgZ = ko.computed(function() {
+			var unitTypes = unitSpecMapping[unit.spec];
+			var specPoints = 0;
+			if (contains(unitTypes, "Commander")) {
+				specPoints = 10;
+			} else if (contains(unitTypes, "Important")) {
+				specPoints = 7;
+			} else if (contains(unitTypes, "Mobile")) {
+				specPoints = 5;
+			} else {
+				specPoints = 1;
+			}
+			var selectedBonus = self.selected() ? 20 : 0;
+			return specPoints + selectedBonus;
+		});
+				
 		self.borderClass = ko.computed(function() {
 			return self.selected() ? "selected_border" : "unselected_border";
 		});
@@ -274,13 +290,19 @@ $(document).ready(function() {
 				var projected = self.projection()(ll);
 				var x = projected[0];
 				var y = projected[1];
-				return "translate( " + x + "," + y + "), scale(" + self.sizeMod() * 0.2 + ")";
+				var scale = self.widthSizeMod() * Math.sqrt(Math.sqrt(self.planetSizeMod())) * 0.4;
+				return "translate( " + x + "," + y + "), scale(" + scale + ")";
 			});
 		};
-
 		
 		self.unitMap = {};
 		self.units = ko.observableArray([]);
+		
+		self.zSortedUnits = ko.computed(function() {
+			return _.sortBy(self.units(), function(unit) {
+				return unit.svgZ();
+			});
+		});
 		
 		var specIdSrc = 0;
 		self.usedSpecsMap = {};
@@ -296,14 +318,17 @@ $(document).ready(function() {
 		});
 		
 		var addUnitModel = function(unitm) {
-			unitm.transformComputed = createTransformComputed(unitm);
-			self.units.push(unitm);
-			self.unitMap[unitm.id()] = unitm;
 			if (self.usedSpecsMap[unitm.spec()] === undefined) {
 				self.usedSpecsMap[unitm.spec()] = "spec-"+specIdSrc;
 				specIdSrc++;
-				self.specMapNotify.notifySubscribers();
+				
+				ko.tasks.processImmediate(function() { // the template in defs needs to be inserted before it is used
+					self.specMapNotify.notifySubscribers();
+				});
 			}
+			unitm.transformComputed = createTransformComputed(unitm);
+			self.units.push(unitm);
+			self.unitMap[unitm.id()] = unitm;
 		};
 		
 		self.tryAddUnitModel = function(unitm) {
@@ -350,11 +375,7 @@ $(document).ready(function() {
 		
 	};
 	
-	function MiniMapModel(p) {
-		var self = this;
-		
-		self.width = model.minimapWidth;
-		self.height = model.minimapHeight;
+	var appendMapDefaults = function(self, p) {
 		self.planet = ko.observable(p);
 		self.dead = ko.computed(function() {
 			return self.planet().dead;
@@ -376,7 +397,6 @@ $(document).ready(function() {
 					}
 				}
 			}
-			console.log(result);
 			return result;
 		});
 		
@@ -384,34 +404,29 @@ $(document).ready(function() {
 			return d3.geo.graticule();
 		});
 		
-		// rotation is only possible in the x-axis, so north always points up
-		self.rotationX = ko.observable(50);
-		self.rotation = ko.computed(function() {
-			return [self.rotationX(), 0];
+		self.planetSizeMod = ko.computed(function() {
+			return (700 / self.planet().radius);
 		});
-		self.setRotationByPixels = function(px) {
-			self.rotationX(d3.scale.linear().domain([0, self.width()]).range([-180, 180])(px));
-		};
+		
+		self.widthSizeMod = ko.computed(function() {
+			return self.width() / 200;
+		});
+		
+		self.dotSizes = ko.computed(function() {
+			return {
+				"spawns": 2 * self.widthSizeMod() * self.planetSizeMod(),
+				"metal": 1.5 * self.widthSizeMod() * self.planetSizeMod(),
+				"land": 0.9 * self.widthSizeMod() * self.planetSizeMod(),
+				"sea": 0.9 * self.widthSizeMod() * self.planetSizeMod(),
+				"others": self.widthSizeMod() * self.planetSizeMod()
+			};
+		});
 		
 		self.projection = ko.computed(function() {
 			var w = self.width();
 			var h = self.height();
 			// TODO this currently is fixed onto one projection. I am not yet sure if I want the options for more back.
 			return d3.geo.winkel3().scale(39*(w/200)).translate([w/2, h/2]).precision(.1).rotate(self.rotation());
-		});
-		
-		self.sizeMod = ko.computed(function() {
-			return model.minimapWidth() / 200 * (700 / self.planet().radius);
-		});
-		
-		self.dotSizes = ko.computed(function() {
-			return {
-				"spawns": 2 * self.sizeMod(),
-				"metal": 1.5 * self.sizeMod(),
-				"land": 0.9 * self.sizeMod(),
-				"sea": 0.9 * self.sizeMod(),
-				"others": self.sizeMod()
-			};
 		});
 		
 		var thePath = d3.geo.path();
@@ -446,6 +461,24 @@ $(document).ready(function() {
 				};
 			});
 		});
+	};
+	
+	function MiniMapModel(p) {
+		var self = this;
+		
+		self.width = model.minimapWidth;
+		self.height = model.minimapHeight;
+		
+		// rotation is only possible in the x-axis, so north always points up
+		self.rotationX = ko.observable(50);
+		self.rotation = ko.computed(function() {
+			return [self.rotationX(), 0];
+		});
+		self.setRotationByPixels = function(px) {
+			self.rotationX(d3.scale.linear().domain([0, self.width()]).range([-180, 180])(px));
+		};
+		
+		appendMapDefaults(self, p);
 		
 		self.mousemove = function(data, e) {
 			if (e.altKey) {
@@ -483,18 +516,58 @@ $(document).ready(function() {
 			}
 		};
 		
-		self.lookAtMinimap = function(data, e) {
+		self.clickMinimap = function(data, e) {
 			lookAtByMinimapXY(e.offsetX, e.offsetY);
 		};
 		
+		var moveToByMiniMapXY = function(x, y, queue) {
+			var ll = self.projection().invert([x, y]);
+			if (ll) {
+				var c = convertToCartesian(ll[1], ll[0]);
+				var payload = {
+					method: "moveSelected",
+					arguments: [c[0], c[1], c[2], self.planet().id, queue],
+				};
+				api.Panel.message(api.Panel.parentId, 'runUnitCommand', payload);
+			}
+		};
+		
+		self.moveByMinimap = function(data, e) {
+			moveToByMiniMapXY(e.offsetX, e.offsetY, e.shiftKey);
+		};
 		
 		appendIconsHandling(self);
 		
 		console.log("created minimap: "+p.name);
 	}
 	
+	function UberMapModel(p, partnerMiniMap) {
+		var self = this;
+		
+		self.width = model.uberMapWidth;
+		self.height = model.uberMapHeight;
+		self.top = model.ubermapTop;
+		self.left = ko.computed(function() {
+			return model.minimapAreaWidth() + model.minimapUbermapGap();
+		});
+		
+		self.rotation = partnerMiniMap.rotation;
+
+		appendMapDefaults(self, p);
+		
+		self.visible = ko.computed(function() {
+			return model.uberMapsInit() || model.showsUberMap() && model.activePlanet() === self.planet().id;
+		});
+		
+		appendIconsHandling(self);
+		
+		console.log("created ubermap: "+p.name);
+	}
+	
 	function SceneModel() {
 		var self = this;
+		
+		self.uberMapsInit = ko.observable(false);
 		
 		self.selection = ko.observable({});
 		
@@ -502,12 +575,17 @@ $(document).ready(function() {
 		
 		self.mappingData = ko.observable();
 		
+		self.showsUberMap = ko.observable(true); // TODO
+		self.activePlanet = ko.observable(1); // TODO
+		
 		self.planets = ko.observable([]);
 		self.planetCount = ko.computed(function() {
 			return self.planets().length;
 		});
 		
 		self.minimaps = ko.observableArray([]);
+		
+		self.ubermaps = ko.observableArray([]);
 		
 		var spaceUnits = {};
 		var tryPutUnitOnPlanet = function(m) {
@@ -536,7 +614,8 @@ $(document).ready(function() {
 		
 		appendLayoutFields(self);
 		
-		self.updateMinimaps = function() {
+		self.updateMaps = function() {
+			self.uberMapsInit(true);
 			var foundPlanets = [];
 			for (var i = 0; i < self.minimaps().length; i++) {
 				for (var j = 0; j < self.planets().length; j++) {
@@ -550,12 +629,16 @@ $(document).ready(function() {
 			}
 			for (var i = 0; i < self.planets().length; i++) {
 				if (foundPlanets.indexOf(i) === -1) {
-					var map = new MiniMapModel(self.planets()[i], self);
-					self.minimaps.push(map);
+					var mm = new MiniMapModel(self.planets()[i], self);
+					//self.minimaps.push(mm);
+					self.ubermaps.push(new UberMapModel(self.planets()[i], mm));
 				}
 			}
+			setTimeout(function() {
+				self.uberMapsInit(false);
+			}, 1000);
 		};
-		self.planets.subscribe(self.updateMinimaps);
+		self.planets.subscribe(self.updateMaps);
 		
 		self.loadMappingData = function(payload) {
 			var mapList = decode(localStorage["info.nanodesu.minimapkeys"]) || {};

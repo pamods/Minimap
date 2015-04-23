@@ -1,15 +1,15 @@
 var unitCommands =
 	(typeof unitCommands === 'undefined') ?
 (function() {
-	var xHackPosition = -75;
-	var yHackPosition = 250;
+	var xHackPosition = -500;
+	var yHackPosition = 50;
 	
 	// init these only after the document is ready!
 	function HackDeck(planetId) {
 		var self = this;
 		
 		var size = 71; // smaller means less precise clicks
-		var cameraMoveWait = 30; // (ms) lower means faster command execution, but too low will cause failed commands due to the camera movement not finishing fast enough
+		var cameraMoveWait = 100; // (ms) lower means faster command execution, but too low will cause failed commands due to the camera movement not finishing fast enough
 		
 		var clickTarget = Math.ceil(size / 2);;
 		
@@ -17,17 +17,18 @@ var unitCommands =
 		var deck = $('<holodeck class="pip"></holodeck>');
 		var yPosition = yHackPosition;
 		yHackPosition += size;
-		deck.attr('style', "top: "+xHackPosition+"px; left: "+yPosition+"px; width: "+size+"px; height: "+size+"px;z-index: -1;position:fixed;");
+		deck.attr('style', "top: "+yHackPosition+"px; left: "+xHackPosition+"px; width: "+size+"px; height: "+size+"px;z-index: -1;position:fixed;");
 		deck.attr('id', deckId);
 		$('body').append(deck);
 		self.hdeck = new api.Holodeck($('#'+deckId), {}, undefined);
 		
 		console.log("created hack holodeck for commands on planet "+planetId);
 		
-		self.setHdeckCamera = function(x, y, z) {
-			var focusBefore = model.holodeck; // assumes we are in live_game
+		self.setHdeckCamera = function(x, y, z, zoom) {
+			var focusBefore = api.Holodeck.focused;
 			self.hdeck.focus();
-			api.camera.lookAt({planet_id: planetId, location: {x: x, y: y, z: z}, zoom: 'air'});
+			var zoom = zoom === undefined ? 'air' : zoom;
+			api.camera.lookAt({planet_id: planetId, location: {x: x, y: y, z: z}, zoom: zoom});
 			if (focusBefore) {
 				focusBefore.focus();
 			}
@@ -47,14 +48,14 @@ var unitCommands =
 			}
 		};
 		
-		var runLocationCommand = function(x, y, z, queue, cmd) {
+		var runLocationCommand = function(x, y, z, queue, cmd, zoom) {
 			if (!movingCamera) {
 				movingCamera = true;
-				self.setHdeckCamera(x, y, z);
+				self.setHdeckCamera(x, y, z, zoom);
 				setTimeout(function() {
 					cmd();
 					movingCamera = false;
-					runNextPotentialNextCommand();
+					setTimeout(runNextPotentialNextCommand, cameraMoveWait);
 				}, cameraMoveWait); // race condition vs camera movement
 			} else {
 				commandsWaiting.push(function() {
@@ -74,6 +75,12 @@ var unitCommands =
 				self.hdeck.unitCommand("ping", clickTarget, clickTarget, false);
 			});
 		};
+		
+		self.noopcam = function(x, y, z) {
+			runLocationCommand(x, y, z, false, function() {
+				// noop. This is used for invisible camera movements to get rid of network optimizations for the unit icons
+			}, "orbital");
+		}
 		
 		// TODO add other commands
 	}
@@ -124,7 +131,10 @@ var unitCommands =
 		},
 		moveSelected: function(x, y, z, p, queue) {
 			getHackDeck(p).moveSelected(x, y, z, queue);
-		}
+		},
+		noopcam: function(x, y, z, p) {
+			getHackDeck(p).noopcam(x, y, z);
+		},
 	};
 }()) : unitCommands;
 

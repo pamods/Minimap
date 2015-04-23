@@ -26,12 +26,13 @@
 
 </head>
 
-<body class="body_panel" data-bind="style: {width: bodyWidth()+'px', height: bodyHeight()+'px'}">
+<body class="body_panel" data-bind="style: {width: bodyWidth()+'px', height: bodyHeight()+'px'}", style="position: relative">
+	
 	<div class="minimaps" data-bind="style: {'max-width': minimapAreaWidth()+'px'}">
 		<!-- ko foreach: minimaps -->
-		<div class="minimap" style="position: relative" data-bind="visible: !dead(), style: {width: $parent.minimapWidth()+'px', height: $parent.minimapHeight()+'px'}">
+		<div class="minimap" style="position: relative" data-bind="visible: !dead(), style: {width: width()+'px', height: height()+'px'}">
 			<div data-bind="text: name" class="mapname" style="position: absolute; top: 0px; left: 0px"></div>
-			<svg class="receiveMouse" data-bind="click: lookAtMinimap, event: {mousemove: mousemove, mouseleave: mouseleave}">
+			<svg class="receiveMouse" data-bind="click: clickMinimap, event: {mousemove: mousemove, mouseleave: mouseleave, contextmenu: moveByMinimap}">
 				<defs>
 					<path data-bind="id: mappingObject().id+'-sphere', datum: {type: 'Sphere'}, d: path"></path>
 					<clipPath data-bind="id: mappingObject().id+'-clip'">
@@ -49,16 +50,44 @@
 				<!-- ko foreach: layers -->
 				<path data-bind="css: layer, d3b: [data, $parent.path()], attr: {'clip-path': 'url(#'+$parent.mappingObject().id+'-clip)'}"></path>
 				<!-- /ko -->
-				<!-- ko foreach: units -->
+				<!-- ko foreach: zSortedUnits -->
 					<use data-bind="svguse: $parent.mappingObject().id + $parent.usedSpecsMap[spec()] + '_b', css: borderClass, attr: {transform: transformComputed}"></use>
 					<use data-bind="svguse: $parent.mappingObject().id + $parent.usedSpecsMap[spec()] + '_f', attr: {fill: armyColor, transform: transformComputed}"></use>
 				<!-- /ko -->
 			</svg>
 		</div>
 		<!-- /ko -->
-		<div style="clear: both"></div>
+		
 	</div>
 	
-	<div class="ubermaps"></div>
+	<div class="ubermaps">
+		<!-- ko foreach: ubermaps -->
+		<div style="position: absolute;" data-bind="visible: visible, style: {width: width()+'px', height: height()+'px', top: top()+'px', left: left()+'px'}">
+			<svg class="receiveMouse">
+				<defs>
+					<path data-bind="id: mappingObject().id+'-um-sphere', datum: {type: 'Sphere'}, d: path"></path>
+					<clipPath data-bind="id: mappingObject().id+'-um-clip'">
+						<use data-bind="svguse: mappingObject().id+'-um-sphere'"></use>
+					</clipPath>
+					
+					<!-- ko foreach: unitSpecs -->
+					<path data-bind="id: $parent.mappingObject().id + '-um-' + $parent.usedSpecsMap[$data] + '_b', d: strategicIconPaths[$data + '_border'] || strategicIconsPaths.fallback_border"></path>
+					<path data-bind="id: $parent.mappingObject().id + '-um-' + $parent.usedSpecsMap[$data] + '_f', d: strategicIconPaths[$data + '_fill'] || strategicIconsPaths.fallback_fill"></path>
+					<!-- /ko -->
+					
+				</defs>
+				<use class="background" data-bind="svguse: mappingObject().id+'-um-sphere'"></use>
+				<path class="graticule" data-bind="attr: {'clip-path': 'url(#'+mappingObject().id+'-um-clip)'}, d3b: d3b"></path>
+				<!-- ko foreach: layers -->
+				<path data-bind="css: layer, d3b: [data, $parent.path()], attr: {'clip-path': 'url(#'+$parent.mappingObject().id+'-um-clip)'}"></path>
+				<!-- /ko -->
+				<!-- ko foreach: zSortedUnits -->
+					<use data-bind="svguse: $parent.mappingObject().id + '-um-' + $parent.usedSpecsMap[spec()] + '_b', css: borderClass, attr: {transform: transformComputed}"></use>
+					<use data-bind="svguse: $parent.mappingObject().id + '-um-' + $parent.usedSpecsMap[spec()] + '_f', attr: {fill: armyColor, transform: transformComputed}"></use>
+				<!-- /ko -->
+			</svg>
+		</div>
+		<!-- /ko -->
+	</div>
 </body>
 </html>
