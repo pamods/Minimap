@@ -290,7 +290,7 @@ $(document).ready(function() {
 				var projected = self.projection()(ll);
 				var x = projected[0];
 				var y = projected[1];
-				var scale = self.widthSizeMod() * Math.sqrt(Math.sqrt(self.planetSizeMod())) * 0.4;
+				var scale = Math.sqrt(Math.sqrt(self.widthSizeMod())) * Math.sqrt(Math.sqrt(self.planetSizeMod())) * 0.4;
 				return "translate( " + x + "," + y + "), scale(" + scale + ")";
 			});
 		};
@@ -298,6 +298,7 @@ $(document).ready(function() {
 		self.unitMap = {};
 		self.units = ko.observableArray([]);
 		
+		// TODO, use this kind of thing instead to show selected units on top: http://jsfiddle.net/hkSFf/
 		self.zSortedUnits = ko.computed(function() {
 			return _.sortBy(self.units(), function(unit) {
 				return unit.svgZ();
@@ -414,8 +415,8 @@ $(document).ready(function() {
 		
 		self.dotSizes = ko.computed(function() {
 			return {
-				"spawns": 2 * self.widthSizeMod() * self.planetSizeMod(),
-				"metal": 1.5 * self.widthSizeMod() * self.planetSizeMod(),
+				"spawns": 2 * Math.sqrt(self.widthSizeMod()) * self.planetSizeMod(),
+				"metal": 1.5 * Math.sqrt(self.widthSizeMod()) * self.planetSizeMod(),
 				"land": 0.9 * self.widthSizeMod() * self.planetSizeMod(),
 				"sea": 0.9 * self.widthSizeMod() * self.planetSizeMod(),
 				"others": self.widthSizeMod() * self.planetSizeMod()
@@ -461,26 +462,23 @@ $(document).ready(function() {
 				};
 			});
 		});
+		
+		self.lookAtByMapXY = function(x, y) {
+			var ll = self.projection().invert([x, y]);
+			if (ll) {
+				var c = convertToCartesian(ll[1], ll[0]);
+				api.camera.lookAt({planet_id: self.planet().id, location: {x: c[0], y: c[1], z: c[2]}, zoom: "orbital"});
+				api.camera.alignToPole();
+			}
+		};
 	};
 	
-	function MiniMapModel(p) {
-		var self = this;
-		
-		self.width = model.minimapWidth;
-		self.height = model.minimapHeight;
-		
-		// rotation is only possible in the x-axis, so north always points up
-		self.rotationX = ko.observable(50);
-		self.rotation = ko.computed(function() {
-			return [self.rotationX(), 0];
-		});
+	var appendInputDefaults = function(self) {
 		self.setRotationByPixels = function(px) {
 			self.rotationX(d3.scale.linear().domain([0, self.width()]).range([-180, 180])(px));
 		};
 		
-		appendMapDefaults(self, p);
-		
-		self.mousemove = function(data, e) {
+		self.defMousemove = function(data, e) {
 			if (e.altKey) {
 				self.setRotationByPixels(e.offsetX);
 			}
@@ -503,21 +501,8 @@ $(document).ready(function() {
 			};
 		};
 		
-		self.mouseleave = function(data, e) {
+		self.defMouseleave = function(data, e) {
 			api.Panel.message(api.Panel.parentId, 'unit_alert.hide_preview');
-		};
-		
-		var lookAtByMinimapXY = function(x, y) {
-			var ll = self.projection().invert([x, y]);
-			if (ll) {
-				var c = convertToCartesian(ll[1], ll[0]);
-				api.camera.lookAt({planet_id: self.planet().id, location: {x: c[0], y: c[1], z: c[2]}, zoom: "orbital"});
-				api.camera.alignToPole();
-			}
-		};
-		
-		self.clickMinimap = function(data, e) {
-			lookAtByMinimapXY(e.offsetX, e.offsetY);
 		};
 		
 		var moveToByMiniMapXY = function(x, y, queue) {
@@ -535,6 +520,30 @@ $(document).ready(function() {
 		self.moveByMinimap = function(data, e) {
 			moveToByMiniMapXY(e.offsetX, e.offsetY, e.shiftKey);
 		};
+	};
+	
+	function MiniMapModel(p) {
+		var self = this;
+		
+		self.width = model.minimapWidth;
+		self.height = model.minimapHeight;
+		
+		// rotation is only possible in the x-axis, so north always points up
+		self.rotationX = ko.observable(50);
+		self.rotation = ko.computed(function() {
+			return [self.rotationX(), 0];
+		});
+		
+		appendMapDefaults(self, p);
+		
+		appendInputDefaults(self);
+		self.mousemove = self.defMousemove;
+		self.mouseleave = self.defMouseleave;
+		
+		self.clickMinimap = function(data, e) {
+			model.activePlanet(self.planet().id);
+			self.lookAtByMapXY(e.offsetX, e.offsetY);
+		};
 		
 		appendIconsHandling(self);
 		
@@ -551,6 +560,7 @@ $(document).ready(function() {
 			return model.minimapAreaWidth() + model.minimapUbermapGap();
 		});
 		
+		self.rotationX = partnerMiniMap.rotationX;
 		self.rotation = partnerMiniMap.rotation;
 
 		appendMapDefaults(self, p);
@@ -561,11 +571,34 @@ $(document).ready(function() {
 		
 		appendIconsHandling(self);
 		
+		appendInputDefaults(self);
+		
+		var mouseX = 0;
+		var mouseY = 0;
+		self.mousemove = function(data, e) {
+			self.defMousemove(data, e);
+			mouseX = e.offsetX;
+			mouseY = e.offsetY;
+		};
+		self.mouseleave = self.defMouseleave;
+
+		self.click = function(data, e) {
+			
+		};
+		
+		self.switchCameraToLastPosition = function() {
+			self.lookAtByMapXY(mouseX, mouseY);
+			api.camera.alignToPole();
+		};
+		
 		console.log("created ubermap: "+p.name);
 	}
 	
 	function SceneModel() {
 		var self = this;
+		
+		self.minimaps = ko.observableArray([]);
+		self.ubermaps = ko.observableArray([]);
 		
 		self.uberMapsInit = ko.observable(false);
 		
@@ -575,17 +608,26 @@ $(document).ready(function() {
 		
 		self.mappingData = ko.observable();
 		
-		self.showsUberMap = ko.observable(true); // TODO
-		self.activePlanet = ko.observable(1); // TODO
+		self.showsUberMap = ko.observable(false);
+		self.activePlanet = ko.observable(0);
+		
+		self.showsUberMap.subscribe(function(v) {
+			api.Panel.message(api.Panel.parentId, 'setTopRightPreview', v);
+		});
+		
+		self.findActiveUberMap = function() {
+			for (var i = 0; i < self.ubermaps().length; i++) {
+				if (self.ubermaps()[i].visible()) {
+					return self.ubermaps()[i];
+				}
+			}
+			return undefined;
+		};
 		
 		self.planets = ko.observable([]);
 		self.planetCount = ko.computed(function() {
 			return self.planets().length;
 		});
-		
-		self.minimaps = ko.observableArray([]);
-		
-		self.ubermaps = ko.observableArray([]);
 		
 		var spaceUnits = {};
 		var tryPutUnitOnPlanet = function(m) {
@@ -630,7 +672,7 @@ $(document).ready(function() {
 			for (var i = 0; i < self.planets().length; i++) {
 				if (foundPlanets.indexOf(i) === -1) {
 					var mm = new MiniMapModel(self.planets()[i], self);
-					//self.minimaps.push(mm);
+					self.minimaps.push(mm);
 					self.ubermaps.push(new UberMapModel(self.planets()[i], mm));
 				}
 			}
@@ -690,6 +732,24 @@ $(document).ready(function() {
 		model.armyColors(clrs);
 	};
 	
+	handlers.keyboard = function(keycode) {
+		if (keycode == 32) {
+			var aum = model.findActiveUberMap();
+			model.showsUberMap(!model.showsUberMap());
+			if (aum) {
+				aum.switchCameraToLastPosition();
+			}
+		}
+	};
+	
+	handlers.toggleUberMap = function() {
+		
+	};
+	
+	handlers.focus_planet_changed = function(payload) {
+		// TOO buggy to be helpful
+	};
+	
 	app.registerWithCoherent(model, handlers);
 	ko.applyBindings(model);
 	
@@ -697,4 +757,6 @@ $(document).ready(function() {
 		api.Panel.message(api.Panel.parentId, 'queryViewportSize');
 		api.Panel.message(api.Panel.parentId, 'queryArmyColors');
 	}, 500);
+	
+
 });

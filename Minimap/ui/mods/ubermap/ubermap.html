@@ -50,7 +50,7 @@
 				<!-- ko foreach: layers -->
 				<path data-bind="css: layer, d3b: [data, $parent.path()], attr: {'clip-path': 'url(#'+$parent.mappingObject().id+'-clip)'}"></path>
 				<!-- /ko -->
-				<!-- ko foreach: zSortedUnits -->
+				<!-- ko foreach: units -->
 					<use data-bind="svguse: $parent.mappingObject().id + $parent.usedSpecsMap[spec()] + '_b', css: borderClass, attr: {transform: transformComputed}"></use>
 					<use data-bind="svguse: $parent.mappingObject().id + $parent.usedSpecsMap[spec()] + '_f', attr: {fill: armyColor, transform: transformComputed}"></use>
 				<!-- /ko -->
@@ -63,7 +63,7 @@
 	<div class="ubermaps">
 		<!-- ko foreach: ubermaps -->
 		<div style="position: absolute;" data-bind="visible: visible, style: {width: width()+'px', height: height()+'px', top: top()+'px', left: left()+'px'}">
-			<svg class="receiveMouse">
+			<svg class="receiveMouse" data-bind="event: {click: click, mousemove: mousemove, mouseleave: mouseleave, contextmenu: moveByMinimap}">
 				<defs>
 					<path data-bind="id: mappingObject().id+'-um-sphere', datum: {type: 'Sphere'}, d: path"></path>
 					<clipPath data-bind="id: mappingObject().id+'-um-clip'">
@@ -81,7 +81,7 @@
 				<!-- ko foreach: layers -->
 				<path data-bind="css: layer, d3b: [data, $parent.path()], attr: {'clip-path': 'url(#'+$parent.mappingObject().id+'-um-clip)'}"></path>
 				<!-- /ko -->
-				<!-- ko foreach: zSortedUnits -->
+				<!-- ko foreach: units -->
 					<use data-bind="svguse: $parent.mappingObject().id + '-um-' + $parent.usedSpecsMap[spec()] + '_b', css: borderClass, attr: {transform: transformComputed}"></use>
 					<use data-bind="svguse: $parent.mappingObject().id + '-um-' + $parent.usedSpecsMap[spec()] + '_f', attr: {fill: armyColor, transform: transformComputed}"></use>
 				<!-- /ko -->

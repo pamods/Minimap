@@ -23,6 +23,15 @@ console.log("inject ubermap");
 		}
 	};
 	
+	handlers.setTopRightPreview = function(s) {
+		var h = $("holodeck.preview");
+		if (!s) {
+			h.css({"position": "relative", "top": "0px", "right": "0px"});
+		} else {
+			h.css({"position": "fixed", "top": "35px", "right": "-316px"});
+		}
+	};
+	
 	handlers.queryViewportSize = function() {
 		api.panels.ubermap_panel.message('setSize', [window.screen.width, window.screen.height]);
 	};
@@ -85,6 +94,8 @@ console.log("inject ubermap");
 		api.panels.ubermap_panel.message("setArmyColors", colorByArmyId);
 	};
 	
+
+	
 }());
 
 $(document).ready(function() {
@@ -115,5 +126,14 @@ $(document).ready(function() {
 	
 	func(model.isSpectator());
 	model.isSpectator.subscribe(func);
+	
+	 $(document).keydown(function (e) {
+		 if (model.chatSelected())
+			 return;
+		 
+		 if (e.which === 32) {
+			 api.panels.ubermap_panel.message("toggleUberMap");
+		 }
+	 });
 	
 });
