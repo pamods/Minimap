@@ -94,13 +94,54 @@ console.log("inject ubermap");
 		api.panels.ubermap_panel.message("setArmyColors", colorByArmyId);
 	};
 	
+	model.showsUberMap = ko.observable(false);
+	
+	var holodeck = $('.primary');
+	handlers.setUberMapState = function(visible) {
+		model.showsUberMap(visible);
+		
+		var focusBefore = api.Holodeck.focused;
+		api.holodecks[0].focus();
+		api.camera.setAllowZoom(!visible);
+		if (focusBefore) {
+			focusBefore.focus();
+		}
+		
+		if (visible) {
+			holodeck.attr("style", "top: "+0+"px; left: "+0+"px; width: "+1+"px; height: "+1+"px");
+		} else {
+			holodeck.attr("style", "");
+		}
+	};
 
+	model.showsUberMap.subscribe(function(v) {
+		api.panels.ubermap_panel.message("setUberMapVisible", v);
+	});
+	
+	handlers.setMainCamera = function(target) {
+		var focusBefore = api.Holodeck.focused;
+		api.holodecks[0].focus();
+		
+		api.camera.lookAt(target);
+		api.camera.alignToPole();
+		
+		if (focusBefore) {
+			focusBefore.focus();
+		}
+	};
 	
 }());
 
 $(document).ready(function() {
-	// the main menu should be on top of everything, always
+	// put a lot of things above the ubermap z index, as they should always be on top
 	$('.div_sidebar_left').css("z-index", "99999");
+	$('#chat').css("z-index", "99999");
+	$('#message').css("z-index", "99999");
+	$('.div_game_paused').css("z-index", "99999");
+	$('.div_gamestats_panel').css("z-index", "99999");
+	$('#game_over').css("z-index", "99999");
+	$('#message').css("z-index", "99999");
+	$('#player_guide').css("z-index", "99999");
 	var func = function(v) {
 		if (!v) {
 			var $panel = $('<panel id="ubermap_panel"></panel>').css({
@@ -127,13 +168,22 @@ $(document).ready(function() {
 	func(model.isSpectator());
 	model.isSpectator.subscribe(func);
 	
-	 $(document).keydown(function (e) {
+	
+	$(document).keydown(function (e) {
 		 if (model.chatSelected())
 			 return;
 		 
 		 if (e.which === 32) {
-			 api.panels.ubermap_panel.message("toggleUberMap");
+			 model.showsUberMap(!model.showsUberMap());
 		 }
 	 });
-	
+
+	$(document).bind('mousewheel', function(e) {
+		 if (model.chatSelected())
+			 return;
+		 
+		if (e.originalEvent.wheelDelta > 0 && model.showsUberMap()) {
+			api.panels.ubermap_panel.message("zoomIntoUberMap");
+		}
+	});
 });

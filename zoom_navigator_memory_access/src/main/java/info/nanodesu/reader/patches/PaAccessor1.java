@@ -11,7 +11,7 @@ import java.util.List;
  * nop [rax]
    mov rax,[r15]
    *
-   mov rsi,[rdx+r14*8]
+   mov rsi,[rdx+r14*8] // RDX here is the base adr of the list of game entities
    *
    mov rax,[rsi]
    mov rcx,rsi

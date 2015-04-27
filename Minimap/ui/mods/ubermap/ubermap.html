@@ -10,6 +10,10 @@
 <link href="coui://ui/main/shared/js/thirdparty/DataTables-1.9.4/media/css/jquery.dataTables.custom.css" rel="stylesheet" type="text/css" />
 <link href="ubermap.css" rel="stylesheet" type="text/css" />
 
+<script src="setImmediate.js" type="text/javascript"></script>
+<script src="canvas.js" type="text/javascript"></script>
+<script src="selection.js" type="text/javascript"></script>
+
 <script src="d3v3.js" type="text/javascript"></script>
 <script src="d3.geo.projection.v0.min.js" type="text/javascript"></script>
 <script src="d3.geo.polyhedron.v0.min.js" type="text/javascript"></script>
@@ -27,34 +31,25 @@
 </head>
 
 <body class="body_panel" data-bind="style: {width: bodyWidth()+'px', height: bodyHeight()+'px'}", style="position: relative">
-	
+	<div id='selection_layer' data-bind="css: {receiveMouse: showsUberMap, ignoreMouse: !showsUberMap()}, style: {width: parentWidth, height: parentHeight}" style='position: fixed; top: 0px; left: 0px; z-index: -999'></div>
 	<div class="minimaps" data-bind="style: {'max-width': minimapAreaWidth()+'px'}">
 		<!-- ko foreach: minimaps -->
-		<div class="minimap" style="position: relative" data-bind="visible: !dead(), style: {width: width()+'px', height: height()+'px'}">
-			<div data-bind="text: name" class="mapname" style="position: absolute; top: 0px; left: 0px"></div>
-			<svg class="receiveMouse" data-bind="click: clickMinimap, event: {mousemove: mousemove, mouseleave: mouseleave, contextmenu: moveByMinimap}">
+		<div class="minimap" style="position: relative" data-bind="id: 'mm-' + name(), visible: !dead(), style: {width: width()+'px', height: height()+'px'}">
+			<svg class="ignoreMouse" data-bind="style: {position: 'absolute', width: width()+'px', height: height()+'px'}">
 				<defs>
 					<path data-bind="id: mappingObject().id+'-sphere', datum: {type: 'Sphere'}, d: path"></path>
 					<clipPath data-bind="id: mappingObject().id+'-clip'">
 						<use data-bind="svguse: mappingObject().id+'-sphere'"></use>
 					</clipPath>
-					
-					<!-- ko foreach: unitSpecs -->
-					<path data-bind="id: $parent.mappingObject().id + $parent.usedSpecsMap[$data] + '_b', d: strategicIconPaths[$data + '_border'] || strategicIconsPaths.fallback_border"></path>
-					<path data-bind="id: $parent.mappingObject().id + $parent.usedSpecsMap[$data] + '_f', d: strategicIconPaths[$data + '_fill'] || strategicIconsPaths.fallback_fill"></path>
-					<!-- /ko -->
-					
 				</defs>
 				<use class="background" data-bind="svguse: mappingObject().id+'-sphere'"></use>
 				<path class="graticule" data-bind="attr: {'clip-path': 'url(#'+mappingObject().id+'-clip)'}, d3b: d3b"></path>
 				<!-- ko foreach: layers -->
 				<path data-bind="css: layer, d3b: [data, $parent.path()], attr: {'clip-path': 'url(#'+$parent.mappingObject().id+'-clip)'}"></path>
 				<!-- /ko -->
-				<!-- ko foreach: units -->
-					<use data-bind="svguse: $parent.mappingObject().id + $parent.usedSpecsMap[spec()] + '_b', css: borderClass, attr: {transform: transformComputed}"></use>
-					<use data-bind="svguse: $parent.mappingObject().id + $parent.usedSpecsMap[spec()] + '_f', attr: {fill: armyColor, transform: transformComputed}"></use>
-				<!-- /ko -->
 			</svg>
+			<canvas class="receiveMouse" data-bind="rubberband: true, click: clickMinimap, event: {mousemove: mousemove, mouseenter: mouseenter, mouseleave: mouseleave, contextmenu: moveByMinimap},
+													canvas: canvas, attr: {width: width, height: height}, style: {'z-index': 999, position: 'absolute'}"></canvas>
 		</div>
 		<!-- /ko -->
 		
@@ -62,30 +57,24 @@
 	
 	<div class="ubermaps">
 		<!-- ko foreach: ubermaps -->
-		<div style="position: absolute;" data-bind="visible: visible, style: {width: width()+'px', height: height()+'px', top: top()+'px', left: left()+'px'}">
-			<svg class="receiveMouse" data-bind="event: {click: click, mousemove: mousemove, mouseleave: mouseleave, contextmenu: moveByMinimap}">
-				<defs>
-					<path data-bind="id: mappingObject().id+'-um-sphere', datum: {type: 'Sphere'}, d: path"></path>
-					<clipPath data-bind="id: mappingObject().id+'-um-clip'">
-						<use data-bind="svguse: mappingObject().id+'-um-sphere'"></use>
-					</clipPath>
-					
-					<!-- ko foreach: unitSpecs -->
-					<path data-bind="id: $parent.mappingObject().id + '-um-' + $parent.usedSpecsMap[$data] + '_b', d: strategicIconPaths[$data + '_border'] || strategicIconsPaths.fallback_border"></path>
-					<path data-bind="id: $parent.mappingObject().id + '-um-' + $parent.usedSpecsMap[$data] + '_f', d: strategicIconPaths[$data + '_fill'] || strategicIconsPaths.fallback_fill"></path>
+		<div style="position: absolute;" data-bind="id: 'um-' + name(), visible: visible, style: {width: width()+'px', height: height()+'px', top: top()+'px', left: left()+'px'}">
+			<div style="position: relative">
+				<svg class="ignoreMouse" data-bind="style: {position: 'absolute', width: width()+'px', height: height()+'px'}">
+					<defs>
+						<path data-bind="id: mappingObject().id+'-um-sphere', datum: {type: 'Sphere'}, d: path"></path>
+						<clipPath data-bind="id: mappingObject().id+'-um-clip'">
+							<use data-bind="svguse: mappingObject().id+'-um-sphere'"></use>
+						</clipPath>
+					</defs>
+					<use class="background" data-bind="svguse: mappingObject().id+'-um-sphere'"></use>
+					<path class="graticule" data-bind="attr: {'clip-path': 'url(#'+mappingObject().id+'-um-clip)'}, d3b: d3b"></path>
+					<!-- ko foreach: layers -->
+					<path data-bind="css: layer, d3b: [data, $parent.path()], attr: {'clip-path': 'url(#'+$parent.mappingObject().id+'-um-clip)'}"></path>
 					<!-- /ko -->
-					
-				</defs>
-				<use class="background" data-bind="svguse: mappingObject().id+'-um-sphere'"></use>
-				<path class="graticule" data-bind="attr: {'clip-path': 'url(#'+mappingObject().id+'-um-clip)'}, d3b: d3b"></path>
-				<!-- ko foreach: layers -->
-				<path data-bind="css: layer, d3b: [data, $parent.path()], attr: {'clip-path': 'url(#'+$parent.mappingObject().id+'-um-clip)'}"></path>
-				<!-- /ko -->
-				<!-- ko foreach: units -->
-					<use data-bind="svguse: $parent.mappingObject().id + '-um-' + $parent.usedSpecsMap[spec()] + '_b', css: borderClass, attr: {transform: transformComputed}"></use>
-					<use data-bind="svguse: $parent.mappingObject().id + '-um-' + $parent.usedSpecsMap[spec()] + '_f', attr: {fill: armyColor, transform: transformComputed}"></use>
-				<!-- /ko -->
-			</svg>
+				</svg>
+				<canvas class="receiveMouse" data-bind="rubberband: true, event: {click: click, mousemove: mousemove, mouseenter: mouseenter, mouseleave: mouseleave, contextmenu: moveByMinimap},
+														canvas: canvas, attr: {width: width, height: height}, style: {'z-index': 999, position: 'absolute'}"></canvas>
+			</div>
 		</div>
 		<!-- /ko -->
 	</div>

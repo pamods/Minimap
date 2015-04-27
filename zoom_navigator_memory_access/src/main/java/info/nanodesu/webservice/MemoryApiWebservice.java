@@ -4,6 +4,7 @@ import info.nanodesu.lib.Memory64API;
 import info.nanodesu.lib.windows.Windows64MemoryAPI;
 import info.nanodesu.reader.PaClientMemoryAccessor;
 import info.nanodesu.reader.patches.B79896Accessor;
+import info.nanodesu.reader.patches.B80684Accessor;
 
 import java.awt.BorderLayout;
 import java.awt.Dimension;
@@ -57,9 +58,11 @@ public class MemoryApiWebservice extends Application {
 		case "80187":
 		case "80462":
 			return new B79896Accessor(useProcessId);
+		case "80684-pte":
+			return new B80684Accessor(useProcessId);
 		default:
-			System.out.println("ERROR: version "+version+ " is not supported");
-			return null;
+			System.out.println("WARNING !!! : version "+version+ " is not tested and might not work.");
+			return new B80684Accessor(useProcessId);
 		}
 	}
 	
@@ -147,16 +150,19 @@ public class MemoryApiWebservice extends Application {
 		
 		if (forcedPid == null) {
 			Memory64API api = initNativeApi();
+			int wTime = 15000;
 			while(true) {
 				try {
-					Thread.sleep(15000);
+					Thread.sleep(wTime);
 					int p = api.findPAProcess();
+					wTime = 15000;
 					if (p != pa.getPid()) {
 						System.out.println("found a new pid for pa.exe, switching over to "+p);
 						pa.updatePid(p);
 					}
 				} catch (Exception ex) {
-					ex.printStackTrace();
+					wTime = 1000;
+					System.out.println("lost PA process, trying to find it again...");
 				}
 			}
 		}

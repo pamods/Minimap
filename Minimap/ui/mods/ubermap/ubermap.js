@@ -1,5 +1,8 @@
 console.log("loaded ubermap.js");
 
+// do not scroll this scene please
+window.onwheel = function(){ return false; }
+
 ko.bindingHandlers.datum = {
 	update : function(element, valueAccessor, allBindings, viewModel, bindingContext) {
 		value = ko.unwrap(valueAccessor());
@@ -35,6 +38,17 @@ ko.bindingHandlers.id = {
 	}
 };
 
+ko.bindingHandlers.canvas = {
+	update : function(element, valueAccessor, allBindings, viewModel, bindingContext) {
+		valueAccessor()(element);
+	}
+};
+
+ko.bindingHandlers.rubberband = {
+	update: function(element) {
+		model.rubberbandSelector.bindToElement(element);
+	}
+}
 
 var model = undefined;
 var handlers = {};
@@ -43,6 +57,14 @@ loadScript("coui://ui/mods/minimap/unitInfoParser.js");
 loadScript("coui://ui/mods/minimap/alertsManager.js");
 
 $(document).ready(function() {
+	
+	var selectUnitsById = function(ids) {
+		engine.call("select.byIds", []).then(function() {
+			engine.call("select.byIds", ids).then(function() {
+				api.audio.playSound("/SE/UI/UI_Unit_Select");
+			});
+		});
+	};
 	
 	function contains(ar, val) {
 		return ar !== undefined && $.inArray(val, ar) !== -1;
@@ -130,7 +152,7 @@ $(document).ready(function() {
 			});
 		}
 		
-		setTimeout(refreshData, 3000);
+		setTimeout(refreshData, 1000);
 	}
 	
 	var memoryPA = new MemoryDataReceiver(250);
@@ -140,93 +162,14 @@ $(document).ready(function() {
 		unitSpecMapping = mapping;
 	});
 	
-	var appendLayoutFields = function(self) {
-		self.minimapsBottomMargin = ko.observable(300);
-		self.minimapAreaWidth = ko.observable(400);
-		self.mapSidesRatio = ko.observable(1.5); 
-		// height = width / sidesRatio
-		self.minimapWidthBig = ko.observable(400);
-		self.minimapWidthMedium = ko.observable(200);
-		self.minimapWidthSmall = ko.observable(133);
-		self.minimapUbermapGap = ko.observable(5);
-		self.ubermapTop = ko.observable(80);
-		self.ubermapBottomGap = ko.observable(160);
 
-		self.parentWidth = ko.observable(0);
-		self.parentHeight = ko.observable(0);
-		self.minimapHeightBig = ko.computed(function() {
-			return self.minimapWidthBig() / self.mapSidesRatio();
-		});
-		self.minimapHeightMedium = ko.computed(function() {
-			return self.minimapWidthMedium() / self.mapSidesRatio();
-		});
-		self.minimapHeightSmall = ko.computed(function() {
-			return self.minimapWidthSmall() / self.mapSidesRatio();
-		});
-		
-		self.maxPlanetsForBig = ko.computed(function() {
-			var maxHeight = self.parentHeight() - self.minimapsBottomMargin();
-			return Math.floor(maxHeight / self.minimapHeightBig()) * (self.minimapAreaWidth() / self.minimapWidthBig());
-		});
-		self.maxPlanetsForMedium = ko.computed(function() {
-			var maxHeight = self.parentHeight() - self.minimapsBottomMargin();
-			return Math.floor(maxHeight / self.minimapHeightMedium()) * (self.minimapAreaWidth() / self.minimapWidthMedium());
-		});
-
-		self.minimapWidth = ko.computed(function() {
-			if (self.planetCount() <= self.maxPlanetsForBig()) {
-				return self.minimapWidthBig();
-			} else if (self.planetCount() <= self.maxPlanetsForMedium()) {
-				return self.minimapWidthMedium();
-			} else {
-				return self.minimapWidthSmall();
-			}
-		});
-		
-		self.minimapHeight = ko.computed(function() {
-			if (self.planetCount() <= self.maxPlanetsForBig()) {
-				return self.minimapHeightBig();
-			} else if (self.planetCount() <= self.maxPlanetsForMedium()) {
-				return self.minimapHeightMedium();
-			} else {
-				return self.minimapHeightSmall();
-			}
-		});
-		
-		self.optimalUberMapWidth = ko.computed(function() {
-			return self.parentWidth() - self.minimapAreaWidth() - self.minimapUbermapGap();
-		});
-		
-		self.optimalUberMapHeight = ko.computed(function() {
-			return self.parentHeight() - self.ubermapTop() - self.ubermapBottomGap();
-		});
-		
-		self.uberMapWidthDedicatesHeight = ko.computed(function() {
-			var widthForHeight = self.optimalUberMapHeight() * self.mapSidesRatio();
-			return widthForHeight > self.optimalUberMapWidth();
-		});
-		
-		self.uberMapWidth = ko.computed(function() {
-			return Math.floor(self.uberMapWidthDedicatesHeight() ? self.optimalUberMapWidth() : self.optimalUberMapHeight() * self.mapSidesRatio()); 
-		});
-		
-		self.uberMapHeight = ko.computed(function() {
-			return Math.floor(self.uberMapWidthDedicatesHeight() ? self.optimalUberMapWidth() / self.mapSidesRatio() : self.optimalUberMapHeight());
-		});
-		
-		self.bodyWidth = ko.computed(function() {
-			return self.minimapAreaWidth() + self.minimapUbermapGap() + self.uberMapWidth();
-		});
-		
-		self.bodyHeight = ko.computed(function() {
-			return self.ubermapTop() + self.uberMapHeight();
-		});
-	};
-	
 	function UnitModel(unit) {
 		var self = this;
 		
-		self.transformComputed = undefined;
+		self.unit = unit;
+		
+		self.translate = undefined;
+		self.scale = undefined;
 		
 		self.id = ko.observable(unit.id);
 		self.planetId = ko.observable(unit.planetId);
@@ -237,10 +180,6 @@ $(document).ready(function() {
 		} else {
 			self.spec(unit.spec);
 		}
-		
-		self.selected = ko.computed(function() {
-			return model.selection()[self.id()];
-		});
 		
 		self.svgZ = ko.computed(function() {
 			var unitTypes = unitSpecMapping[unit.spec];
@@ -254,12 +193,7 @@ $(document).ready(function() {
 			} else {
 				specPoints = 1;
 			}
-			var selectedBonus = self.selected() ? 20 : 0;
-			return specPoints + selectedBonus;
-		});
-				
-		self.borderClass = ko.computed(function() {
-			return self.selected() ? "selected_border" : "unselected_border";
+			return specPoints;
 		});
 		
 		self.army = ko.observable(unit.army);
@@ -278,62 +212,50 @@ $(document).ready(function() {
 			self.y(update.y);
 			self.z(update.z);
 			self.currentHp(update.currentHp);
+			self.unit.x = update.x;
+			self.unit.y = update.y;
+			self.unit.z = update.z;
+			self.unit.planetId = update.planetId;
+			self.unit.currentHp = update.currentHp;
 		};
-		
 	}
 	
 	var appendIconsHandling = function(self) {
-		
-		var createTransformComputed = function(unit) {
+		var createTranslateComputed = function(unit) {
 			return ko.computed(function() {
 				var ll = convertToLonLan(unit.x(), unit.y(), unit.z());
 				var projected = self.projection()(ll);
 				var x = projected[0];
 				var y = projected[1];
-				var scale = Math.sqrt(Math.sqrt(self.widthSizeMod())) * Math.sqrt(Math.sqrt(self.planetSizeMod())) * 0.4;
-				return "translate( " + x + "," + y + "), scale(" + scale + ")";
-			});
+				return [x, y];
+			});			
+		};
+		
+		var createScaleComputed = function(unit) {
+			return ko.computed(function() {
+				return Math.sqrt(Math.sqrt(self.widthSizeMod())) * Math.sqrt(Math.sqrt(self.planetSizeMod())) * 0.4;
+			});			
 		};
 		
 		self.unitMap = {};
 		self.units = ko.observableArray([]);
 		
-		// TODO, use this kind of thing instead to show selected units on top: http://jsfiddle.net/hkSFf/
 		self.zSortedUnits = ko.computed(function() {
 			return _.sortBy(self.units(), function(unit) {
 				return unit.svgZ();
 			});
 		});
 		
-		var specIdSrc = 0;
-		self.usedSpecsMap = {};
-		self.specMapNotify = ko.observable();
-		
-		self.unitSpecs = ko.computed(function() {
-			self.specMapNotify();
-			var result = [];
-			_.forEach(self.usedSpecsMap, function(specId, key) {
-				result.push(key);
-			});
-			return result;
-		});
-		
 		var addUnitModel = function(unitm) {
-			if (self.usedSpecsMap[unitm.spec()] === undefined) {
-				self.usedSpecsMap[unitm.spec()] = "spec-"+specIdSrc;
-				specIdSrc++;
-				
-				ko.tasks.processImmediate(function() { // the template in defs needs to be inserted before it is used
-					self.specMapNotify.notifySubscribers();
-				});
-			}
-			unitm.transformComputed = createTransformComputed(unitm);
+			model.checkSpecExists(unitm.spec());
+			unitm.translate = createTranslateComputed(unitm);
+			unitm.scale = createScaleComputed(unitm);
 			self.units.push(unitm);
 			self.unitMap[unitm.id()] = unitm;
 		};
 		
 		self.tryAddUnitModel = function(unitm) {
-			if (unitm.planetId() === self.planet().id) {
+			if (self.unitMap[unitm.id()] === undefined && unitm.planetId() === self.planet().id) {
 				addUnitModel(unitm);
 				return true;
 			} else {
@@ -342,7 +264,7 @@ $(document).ready(function() {
 		};
 		
 		self.tryAddUnit = function(unit) {
-			if (self.planet().id === unit.planetId) {
+			if (self.unitMap[unit.id] === undefined && self.planet().id === unit.planetId) {
 				var m = new UnitModel(unit);
 				addUnitModel(m);
 				return true;
@@ -358,22 +280,86 @@ $(document).ready(function() {
 			if (m) {
 				m.updateData(unit);
 				if(unit.planetId !== self.planet().id) {
-					model.addPotentialSpaceUnit(m);
 					self.units.remove(function(u) {
-						return unit.id === u.id();
+						var r = unit.id === u.id();
+						if (r) {
+							self.unitMap[unit.id] = undefined;
+						}
+						return r;
 					});
+					model.addPotentialSpaceUnit(m.unit);
 				}
 			}
 		});
 		
 		memoryPA.addUnitRemovedListener(function(ids) {
 			self.units.remove(function(unit) {
-				return ids[unit.id()] === true;
+				var r = ids[unit.id()] === true;
+				if (r) {
+					self.unitMap[unit.id()] = undefined;
+				}
+				return r;
 			});
-			// unit specs are not removed from the defs, that just costs more than it is worth
 		});
 		
+		var fps = 5;
+		var now;
+		var then = Date.now();
+		var interval = 1000/fps;
+		var delta;
 		
+		var drawUnit = function(ctx, unit) {
+			var t = unit.translate();
+			ctx.translate(t[0], t[1]);
+			ctx.scale(unit.scale(), unit.scale());
+			
+			var b = model.unitSpecPathsMap[unit.spec()+"_b"];
+			var f = model.unitSpecPathsMap[unit.spec()+"_f"];
+			
+			if (model.selection()[unit.id()]) {
+				ctx.fillStyle = "white";
+			} else {
+				ctx.fillStyle = "black";
+			}
+			
+			ctx.fill(b);
+			ctx.fillStyle = unit.armyColor();
+			ctx.fill(f);
+			
+			ctx.setTransform(1, 0, 0, 1, 0, 0);
+		};
+		
+		self.drawIcons = function() {
+			requestAnimationFrame(self.drawIcons);
+			now = Date.now();
+			delta = now - then;
+			if (delta > interval) {
+				then = now - (delta % interval);
+				
+				if (self.context() && (!self.visible || self.visible())) {
+					var ctx = self.context();
+					ctx.clearRect(0, 0, self.width(), self.height());
+					
+					var selectedUnits = _.filter(self.zSortedUnits(), function(unit) {
+						return model.selection()[unit.id()];
+					});
+					
+					var unselectedUnits = _.filter(self.zSortedUnits(), function(unit) {
+						return !model.selection()[unit.id()];
+					});
+					
+					_.forEach(unselectedUnits, function(unit) {
+						drawUnit(ctx, unit);
+					});
+					
+					_.forEach(selectedUnits, function(unit) {
+						drawUnit(ctx, unit);
+					});
+				}
+			}
+		};
+		
+		self.drawIcons();
 	};
 	
 	var appendMapDefaults = function(self, p) {
@@ -463,14 +449,26 @@ $(document).ready(function() {
 			});
 		});
 		
-		self.lookAtByMapXY = function(x, y) {
+		self.lookAtByMapXY = function(x, y, zoom) {
 			var ll = self.projection().invert([x, y]);
 			if (ll) {
 				var c = convertToCartesian(ll[1], ll[0]);
-				api.camera.lookAt({planet_id: self.planet().id, location: {x: c[0], y: c[1], z: c[2]}, zoom: "orbital"});
-				api.camera.alignToPole();
+				zoom = zoom === undefined ? "orbital" : zoom;
+				api.Panel.message(api.Panel.parentId, "setMainCamera", 
+						{planet_id: self.planet().id, location: {x: c[0], y: c[1], z: c[2]}, zoom: zoom});
 			}
 		};
+		
+		self.canvas = ko.observable(undefined);
+		self.context = ko.computed(function() {
+			self.width();
+			self.height();
+			if (self.canvas()) {
+				return self.canvas().getContext("2d");
+			} else {
+				return undefined;
+			}
+		});
 	};
 	
 	var appendInputDefaults = function(self) {
@@ -478,11 +476,15 @@ $(document).ready(function() {
 			self.rotationX(d3.scale.linear().domain([0, self.width()]).range([-180, 180])(px));
 		};
 		
+		var mouseX = 0;
+		var mouseY = 0;
 		self.defMousemove = function(data, e) {
 			if (e.altKey) {
 				self.setRotationByPixels(e.offsetX);
 			}
 			self.showPreviewByMapXY(e.offsetX, e.offsetY);
+			mouseX = e.offsetX;
+			mouseY = e.offsetY;
 		};
 		
 		self.showPreviewByMapXY = function(x, y) {
@@ -519,6 +521,19 @@ $(document).ready(function() {
 		
 		self.moveByMinimap = function(data, e) {
 			moveToByMiniMapXY(e.offsetX, e.offsetY, e.shiftKey);
+		};
+		
+		self.mouseenter = function() {
+			model.mouseHoverMap = self;
+		};
+		
+		self.switchCameraToLastPosition = function() {
+			model.activePlanet(self.planet().id);
+			self.lookAtByMapXY(mouseX, mouseY, "invalid");
+		};
+		
+		self.rubberbandSelect = function(x, y, w, h, shift, ctrl) {
+			console.log(arguments); // TODO
 		};
 	};
 	
@@ -572,30 +587,112 @@ $(document).ready(function() {
 		appendIconsHandling(self);
 		
 		appendInputDefaults(self);
-		
-		var mouseX = 0;
-		var mouseY = 0;
-		self.mousemove = function(data, e) {
-			self.defMousemove(data, e);
-			mouseX = e.offsetX;
-			mouseY = e.offsetY;
-		};
+		self.mousemove = self.defMousemove;
 		self.mouseleave = self.defMouseleave;
-
+		
 		self.click = function(data, e) {
 			
-		};
-		
-		self.switchCameraToLastPosition = function() {
-			self.lookAtByMapXY(mouseX, mouseY);
-			api.camera.alignToPole();
 		};
 		
 		console.log("created ubermap: "+p.name);
 	}
 	
+	var appendLayoutFields = function(self) {
+		self.minimapsBottomMargin = ko.observable(300);
+		self.minimapAreaWidth = ko.observable(400);
+		self.mapSidesRatio = ko.observable(1.5); 
+		// height = width / sidesRatio
+		self.minimapWidthBig = ko.observable(400);
+		self.minimapWidthMedium = ko.observable(200);
+		self.minimapWidthSmall = ko.observable(133);
+		self.minimapUbermapGap = ko.observable(5);
+		self.ubermapTop = ko.observable(80);
+		self.ubermapBottomGap = ko.observable(160);
+
+		self.parentWidth = ko.observable(0);
+		self.parentHeight = ko.observable(0);
+		self.minimapHeightBig = ko.computed(function() {
+			return self.minimapWidthBig() / self.mapSidesRatio();
+		});
+		self.minimapHeightMedium = ko.computed(function() {
+			return self.minimapWidthMedium() / self.mapSidesRatio();
+		});
+		self.minimapHeightSmall = ko.computed(function() {
+			return self.minimapWidthSmall() / self.mapSidesRatio();
+		});
+		
+		self.maxPlanetsForBig = ko.computed(function() {
+			var maxHeight = self.parentHeight() - self.minimapsBottomMargin();
+			return Math.floor(maxHeight / self.minimapHeightBig()) * (self.minimapAreaWidth() / self.minimapWidthBig());
+		});
+		self.maxPlanetsForMedium = ko.computed(function() {
+			var maxHeight = self.parentHeight() - self.minimapsBottomMargin();
+			return Math.floor(maxHeight / self.minimapHeightMedium()) * (self.minimapAreaWidth() / self.minimapWidthMedium());
+		});
+
+		self.minimapWidth = ko.computed(function() {
+			if (self.planetCount() <= self.maxPlanetsForBig()) {
+				return self.minimapWidthBig();
+			} else if (self.planetCount() <= self.maxPlanetsForMedium()) {
+				return self.minimapWidthMedium();
+			} else {
+				return self.minimapWidthSmall();
+			}
+		});
+		
+		self.minimapHeight = ko.computed(function() {
+			if (self.planetCount() <= self.maxPlanetsForBig()) {
+				return self.minimapHeightBig();
+			} else if (self.planetCount() <= self.maxPlanetsForMedium()) {
+				return self.minimapHeightMedium();
+			} else {
+				return self.minimapHeightSmall();
+			}
+		});
+		
+		self.optimalUberMapWidth = ko.computed(function() {
+			return self.parentWidth() - self.minimapAreaWidth() - self.minimapUbermapGap();
+		});
+		
+		self.optimalUberMapHeight = ko.computed(function() {
+			return self.parentHeight() - self.ubermapTop() - self.ubermapBottomGap();
+		});
+		
+		self.uberMapWidthDedicatesHeight = ko.computed(function() {
+			var widthForHeight = self.optimalUberMapHeight() * self.mapSidesRatio();
+			return widthForHeight > self.optimalUberMapWidth();
+		});
+		
+		self.uberMapWidth = ko.computed(function() {
+			return Math.floor(self.uberMapWidthDedicatesHeight() ? self.optimalUberMapWidth() : self.optimalUberMapHeight() * self.mapSidesRatio()); 
+		});
+		
+		self.uberMapHeight = ko.computed(function() {
+			return Math.floor(self.uberMapWidthDedicatesHeight() ? self.optimalUberMapWidth() / self.mapSidesRatio() : self.optimalUberMapHeight());
+		});
+		
+		self.bodyWidth = ko.computed(function() {
+			return self.showsUberMap() ? self.parentWidth() : self.minimapAreaWidth(); // + self.minimapUbermapGap() + self.uberMapWidth();
+		});
+		
+		self.bodyHeight = ko.computed(function() {
+			return self.showsUberMap() ? self.parentHeight() : self.ubermapTop() + self.uberMapHeight();
+		});
+	};
+	
 	function SceneModel() {
 		var self = this;
+		
+		self.mouseHoverMap = undefined;
+		
+		self.unitSpecPathsMap = {};
+		
+		self.checkSpecExists = function(spec) {
+			if (self.unitSpecPathsMap[spec] === undefined) {
+				self.unitSpecPathsMap[spec+"_b"] = new Path2D(strategicIconPaths[spec + '_border'] || strategicIconsPaths.fallback_border);
+				self.unitSpecPathsMap[spec+"_f"] = new Path2D(strategicIconPaths[spec + '_fill'] || strategicIconsPaths.fallback_fill);
+			}
+		}
 		
 		self.minimaps = ko.observableArray([]);
 		self.ubermaps = ko.observableArray([]);
@@ -613,6 +710,7 @@ $(document).ready(function() {
 		
 		self.showsUberMap.subscribe(function(v) {
 			api.Panel.message(api.Panel.parentId, 'setTopRightPreview', v);
+			api.Panel.message(api.Panel.parentId, 'setUberMapState', v);
 		});
 		
 		self.findActiveUberMap = function() {
@@ -629,25 +727,35 @@ $(document).ready(function() {
 			return self.planets().length;
 		});
 		
-		var spaceUnits = {};
+		var spaceUnits = {}; // spaaace. I am in space.
 		var tryPutUnitOnPlanet = function(m) {
-			for (var i = 0; i < self.minimaps().length; i++) {
-				if (self.minimaps()[i].tryAddUnitModel(m)) {
-					return true;
+			var added = false;
+			_.forEach(self.minimaps(), function(mm) {
+				if (!added) {
+					added = mm.tryAddUnit(m) || added;
 				}
-			}
-			return false;
+			});
+			_.forEach(self.ubermaps(), function(um) {
+				if (!added) {
+					added = um.tryAddUnit(m) || added;
+				}
+			});
+			return added;
 		};
 		self.addPotentialSpaceUnit = function(m) {
 			if (!tryPutUnitOnPlanet(m)) {
-				spaceUnits[m.id()] = m;
+				spaceUnits[m.id] = m;
 			}
 		};
 		
 		memoryPA.addUnitUpdatedListener(function(unit) {
 			var m = spaceUnits[unit.id];
 			if (m) {
-				m.updateData(unit);
+				m.x = unit.x;
+				m.y = unit.y;
+				m.z = unit.z;
+				m.planetId = unit.planetId;
+				m.currentHp = unit.currentHp;
 				if (tryPutUnitOnPlanet(m)) {
 					spaceUnits[unit.id] = undefined;
 				}
@@ -700,10 +808,28 @@ $(document).ready(function() {
 				console.log("No minimap data available for map with name "+payload.name);
 			}
 		};
+		
+		self.shiftState = ko.observable(false);
+		self.ctrlState = ko.observable(false);
+		self.rubberbandSelector = makeSelector();
+		self.rubberbandSelector.bindToElement("#selection_layer");
+		self.showsUberMap.subscribe(function(v) {
+			self.rubberbandSelector.setEnabled(v);
+		});
+		self.rubberbandSelector.addListener(function(x, y, w, h) {
+			_.forEach(self.ubermaps(), function(m) {
+				if (m.visible()) {
+					m.rubberbandSelect(x, y, w, h, self.shiftState(), self.ctrlState());
+				}
+			});
+			_.forEach(self.minimaps(), function(m) {
+				m.rubberbandSelect(x, y, w, h, self.shiftState(), self.ctrlState());
+			});
+		});
 	}
 	
 	model = new SceneModel();
-	
+
 	handlers.selection = function(payload) {
 		var newSelection = {};
 		_.forEach(payload.spec_ids, function(ids, spec) {
@@ -711,7 +837,6 @@ $(document).ready(function() {
 				newSelection[id] = true;
 			});
 		});
-		
 		model.selection(newSelection);
 	};
 	
@@ -722,8 +847,16 @@ $(document).ready(function() {
 	};
 	
 	handlers.setSize = function(size) {
-		model.parentWidth(size[0]);
-		model.parentHeight(size[1]);
+		ko.tasks.processImmediate(function() {
+			model.uberMapsInit(true);
+		});
+		ko.tasks.processImmediate(function() {
+			model.parentWidth(size[0]);
+			model.parentHeight(size[1]);
+		});
+		ko.tasks.processImmediate(function() {
+			model.uberMapsInit(false);
+		});
 	};
 	
 	handlers.setArmyColors = function(clrs) {
@@ -732,21 +865,26 @@ $(document).ready(function() {
 		model.armyColors(clrs);
 	};
 	
-	handlers.keyboard = function(keycode) {
-		if (keycode == 32) {
-			var aum = model.findActiveUberMap();
-			model.showsUberMap(!model.showsUberMap());
-			if (aum) {
-				aum.switchCameraToLastPosition();
-			}
+	handlers.setUberMapVisible = function(show) {
+		model.showsUberMap(show);
+	};
+	
+	handlers.zoomIntoUberMap = function() {
+		var aum = model.mouseHoverMap;
+		model.showsUberMap(false);
+		if (aum) {
+			aum.switchCameraToLastPosition();
 		}
 	};
 	
-	handlers.toggleUberMap = function() {
-		
+	handlers.zoom_level = function(payload) {
+//		console.log("zoom level");
+//		console.log(payload);
 	};
 	
 	handlers.focus_planet_changed = function(payload) {
+//		console.log("focus planet");
+//		console.log(payload);
 		// TOO buggy to be helpful
 	};
 	

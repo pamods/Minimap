@@ -1,3 +1,11 @@
+.receiveMouse {
+	pointer-events: all;
+}
+
+.ignoreMouse {
+	pointer-events: none;
+}
+
 .graticule {
 	fill: none;
 	stroke: #777;
@@ -54,4 +62,13 @@
 
 .selected_border {
 	fill: #fff
+}
+
+.highlight-drag {
+	background-color: transparent;
+	border: solid #41e7e8 1px;
+	position: absolute;
+	display: none;
+	z-index: 91892819;
+	pointer-events: none;
 }
