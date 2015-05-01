@@ -49,7 +49,7 @@
 				<!-- /ko -->
 			</svg>
 			<canvas class="receiveMouse" data-bind="rubberband: true, click: clickMinimap, event: {mousemove: mousemove, mouseenter: mouseenter, mouseleave: mouseleave, contextmenu: moveByMinimap},
-													canvas: canvas, attr: {width: width, height: height}, style: {'z-index': 999, position: 'absolute'}"></canvas>
+													self: canvas, attr: {width: width, height: height}, style: {'z-index': 999, position: 'absolute'}"></canvas>
 		</div>
 		<!-- /ko -->
 		
@@ -57,7 +57,7 @@
 	
 	<div class="ubermaps">
 		<!-- ko foreach: ubermaps -->
-		<div style="position: absolute;" data-bind="id: 'um-' + name(), visible: visible, style: {width: width()+'px', height: height()+'px', top: top()+'px', left: left()+'px'}">
+		<div style="position: absolute;" data-bind="id: 'um-' + name(), style: {width: width()+'px', height: height()+'px', top: top()+'px', left: left()+'px'}">
 			<div style="position: relative">
 				<svg class="ignoreMouse" data-bind="style: {position: 'absolute', width: width()+'px', height: height()+'px'}">
 					<defs>
@@ -73,7 +73,7 @@
 					<!-- /ko -->
 				</svg>
 				<canvas class="receiveMouse" data-bind="rubberband: true, event: {click: click, mousemove: mousemove, mouseenter: mouseenter, mouseleave: mouseleave, contextmenu: moveByMinimap},
-														canvas: canvas, attr: {width: width, height: height}, style: {'z-index': 999, position: 'absolute'}"></canvas>
+														self: canvas, attr: {width: width, height: height}, style: {'z-index': 999, position: 'absolute'}"></canvas>
 			</div>
 		</div>
 		<!-- /ko -->

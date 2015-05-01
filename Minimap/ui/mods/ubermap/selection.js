@@ -3,10 +3,25 @@ var makeSelector = (function() {
 	
 	$('body').append(html);
 	
+	var dMask = $("#dragmask"); 
+
 	var isHighlightEnabled = true;
 	var listeners = [];
 	var startX, startY;
 	var isDragging = false;
+	
+	var cssObj = {};
+	
+	// instead of using visible it turns out to be faster to move the object around
+	var mayHide = function() {
+		cssObj.left = -5;
+		cssObj.top = -5;
+		cssObj.width = 1;
+		cssObj.height = 1;
+		dMask.css(cssObj);
+	};
+	
+	mayHide();
 	
 	return {
 		bindToElement: function(elemSelector) {
@@ -39,18 +54,13 @@ var makeSelector = (function() {
 			            top = event.pageY;
 			            height = startY - event.pageY;
 			        }
-
-			        $("#dragmask").css(
-				            {
-				                'left'   :    left,
-				                'top'    :    top,
-				                'width'  :    width,
-				                'height' :    height
-				            }
-				        );
 			        
-		
-				        $("#dragmask").show();
+					cssObj.left = left;
+					cssObj.top = top;
+					cssObj.width = width;
+					cssObj.height = height;
+			        dMask.css(cssObj);
+			        
 				        return false;
 			        
 			    }
@@ -59,7 +69,9 @@ var makeSelector = (function() {
 			$(elemSelector).mouseup(function(event){
 			    if(event.button === 0 && isDragging){
 			        isDragging = false;
-			        $("#dragmask").hide();
+			        
+			        
+			        
 			        var screenWidth = $(document).width();
 			        var screenHeight = $(document).height();
 			        var topOfHighlight, bottomOfHighlight;
@@ -83,6 +95,12 @@ var makeSelector = (function() {
 			        var w = rightOfHighlight-leftOfHighlight;
 			        var h = bottomOfHighlight-topOfHighlight;
 			        
+					cssObj.left = leftOfHighlight;
+					cssObj.top = topOfHighlight;
+					cssObj.width = w;
+					cssObj.height = h;
+			        dMask.css(cssObj);
+			        setImmediate(mayHide, 10);
 			        
 				        for (var i = 0; i < listeners.length; i++) {
 				        	listeners[i](leftOfHighlight, topOfHighlight, w, h);

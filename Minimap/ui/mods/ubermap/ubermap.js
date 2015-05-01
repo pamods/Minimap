@@ -38,7 +38,7 @@ ko.bindingHandlers.id = {
 	}
 };
 
-ko.bindingHandlers.canvas = {
+ko.bindingHandlers.self = {
 	update : function(element, valueAccessor, allBindings, viewModel, bindingContext) {
 		valueAccessor()(element);
 	}
@@ -57,6 +57,8 @@ loadScript("coui://ui/mods/minimap/unitInfoParser.js");
 loadScript("coui://ui/mods/minimap/alertsManager.js");
 
 $(document).ready(function() {
+	
+	var assumedIconSize = 52;
 	
 	var selectUnitsById = function(ids) {
 		engine.call("select.byIds", []).then(function() {
@@ -231,12 +233,11 @@ $(document).ready(function() {
 			});			
 		};
 		
-		var createScaleComputed = function(unit) {
-			return ko.computed(function() {
-				return Math.sqrt(Math.sqrt(self.widthSizeMod())) * Math.sqrt(Math.sqrt(self.planetSizeMod())) * 0.4;
-			});			
-		};
-		
+		// the same for all units
+		self.unitScaleComputed = ko.computed(function() {
+			return Math.sqrt(Math.sqrt(self.widthSizeMod())) * Math.sqrt(Math.sqrt(self.planetSizeMod())) * 0.4;
+		});	
+
 		self.unitMap = {};
 		self.units = ko.observableArray([]);
 		
@@ -249,7 +250,7 @@ $(document).ready(function() {
 		var addUnitModel = function(unitm) {
 			model.checkSpecExists(unitm.spec());
 			unitm.translate = createTranslateComputed(unitm);
-			unitm.scale = createScaleComputed(unitm);
+			unitm.scale = self.unitScaleComputed;
 			self.units.push(unitm);
 			self.unitMap[unitm.id()] = unitm;
 		};
@@ -308,29 +309,11 @@ $(document).ready(function() {
 		var interval = 1000/fps;
 		var delta;
 		
-		var drawUnit = function(ctx, unit) {
-			var t = unit.translate();
-			ctx.translate(t[0], t[1]);
-			ctx.scale(unit.scale(), unit.scale());
-			
-			var b = model.unitSpecPathsMap[unit.spec()+"_b"];
-			var f = model.unitSpecPathsMap[unit.spec()+"_f"];
-			
-			if (model.selection()[unit.id()]) {
-				ctx.fillStyle = "white";
-			} else {
-				ctx.fillStyle = "black";
-			}
-			
-			ctx.fill(b);
-			ctx.fillStyle = unit.armyColor();
-			ctx.fill(f);
-			
-			ctx.setTransform(1, 0, 0, 1, 0, 0);
+		var reqFunc = function() {
+			requestAnimationFrame(self.drawIcons);
 		};
 		
 		self.drawIcons = function() {
-			requestAnimationFrame(self.drawIcons);
 			now = Date.now();
 			delta = now - then;
 			if (delta > interval) {
@@ -340,23 +323,29 @@ $(document).ready(function() {
 					var ctx = self.context();
 					ctx.clearRect(0, 0, self.width(), self.height());
 					
-					var selectedUnits = _.filter(self.zSortedUnits(), function(unit) {
-						return model.selection()[unit.id()];
-					});
-					
-					var unselectedUnits = _.filter(self.zSortedUnits(), function(unit) {
-						return !model.selection()[unit.id()];
+					var selectedUnits = [];
+					var unselectedUnits = [];
+					var selection = model.selection();
+					_.forEach(self.zSortedUnits(), function(unit) {
+						if (selection[unit.id()]) {
+							selectedUnits.push(unit);
+						} else {
+							unselectedUnits.push(unit);
+						}
 					});
 					
 					_.forEach(unselectedUnits, function(unit) {
-						drawUnit(ctx, unit);
+						model.prepareTransformForUnit(ctx, unit);
+						model.drawUnit(ctx, unit);
 					});
 					
 					_.forEach(selectedUnits, function(unit) {
-						drawUnit(ctx, unit);
+						model.prepareTransformForUnit(ctx, unit);
+						model.drawUnit(ctx, unit);
 					});
 				}
 			}
+			setTimeout(reqFunc, 10);
 		};
 		
 		self.drawIcons();
@@ -476,15 +465,11 @@ $(document).ready(function() {
 			self.rotationX(d3.scale.linear().domain([0, self.width()]).range([-180, 180])(px));
 		};
 		
-		var mouseX = 0;
-		var mouseY = 0;
 		self.defMousemove = function(data, e) {
 			if (e.altKey) {
 				self.setRotationByPixels(e.offsetX);
 			}
 			self.showPreviewByMapXY(e.offsetX, e.offsetY);
-			mouseX = e.offsetX;
-			mouseY = e.offsetY;
 		};
 		
 		self.showPreviewByMapXY = function(x, y) {
@@ -527,13 +512,116 @@ $(document).ready(function() {
 			model.mouseHoverMap = self;
 		};
 		
-		self.switchCameraToLastPosition = function() {
+		self.switchCameraToPosition = function(x, y) {
 			model.activePlanet(self.planet().id);
-			self.lookAtByMapXY(mouseX, mouseY, "invalid");
+			self.lookAtByMapXY(x, y, "invalid");
 		};
 		
-		self.rubberbandSelect = function(x, y, w, h, shift, ctrl) {
-			console.log(arguments); // TODO
+		var findIntersection = function(r1x, r1xhw, r1y, r1yhh, r2x, r2xhw, r2y, r2yhh) {
+			var r1xr = r1x + r1xhw;
+			var r2xr = r2x + r2xhw;
+			var r1xl = r1x - r1xhw;
+			var r2xl = r2x - r2xhw;
+			
+			var ixl = r1xl > r2xl ? r1xl : r2xl;
+			var ixr = r1xr < r2xr ? r1xr : r2xr;
+			
+			if (ixl < ixr) {
+				var r1yb = r1y + r1yhh;
+				var r2yb = r2y + r2yhh;
+				var r1yt = r1y - r1yhh;
+				var r2yt = r2y - r2yhh;
+				
+				var iyt = r1yt > r2yt ? r1yt : r2yt;
+				var iyb = r1yb < r2yb ? r1yb : r2yb;
+				
+				if (iyt < iyb) {
+					return [ixl, ixr, iyt, iyb];
+				} else {
+					return undefined;
+				}
+			} else {
+				return undefined;
+			}
+		};
+		
+		var checkSpecPixelHit = function(spec, ix) {
+			for (var x = ix[0]; x <= ix[1]; x++) {
+				for (var y = ix[2]; y <= ix[3]; y++) {
+					if (model.testHitPixelOfSpec(spec, x, y)) {
+						
+						/*
+						// fun debugging code: show the exact pixel of the bitmask of the icon that triggered the hit
+						console.log("hit pixel "+x+"/"+y);
+						var a = model.unitSpecPathsMap[spec+'_bits'];
+						var str = ""; 
+						for (var y1 = 0; y1 < 52; y1++) { 
+							for (var x1 = 0; x1 < 52; x1++) { 
+								str += (a[y1 * 52 + x1] ? ((x === x1 && y === y1) ? " " : "X") : "_");
+							}
+							str+="\n"
+						}
+						console.log(str);
+						*/
+						
+						return true;
+					}
+				}
+			}
+			return false;
+		};
+		
+		self.findUnitsInside = function(x, y, w, h) {
+			// direct clicks tend to have 0 width and height, but it needs to be at minimum 1
+			if (w === 0) {
+				w++;
+			}
+			if (h === 0) {
+				h++;
+			}
+			var $canvas = $(self.canvas());
+			var offset = $canvas.offset();
+			var canvasW = $canvas.width();
+			var canvasH = $canvas.height();
+			var unitsFound = {};
+			
+			x -= offset.left;
+			y -= offset.top;
+			
+			if (x + w >= 0 && x <= canvasW && y + h >= 0 && y <= canvasH) {
+				var scale = self.unitScaleComputed();
+				var uw = (assumedIconSize * scale) / 2;
+				var uh = uw;
+				var hw = w/2;
+				var hh = h/2;
+				var xm = x + hw;
+				var ym = y + hh;
+				
+				_.forEach(self.units(), function(unit) {
+					var translate = unit.translate();
+					// this is the center of the unit-icon
+					var ux = translate[0];
+					var uy = translate[1];
+					
+					// hitting the middle pixel of an icon is a quick way out of these tests
+					if (ux >= x && ux <= x + w && uy >= y && uy <= y + h) {
+						unitsFound[unit.id()] = true;
+					} else {
+						var intersection = findIntersection(ux, uw, uy, uh, xm, hw, ym, hh);
+						if (intersection) {
+							intersection[0] = Math.round((intersection[0] - ux + uw) / scale);
+							intersection[1] = Math.round((intersection[1] - ux + uw) / scale);
+							intersection[2] = Math.round((intersection[2] - uy + uh) / scale);
+							intersection[3] = Math.round((intersection[3] - uy + uh) / scale);
+							if (checkSpecPixelHit(unit.spec(), intersection)) {
+								unitsFound[unit.id()] = true;
+							}
+						}
+					}
+				});
+			}
+			
+			return unitsFound;
 		};
 	};
 	
@@ -551,6 +639,8 @@ $(document).ready(function() {
 		
 		appendMapDefaults(self, p);
 		
+		appendIconsHandling(self);
+		
 		appendInputDefaults(self);
 		self.mousemove = self.defMousemove;
 		self.mouseleave = self.defMouseleave;
@@ -560,17 +650,26 @@ $(document).ready(function() {
 			self.lookAtByMapXY(e.offsetX, e.offsetY);
 		};
 		
-		appendIconsHandling(self);
-		
 		console.log("created minimap: "+p.name);
 	}
 	
 	function UberMapModel(p, partnerMiniMap) {
 		var self = this;
 		
+		// the elements are hidden offscreen using  the top value
+		// that turns out to be faster in some situations and has less issues with the svg rendering,
+		// which seems to fail to adjust to resize events while it is set to be really visibility: none
+		self.visible = ko.computed(function() {
+			return model.showsUberMap() && model.activePlanet() === self.planet().id;
+		});
+		
 		self.width = model.uberMapWidth;
 		self.height = model.uberMapHeight;
-		self.top = model.ubermapTop;
+		
+		self.top = ko.computed(function() {
+			// if not visible hide offscreen
+			return self.visible() ? model.ubermapTop() : -1000;
+		});
 		self.left = ko.computed(function() {
 			return model.minimapAreaWidth() + model.minimapUbermapGap();
 		});
@@ -579,10 +678,6 @@ $(document).ready(function() {
 		self.rotation = partnerMiniMap.rotation;
 
 		appendMapDefaults(self, p);
-		
-		self.visible = ko.computed(function() {
-			return model.uberMapsInit() || model.showsUberMap() && model.activePlanet() === self.planet().id;
-		});
 		
 		appendIconsHandling(self);
 		
@@ -684,22 +779,66 @@ $(document).ready(function() {
 		var self = this;
 		
 		self.mouseHoverMap = undefined;
+
+		var hiddenCanvas = document.createElement("canvas");
+		hiddenCanvas.width = assumedIconSize;
+		hiddenCanvas.height = assumedIconSize;
+		var hiddenCtx = hiddenCanvas.getContext('2d');
+		hiddenCtx.fillStyle = "black";
+		hiddenCtx.translate(assumedIconSize / 2, assumedIconSize / 2);
 		
 		self.unitSpecPathsMap = {};
-		
 		self.checkSpecExists = function(spec) {
 			if (self.unitSpecPathsMap[spec] === undefined) {
-				self.unitSpecPathsMap[spec+"_b"] = new Path2D(strategicIconPaths[spec + '_border'] || strategicIconsPaths.fallback_border);
-				self.unitSpecPathsMap[spec+"_f"] = new Path2D(strategicIconPaths[spec + '_fill'] || strategicIconsPaths.fallback_fill);
+				var b = new Path2D(strategicIconPaths[spec + '_border'] || strategicIconsPaths.fallback_border);
+				var f = new Path2D(strategicIconPaths[spec + '_fill'] || strategicIconsPaths.fallback_fill);
+				self.unitSpecPathsMap[spec+"_b"] = b;
+				self.unitSpecPathsMap[spec+"_f"] = f;
+				
+				hiddenCtx.clearRect(-assumedIconSize, -assumedIconSize, assumedIconSize*2, assumedIconSize*2);
+				hiddenCtx.fill(b);
+				hiddenCtx.fill(f);
+				var imgData = hiddenCtx.getImageData(0, 0, assumedIconSize, assumedIconSize);
+				var bitMask = [];
+				for (var i = 0; i < imgData.data.length; i+=4) {
+					bitMask.push(imgData.data[i+3] !== 0)
+				}
+				self.unitSpecPathsMap[spec+"_bits"] = bitMask;
+				self.unitSpecPathsMap[spec] = true;
 			}
-		}
+		};
+		
+		self.testHitPixelOfSpec = function(spec, x, y) {
+			return x >= 0 && x < assumedIconSize && y >= 0 && y < assumedIconSize && self.unitSpecPathsMap[spec+"_bits"][y * assumedIconSize + x];
+		};
 		
 		self.minimaps = ko.observableArray([]);
 		self.ubermaps = ko.observableArray([]);
 		
-		self.uberMapsInit = ko.observable(false);
-		
 		self.selection = ko.observable({});
+		
+		self.drawUnit = function(ctx, unit) {
+			var b = self.unitSpecPathsMap[unit.spec()+"_b"];
+			var f = self.unitSpecPathsMap[unit.spec()+"_f"];
+			
+			if (self.selection()[unit.id()]) {
+				ctx.fillStyle = "white";
+			} else {
+				ctx.fillStyle = "black";
+			}
+			
+			ctx.fill(b);
+			ctx.fillStyle = unit.armyColor();
+			ctx.fill(f);
+			
+			ctx.setTransform(1, 0, 0, 1, 0, 0);
+		};
+		
+		self.prepareTransformForUnit = function(ctx, unit) {
+			var t = unit.translate();
+			ctx.translate(t[0], t[1]);
+			ctx.scale(unit.scale(), unit.scale());
+		};
 		
 		self.armyColors = ko.observable({});
 		
@@ -765,7 +904,6 @@ $(document).ready(function() {
 		appendLayoutFields(self);
 		
 		self.updateMaps = function() {
-			self.uberMapsInit(true);
 			var foundPlanets = [];
 			for (var i = 0; i < self.minimaps().length; i++) {
 				for (var j = 0; j < self.planets().length; j++) {
@@ -784,9 +922,6 @@ $(document).ready(function() {
 					self.ubermaps.push(new UberMapModel(self.planets()[i], mm));
 				}
 			}
-			setTimeout(function() {
-				self.uberMapsInit(false);
-			}, 1000);
 		};
 		self.planets.subscribe(self.updateMaps);
 		
@@ -817,14 +952,25 @@ $(document).ready(function() {
 			self.rubberbandSelector.setEnabled(v);
 		});
 		self.rubberbandSelector.addListener(function(x, y, w, h) {
-			_.forEach(self.ubermaps(), function(m) {
-				if (m.visible()) {
-					m.rubberbandSelect(x, y, w, h, self.shiftState(), self.ctrlState());
-				}
-			});
+			var targets = {};
+			
+			// TODO
+			
+			var um = self.findActiveUberMap();
+			if (um) {
+				_.merge(targets, um.findUnitsInside(x, y, w, h));
+			}
 			_.forEach(self.minimaps(), function(m) {
-				m.rubberbandSelect(x, y, w, h, self.shiftState(), self.ctrlState());
+				_.merge(targets, m.findUnitsInside(x, y, w, h));
 			});
+			
+			if (self.ctrlState() && self.shiftState()) {
+				
+			} else if (self.ctrlState() || self.shiftState()) {
+				_.merge(targets, self.selection());
+			} else {
+				
+			}
 		});
 	}
 	
@@ -847,16 +993,13 @@ $(document).ready(function() {
 	};
 	
 	handlers.setSize = function(size) {
-		ko.tasks.processImmediate(function() {
-			model.uberMapsInit(true);
-		});
-		ko.tasks.processImmediate(function() {
-			model.parentWidth(size[0]);
-			model.parentHeight(size[1]);
-		});
-		ko.tasks.processImmediate(function() {
-			model.uberMapsInit(false);
-		});
+		ko.computed.deferUpdates = false;
+		ko.processAllDeferredBindingUpdates();
+		model.parentWidth(size[0]);
+		model.parentHeight(size[1]);
+		ko.computed.deferUpdates = true;
+		// basically I am trying to get rid of the weird resize bugs...
+		ko.processAllDeferredBindingUpdates();
 	};
 	
 	handlers.setArmyColors = function(clrs) {
@@ -869,11 +1012,16 @@ $(document).ready(function() {
 		model.showsUberMap(show);
 	};
 	
-	handlers.zoomIntoUberMap = function() {
+	handlers.zoomIntoUberMap = function(args) {
 		var aum = model.mouseHoverMap;
+		var pageX = args[0];
+		var pageY = args[1];
+		var offset = $(aum.canvas()).offset();
+		var x = pageX - offset.left;
+		var y = pageY - offset.top;
 		model.showsUberMap(false);
 		if (aum) {
-			aum.switchCameraToLastPosition();
+			aum.switchCameraToPosition(x, y);
 		}
 	};
 	
@@ -888,12 +1036,21 @@ $(document).ready(function() {
 		// TOO buggy to be helpful
 	};
 	
+	handlers.shiftState = function(state) {
+		model.shiftState(state);
+	};
+	
+	handlers.ctrlState = function(state) {
+		model.ctrlState(state);
+	};
+	
 	app.registerWithCoherent(model, handlers);
 	ko.applyBindings(model);
 	
 	setTimeout(function() {
 		api.Panel.message(api.Panel.parentId, 'queryViewportSize');
 		api.Panel.message(api.Panel.parentId, 'queryArmyColors');
+		api.Panel.message(api.Panel.parentId, 'setUberMapState', model.showsUberMap());
 	}, 500);
 	
 

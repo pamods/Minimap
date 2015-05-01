@@ -142,9 +142,10 @@ $(document).ready(function() {
 	$('#game_over').css("z-index", "99999");
 	$('#message').css("z-index", "99999");
 	$('#player_guide').css("z-index", "99999");
+	var $panel;
 	var func = function(v) {
 		if (!v) {
-			var $panel = $('<panel id="ubermap_panel"></panel>').css({
+			$panel = $('<panel id="ubermap_panel"></panel>').css({
 				visibility : 'visible',
 				position : 'fixed',
 				top : 30,
@@ -168,22 +169,30 @@ $(document).ready(function() {
 	func(model.isSpectator());
 	model.isSpectator.subscribe(func);
 	
-	
 	$(document).keydown(function (e) {
-		 if (model.chatSelected())
-			 return;
-		 
-		 if (e.which === 32) {
+		 if (e.which === 32 && !model.chatSelected()) {
 			 model.showsUberMap(!model.showsUberMap());
+		 } else if (e.which === 16) {
+			 api.panels.ubermap_panel.message("shiftState", true);
+		 } else if (e.which === 17) {
+			 api.panels.ubermap_panel.message("ctrlState", true);
 		 }
-	 });
-
+	});
+	
+	$(document).keyup(function(e) {
+		if (e.which === 16) {
+			api.panels.ubermap_panel.message("shiftState", false);
+		} else if (e.which === 17) {
+			api.panels.ubermap_panel.message("ctrlState", false);
+		}
+	});
+	
 	$(document).bind('mousewheel', function(e) {
 		 if (model.chatSelected())
 			 return;
 		 
 		if (e.originalEvent.wheelDelta > 0 && model.showsUberMap()) {
-			api.panels.ubermap_panel.message("zoomIntoUberMap");
+			api.panels.ubermap_panel.message("zoomIntoUberMap", [e.pageX - $panel.position().left, e.pageY - $panel.position().top]);
 		}
 	});
 });

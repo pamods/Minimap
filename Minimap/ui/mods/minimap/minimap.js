@@ -717,7 +717,6 @@ $(document).ready(function() {
 				
 				selectUnitsById(toSelect);
 			}
-			
 		};
 		
 		self.initForMap(planet);
