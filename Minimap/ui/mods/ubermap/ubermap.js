@@ -50,6 +50,35 @@ ko.bindingHandlers.rubberband = {
 	}
 }
 
+var groupedBooleansComputed = function() {
+	var src = arguments;
+	return ko.computed({
+		read: function() {
+			var result = true;
+			for (var i = 0; i < src.length; i++) {
+				result = result && src[i]();
+			}
+			return result;
+		},
+		write: function(value) {
+			for (var i = 0; i < src.length; i++) {
+				src[i](value);
+			}
+		}
+	});
+};
+
+var invertedBoolean = function(src) {
+	return ko.computed({
+		read: function() {
+			return !src();
+		},
+		write: function(value) {
+			src(!value);
+		}
+	});
+};
+
 var model = undefined;
 var handlers = {};
 
@@ -57,14 +86,17 @@ loadScript("coui://ui/mods/minimap/unitInfoParser.js");
 loadScript("coui://ui/mods/minimap/alertsManager.js");
 
 $(document).ready(function() {
-	
 	var assumedIconSize = 52;
 	
+	var hackRound = function(n) {
+		return (0.5 + n) << 0
+	};
+	
 	var selectUnitsById = function(ids) {
-		engine.call("select.byIds", []).then(function() {
-			engine.call("select.byIds", ids).then(function() {
+		engine.call("select.byIds", ids).then(function() {
+			if (ids.length) {
 				api.audio.playSound("/SE/UI/UI_Unit_Select");
-			});
+			}
 		});
 	};
 	
@@ -164,7 +196,62 @@ $(document).ready(function() {
 		unitSpecMapping = mapping;
 	});
 	
-
+	var isStructure = function(spec) {
+		return contains(unitSpecMapping[spec], "Structure");
+	};
+	
+	var isNavy = function(spec) {
+		return contains(unitSpecMapping[spec], "Naval");
+	};
+	
+	var isLand = function(spec) {
+		return contains(unitSpecMapping[spec], "Land");
+	};
+	
+	var isAir = function(spec) {
+		return contains(unitSpecMapping[spec], "Air");
+	};
+	
+	var isOrbital = function(spec) {
+		return contains(unitSpecMapping[spec], "Orbital");
+	};
+	
+	var isWorker = function(spec) {
+		return contains(unitSpecMapping[spec], "Fabber"); 
+	};
+	
+	var isPrio = function(spec) {
+		if (!isStructure(spec)) {
+			if (isWorker(spec)) {
+				if (isNavy(spec)) {
+					return model.selectsNavyWorkers();
+				} else if (isLand(spec)) {
+					return model.selectsLandWorkers();
+				} else if (isAir(spec)) {
+					return model.selectsAirWorkers();
+				} else if (isOrbital(spec)) {
+					return model.selectsOrbitalWorkers();
+				} else {
+					return false;
+				}
+			} else {
+				if (isNavy(spec)) {
+					return model.selectsNavyFighters();
+				} else if (isLand(spec)) {
+					return model.selectsLandFighters();
+				} else if (isAir(spec)) {
+					return model.selectsAirFighters();
+				} else if (isOrbital(spec)) {
+					return model.selectsOrbitalFighters();
+				} else {
+					return false;
+				}
+			}
+		} else {
+			return false;
+		}
+	};
+	
 	function UnitModel(unit) {
 		var self = this;
 		
@@ -195,7 +282,8 @@ $(document).ready(function() {
 			} else {
 				specPoints = 1;
 			}
-			return specPoints;
+			
+			return specPoints + (isPrio(unit.spec) ? 20 : 0);
 		});
 		
 		self.army = ko.observable(unit.army);
@@ -303,15 +391,11 @@ $(document).ready(function() {
 			});
 		});
 		
-		var fps = 5;
+		var fps = 10;
 		var now;
 		var then = Date.now();
 		var interval = 1000/fps;
 		var delta;
-		
-		var reqFunc = function() {
-			requestAnimationFrame(self.drawIcons);
-		};
 		
 		self.drawIcons = function() {
 			now = Date.now();
@@ -335,17 +419,15 @@ $(document).ready(function() {
 					});
 					
 					_.forEach(unselectedUnits, function(unit) {
-						model.prepareTransformForUnit(ctx, unit);
 						model.drawUnit(ctx, unit);
 					});
 					
 					_.forEach(selectedUnits, function(unit) {
-						model.prepareTransformForUnit(ctx, unit);
 						model.drawUnit(ctx, unit);
 					});
 				}
 			}
-			setTimeout(reqFunc, 10);
+			requestAnimationFrame(self.drawIcons);
 		};
 		
 		self.drawIcons();
@@ -571,6 +653,18 @@ $(document).ready(function() {
 			return false;
 		};
 		
+		self.findUnitsBySpec = function(spec) {
+			var units = [];
+			
+			_.forEach(self.units(), function(unit) {
+				if (unit.spec() === spec) {
+					units.push(unit.id());
+				}
+			});
+			
+			return units;
+		};
+		
 		self.findUnitsInside = function(x, y, w, h) {
 			// direct clicks tend to have 0 width and height, but it needs to be at minimum 1
 			if (w === 0) {
@@ -579,10 +673,14 @@ $(document).ready(function() {
 			if (h === 0) {
 				h++;
 			}
+			var directclick = w * h < 4;
 			var $canvas = $(self.canvas());
 			var offset = $canvas.offset();
 			var canvasW = $canvas.width();
 			var canvasH = $canvas.height();
+			
+			var foundPrioUnits = false;
+			var nonPrioUnits = {};
 			var unitsFound = {};
 			
 			x -= offset.left;
@@ -597,31 +695,53 @@ $(document).ready(function() {
 				var xm = x + hw;
 				var ym = y + hh;
 				
-				_.forEach(self.units(), function(unit) {
+				var zUnits = self.zSortedUnits();
+				for (var u = zUnits.length - 1; u >= 0; u--) {
+					var unit = zUnits[u];
+					
 					var translate = unit.translate();
 					// this is the center of the unit-icon
 					var ux = translate[0];
 					var uy = translate[1];
 					
 					// hitting the middle pixel of an icon is a quick way out of these tests
-					if (ux >= x && ux <= x + w && uy >= y && uy <= y + h) {
-						unitsFound[unit.id()] = true;
+					// dont do it for direct clicks
+					if (!directclick && ux >= x && ux <= x + w && uy >= y && uy <= y + h) {
+						if (isPrio(unit.spec())) {
+							foundPrioUnits = true;
+							unitsFound[unit.id()] = true;
+							unitsFound.found = true;
+						} else {
+							nonPrioUnits[unit.id()] = true;
+							nonPrioUnits.found = true;
+						}
 					} else {
 						var intersection = findIntersection(ux, uw, uy, uh, xm, hw, ym, hh);
 						if (intersection) {
-							intersection[0] = Math.round((intersection[0] - ux + uw) / scale);
-							intersection[1] = Math.round((intersection[1] - ux + uw) / scale);
-							intersection[2] = Math.round((intersection[2] - uy + uh) / scale);
-							intersection[3] = Math.round((intersection[3] - uy + uh) / scale);
+							intersection[0] = hackRound((intersection[0] - ux + uw) / scale);
+							intersection[1] = hackRound((intersection[1] - ux + uw) / scale);
+							intersection[2] = hackRound((intersection[2] - uy + uh) / scale);
+							intersection[3] = hackRound((intersection[3] - uy + uh) / scale);
 							if (checkSpecPixelHit(unit.spec(), intersection)) {
-								unitsFound[unit.id()] = true;
+								if (isPrio(unit.spec())) {
+									foundPrioUnits = true;
+									unitsFound[unit.id()] = true;
+									unitsFound.found = true;
+								} else {
+									nonPrioUnits[unit.id()] = true;
+									nonPrioUnits.found = true;
+								}
+								
+								if (directclick) {
+									break;
+								}
 							}
 						}
 					}
-				});
+				}
 			}
 			
-			return unitsFound;
+			return foundPrioUnits ? unitsFound : nonPrioUnits;
 		};
 	};
 	
@@ -670,9 +790,7 @@ $(document).ready(function() {
 			// if not visible hide offscreen
 			return self.visible() ? model.ubermapTop() : -1000;
 		});
-		self.left = ko.computed(function() {
-			return model.minimapAreaWidth() + model.minimapUbermapGap();
-		});
+		self.left = model.ubermapLeft;
 		
 		self.rotationX = partnerMiniMap.rotationX;
 		self.rotation = partnerMiniMap.rotation;
@@ -702,8 +820,11 @@ $(document).ready(function() {
 		self.minimapWidthSmall = ko.observable(133);
 		self.minimapUbermapGap = ko.observable(5);
 		self.ubermapTop = ko.observable(80);
-		self.ubermapBottomGap = ko.observable(160);
-
+		self.ubermapLeft = ko.computed(function() {
+			return self.minimapAreaWidth() + self.minimapUbermapGap();
+		});
+		self.ubermapBottomGap = ko.observable(180);
+		
 		self.parentWidth = ko.observable(0);
 		self.parentHeight = ko.observable(0);
 		self.minimapHeightBig = ko.computed(function() {
@@ -790,11 +911,13 @@ $(document).ready(function() {
 		self.unitSpecPathsMap = {};
 		self.checkSpecExists = function(spec) {
 			if (self.unitSpecPathsMap[spec] === undefined) {
+				// create Path2D for the svg path string
 				var b = new Path2D(strategicIconPaths[spec + '_border'] || strategicIconsPaths.fallback_border);
 				var f = new Path2D(strategicIconPaths[spec + '_fill'] || strategicIconsPaths.fallback_fill);
 				self.unitSpecPathsMap[spec+"_b"] = b;
 				self.unitSpecPathsMap[spec+"_f"] = f;
 				
+				// create boolean arrays for quick hit detection for pixel perfect
 				hiddenCtx.clearRect(-assumedIconSize, -assumedIconSize, assumedIconSize*2, assumedIconSize*2);
 				hiddenCtx.fill(b);
 				hiddenCtx.fill(f);
@@ -808,6 +931,40 @@ $(document).ready(function() {
 			}
 		};
 		
+		// icons are cached as an image in a fixed resolution that is copied onto the visible canvas
+		// for massive performance gains
+		self.unitSpecsImageCache = {};
+		self.getUnitSpecImage = function(spec, fill, armycolor, selected) {
+			var fStr = fill ? ("fill" + armycolor) : ("border" + selected);
+			var key = spec + fStr;
+			var obj = self.unitSpecsImageCache[key]; 
+			if (obj === undefined) {
+				var canvas = document.createElement("canvas");
+				canvas.width = assumedIconSize;
+				canvas.height = assumedIconSize;
+				var ctx = canvas.getContext("2d");
+				ctx.translate(assumedIconSize / 2, assumedIconSize / 2);
+				
+				var path = fill ? self.unitSpecPathsMap[spec+"_f"] : self.unitSpecPathsMap[spec+"_b"];
+				
+				if (fill) {
+					ctx.fillStyle = armycolor;
+				} else {
+					if (selected) {
+						ctx.fillStyle = "white";
+					} else {
+						ctx.fillStyle = "black";
+					}
+				}
+				ctx.fill(path);
+				
+				obj = canvas;
+								
+				self.unitSpecsImageCache[key] = obj;
+			}
+			return obj;
+		};
+		
 		self.testHitPixelOfSpec = function(spec, x, y) {
 			return x >= 0 && x < assumedIconSize && y >= 0 && y < assumedIconSize && self.unitSpecPathsMap[spec+"_bits"][y * assumedIconSize + x];
 		};
@@ -818,26 +975,24 @@ $(document).ready(function() {
 		self.selection = ko.observable({});
 		
 		self.drawUnit = function(ctx, unit) {
-			var b = self.unitSpecPathsMap[unit.spec()+"_b"];
-			var f = self.unitSpecPathsMap[unit.spec()+"_f"];
+			var fillImg = self.getUnitSpecImage(unit.spec(), true, unit.armyColor(), undefined);
+			var borderImg = self.getUnitSpecImage(unit.spec(), false, undefined, self.selection()[unit.id()]);
+
+			var t = unit.translate();
+			var s = unit.scale();
+			var size = assumedIconSize * s;
+
+			// integer numbers are faster for the canvas
+			var x = hackRound(t[0] + (-size/2));
+			var y = hackRound(t[1] + (-size/2));
+			size = hackRound(size);
 			
-			if (self.selection()[unit.id()]) {
-				ctx.fillStyle = "white";
-			} else {
-				ctx.fillStyle = "black";
+			if (x === 0 && y === 0 && isOrbital(unit.spec())) { // do not draw orbital units while they are being build, their position is buggy while that happens and is always 0/0
+				return;
 			}
 			
-			ctx.fill(b);
-			ctx.fillStyle = unit.armyColor();
-			ctx.fill(f);
-			
-			ctx.setTransform(1, 0, 0, 1, 0, 0);
-		};
-		
-		self.prepareTransformForUnit = function(ctx, unit) {
-			var t = unit.translate();
-			ctx.translate(t[0], t[1]);
-			ctx.scale(unit.scale(), unit.scale());
+			ctx.drawImage(fillImg, x, y, size, size);
+			ctx.drawImage(borderImg, x, y, size, size);
 		};
 		
 		self.armyColors = ko.observable({});
@@ -944,33 +1099,174 @@ $(document).ready(function() {
 			}
 		};
 		
+
+		self.selectsNavyFighters = ko.observable(false);
+		self.selectsLandFighters = ko.observable(false);
+		self.selectsAirFighters = ko.observable(false);
+		self.selectsOrbitalFighters = ko.observable(false);
+		
+		self.selectsNavyWorkers = ko.observable(false);
+		self.selectsLandWorkers = ko.observable(false);
+		self.selectsAirWorkers = ko.observable(false);
+		self.selectsOrbitalWorkers = ko.observable(false);
+		
+		self.selectsAll = groupedBooleansComputed(self.selectsAllFighters, self.selectsAllWorkers);
+
+		self.selectsAllNavy = groupedBooleansComputed(self.selectsNavyWorkers, self.selectsNavyFighters);
+		self.selectsAllLand = groupedBooleansComputed(self.selectsLandWorkers, self.selectsLandFighters);
+		self.selectsAllAir = groupedBooleansComputed(self.selectsAirWorkers, self.selectsAirFighters);
+		self.selectsAllOrbital = groupedBooleansComputed(self.selectsOrbitalWorkers, self.selectsOrbitalFighters);
+		self.selectsAllFighters = groupedBooleansComputed(self.selectsNavyFighters, self.selectsLandFighters, self.selectsAirFighters, self.selectsOrbitalFighters);
+		self.selectsAllWorkers = groupedBooleansComputed(self.selectsNavyWorkers, self.selectsLandWorkers, self.selectsAirWorkers, self.selectsOrbitalWorkers);
+		
+		self.selectsAllFighters(true);
+		
+		self.selectsRows = [{
+			elements: [{
+				descr: "NF",
+				tool: "Navy Fighters",
+				obs: self.selectsNavyFighters
+			}, {
+				descr: "LF",
+				tool: "Land Fighters",
+				obs: self.selectsLandFighters
+			}, {
+				descr: "AF",
+				tool: "Air Fighters",
+				obs: self.selectsAirFighters
+			}, {
+				descr: "OF",
+				tool: "Orbital Fighters",
+				obs: self.selectsOrbitalFighters
+			}, {
+				descr: "F",
+				tool: "All Fighters",
+				obs: self.selectsAllFighters
+			}]
+		},{
+			elements: [{
+				descr: "NW",
+				tool: "Navy Workers",
+				obs: self.selectsNavyWorkers
+			}, {
+				descr: "LW",
+				tool: "Land Workers",
+				obs: self.selectsLandWorkers
+			}, {
+				descr: "AW",
+				tool: "Air Workers",
+				obs: self.selectsAirWorkers
+			}, {
+				descr: "OW",
+				tool: "Orbital Workers",
+				obs: self.selectsOrbitalWorkers
+			}, {
+				descr: "W",
+				tool: "All Workers",
+				obs: self.selectsAllWorkers
+			}]
+		}, {
+			elements: [{
+				descr: "N",
+				tool: "All Navy",
+				obs: self.selectsAllNavy
+			}, {
+				descr: "L",
+				tool: "All Land",
+				obs: self.selectsAllLand
+			}, {
+				descr: "A",
+				tool: "All Air",
+				obs: self.selectsAllAir
+			}, {
+				descr: "O",
+				tool: "All Orbital",
+				obs: self.selectsAllOrbital
+			}, {
+				descr: "ALL",
+				tool: "Everything",
+				obs: self.selectsAll
+			}]
+		}];
+		
 		self.shiftState = ko.observable(false);
 		self.ctrlState = ko.observable(false);
+		self.rubberbandVisible = ko.observable(false);
 		self.rubberbandSelector = makeSelector();
+		self.rubberbandSelector.setRubberbandListener(function(a, v) {
+			self.rubberbandVisible(v);
+		});
 		self.rubberbandSelector.bindToElement("#selection_layer");
 		self.showsUberMap.subscribe(function(v) {
 			self.rubberbandSelector.setEnabled(v);
 		});
+		
+		var lastSelectTime = 0;
+		
 		self.rubberbandSelector.addListener(function(x, y, w, h) {
 			var targets = {};
 			
-			// TODO
+			var hitMap = undefined;
 			
+			// find the units clicked
 			var um = self.findActiveUberMap();
 			if (um) {
-				_.merge(targets, um.findUnitsInside(x, y, w, h));
+				var r = um.findUnitsInside(x, y, w, h);
+				if (r.found) {
+					hitMap = um;
+					_.merge(targets, r);
+				}
 			}
 			_.forEach(self.minimaps(), function(m) {
-				_.merge(targets, m.findUnitsInside(x, y, w, h));
+				var r = m.findUnitsInside(x, y, w, h);
+				if (r.found) {
+					hitMap = m;
+					_.merge(targets, r);
+				}
 			});
 			
+			// check for double click selects and modify selection accordingly
+			var ar = [];
+			_.forEach(targets, function(v, k) {
+				if (k !== "found") {
+					ar.push(Number(k));
+				}
+			});
+
+			if (ar.length === 1 && w * h < 4) {
+				var isDoubleSelect = (new Date().getTime() - lastSelectTime) < 500;
+				lastSelectTime = new Date().getTime();
+				if (isDoubleSelect && hitMap) {
+					ar = hitMap.findUnitsBySpec(hitMap.unitMap[ar[0]].spec());
+				}
+			}
+			
+			targets = {};
+			for (var i = 0; i < ar.length; i++) {
+				targets[ar[i]] = true;
+			}
+			
+			// handle ctrl and shift the same way PA itself does
 			if (self.ctrlState() && self.shiftState()) {
-				
+				var rm = targets;
+				targets = {};
+				_.forEach(self.selection(), function(v, id) {
+					if (!rm[id]) {
+						targets[id] = true;
+					}
+				});
 			} else if (self.ctrlState() || self.shiftState()) {
 				_.merge(targets, self.selection());
-			} else {
-				
 			}
+			
+			ar = [];
+			_.forEach(targets, function(v, k) {
+				if (k !== "found") {
+					ar.push(Number(k));
+				}
+			});
+			
+			selectUnitsById(ar);
 		});
 	}
 	
@@ -998,7 +1294,7 @@ $(document).ready(function() {
 		model.parentWidth(size[0]);
 		model.parentHeight(size[1]);
 		ko.computed.deferUpdates = true;
-		// basically I am trying to get rid of the weird resize bugs...
+		// basically I am trying to get rid of weird resize bugs... (success it seems)
 		ko.processAllDeferredBindingUpdates();
 	};
 	
@@ -1052,6 +1348,4 @@ $(document).ready(function() {
 		api.Panel.message(api.Panel.parentId, 'queryArmyColors');
 		api.Panel.message(api.Panel.parentId, 'setUberMapState', model.showsUberMap());
 	}, 500);
-	
-
 });

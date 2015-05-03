@@ -71,3 +71,35 @@
 	z-index: 91892819;
 	pointer-events: none;
 }
+
+.selection_prios {
+/* 	position: absolute; */
+/* 	width: 100%; */
+/* 	bottom: 70px; */
+/* 	display: flex; */
+/* 	align-items: center; */
+/* 	justify-content: center; */
+}
+
+.selection_prios_button {
+	width: 30px;
+	height: 20px;
+	text-align: center;
+	border: solid black 1px;
+	margin-right: 3px;
+	margin-bottom: 2px;
+	float: left;
+}
+
+.selection_prios_row_break {
+	clear: both;
+	height: 1px;
+}
+
+.selection_prio_active {
+	background-color: #2E64FE;
+}
+
+.selection_prio_inactive {
+	background-color: #A9E2F3;	
+}

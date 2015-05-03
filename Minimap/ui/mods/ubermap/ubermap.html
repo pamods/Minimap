@@ -78,5 +78,20 @@
 		</div>
 		<!-- /ko -->
 	</div>
+
+	<div style="position: absolute; z-index: 1337" data-bind="visible: showsUberMap, style: {top: model.ubermapTop()+'px', left: model.ubermapLeft()+'px'}" class="selection_prios ignoreMouse">
+		<div>
+			<div>Selection Priorities</div>
+			<div class="selection_prios_buttos">
+				<!-- ko foreach: selectsRows -->
+				<!-- ko foreach: elements -->
+				<div data-bind="style: {'pointer-events': model.rubberbandVisible() ? 'none' : 'auto'}, text: descr, tooltip: tool, click: function() {obs(!obs())}, css: {selection_prio_active: obs, selection_prio_inactive: !obs()}"
+					class="selection_prios_button"></div>
+				<!-- /ko -->
+				<div class="selection_prios_row_break"></div>
+				<!-- /ko -->
+			</div>
+		</div>
+	</div>
 </body>
 </html>

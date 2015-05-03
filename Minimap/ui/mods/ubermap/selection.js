@@ -7,6 +7,9 @@ var makeSelector = (function() {
 
 	var isHighlightEnabled = true;
 	var listeners = [];
+	
+	var rubberPositionListener = undefined;
+	
 	var startX, startY;
 	var isDragging = false;
 	
@@ -19,6 +22,10 @@ var makeSelector = (function() {
 		cssObj.width = 1;
 		cssObj.height = 1;
 		dMask.css(cssObj);
+		
+		if (rubberPositionListener) {
+			rubberPositionListener(cssObj, false);
+		}
 	};
 	
 	mayHide();
@@ -59,6 +66,11 @@ var makeSelector = (function() {
 					cssObj.top = top;
 					cssObj.width = width;
 					cssObj.height = height;
+					
+					if (rubberPositionListener) {
+						rubberPositionListener(cssObj, true);
+					}
+					
 			        dMask.css(cssObj);
 			        
 				        return false;
@@ -111,6 +123,9 @@ var makeSelector = (function() {
 		},
 		addListener: function(listener) {
 			listeners.push(listener);
+		},
+		setRubberbandListener: function(l) {
+			rubberPositionListener = l;
 		},
 		setEnabled: function(en) {
 			isHighlightEnabled = en;
