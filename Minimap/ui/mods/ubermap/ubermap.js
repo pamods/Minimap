@@ -56,7 +56,9 @@ var groupedBooleansComputed = function() {
 		read: function() {
 			var result = true;
 			for (var i = 0; i < src.length; i++) {
-				result = result && src[i]();
+				if (!src[i]()) { // evaluate all for knockout
+					result = false;
+				}
 			}
 			return result;
 		},
@@ -1110,14 +1112,14 @@ $(document).ready(function() {
 		self.selectsAirWorkers = ko.observable(false);
 		self.selectsOrbitalWorkers = ko.observable(false);
 		
-		self.selectsAll = groupedBooleansComputed(self.selectsAllFighters, self.selectsAllWorkers);
-
 		self.selectsAllNavy = groupedBooleansComputed(self.selectsNavyWorkers, self.selectsNavyFighters);
 		self.selectsAllLand = groupedBooleansComputed(self.selectsLandWorkers, self.selectsLandFighters);
 		self.selectsAllAir = groupedBooleansComputed(self.selectsAirWorkers, self.selectsAirFighters);
 		self.selectsAllOrbital = groupedBooleansComputed(self.selectsOrbitalWorkers, self.selectsOrbitalFighters);
 		self.selectsAllFighters = groupedBooleansComputed(self.selectsNavyFighters, self.selectsLandFighters, self.selectsAirFighters, self.selectsOrbitalFighters);
 		self.selectsAllWorkers = groupedBooleansComputed(self.selectsNavyWorkers, self.selectsLandWorkers, self.selectsAirWorkers, self.selectsOrbitalWorkers);
+		
+		self.selectsAll = groupedBooleansComputed(self.selectsAllFighters, self.selectsAllWorkers);
 		
 		self.selectsAllFighters(true);
 		
