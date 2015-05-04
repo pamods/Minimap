@@ -1097,7 +1097,7 @@ $(document).ready(function() {
 				console.log("found minimap data in indexdb, will load key "+mapList[payload.name]);
 				DataUtility.readObject(dbName, mapList[payload.name]).then(function(data) {
 					self.queryAndAttachFeatures(data, "metal", "metal_splat_02.json", function(d) {
-						self.queryAndAttachFeatures(data, "control", "control_point_01.json", function(d) {
+						self.queryAndAttachFeatures(d, "control", "control_point_01.json", function(d) {
 							console.log(d);
 							self.mappingData(d);
 						});
@@ -1106,7 +1106,7 @@ $(document).ready(function() {
 			} else if (mapData) {
 				console.log("systems.js seems to know this system");
 				self.queryAndAttachFeatures(mapData, "metal", "metal_splat_02.json", function(d) {
-					self.queryAndAttachFeatures(data, "control", "control_point_01.json", function(d) {
+					self.queryAndAttachFeatures(d, "control", "control_point_01.json", function(d) {
 						console.log(d);
 						self.mappingData(d);
 					});
@@ -1114,7 +1114,7 @@ $(document).ready(function() {
 			} else {
 				console.log("No prepared minimap data available for map with name "+payload.name);
 				self.queryAndAttachFeatures({planets: []}, "metal", "metal_splat_02.json", function(d) {
-					self.queryAndAttachFeatures(data, "control", "control_point_01.json", function(d) {
+					self.queryAndAttachFeatures(d, "control", "control_point_01.json", function(d) {
 						console.log(d);
 						self.mappingData(d);
 					});
