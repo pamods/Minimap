@@ -35,13 +35,15 @@ public class PaUnitsChangeDetector {
 	
 	public PaUnitInfoUpdate generateUpdate(long lastUpdateId, float minPositionChange) {
 		PaUnitInfoUpdate update = new PaUnitInfoUpdate();
-		
-		pa.attach();
+
 		List<FullUnitInfo> units = null;
-		try {
-			units = pa.readUnitInfos();
-		} finally {
-			pa.detach();
+		synchronized (pa) {
+			pa.attach();
+			try {
+				units = pa.readUnitInfos();
+			} finally {
+				pa.detach();
+			}
 		}
 		
 		if (update.getUpdateId() - lastUpdateId > 1) {

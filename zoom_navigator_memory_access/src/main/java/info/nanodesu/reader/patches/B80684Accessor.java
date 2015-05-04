@@ -19,10 +19,24 @@ public class B80684Accessor extends PaAccessor1 {
 				currentHp = 0xF8;
 				maxHp = 0xFC;
 				armyId = 0x58;
-				x = 0xC8;
-				y = 0xCC;
-				z = 0xD0;
+				unitX = 0xC8;
+				unitY = 0xCC;
+				unitZ = 0xD0;
 				planetId = 0x5C;
+				clientUnitClassInclude = "ClientUnit";
+				clientUnitsClassExclude = "ClientPlanet";
+				
+				supportsFeatureQueries = true;
+				featureBase = 0x30;
+				featureObjectBase = 0x18;
+				featureSpecString = 0x48;
+				featurePlanet = 0x68;
+				featureX = 0x6C;
+				featureY = 0x70;
+				featureZ = 0x74;
+				featureSpecStringBase = "/pa/effects/features/";
+				featureClassInclude = "total_metal_value";
+				featureClassExclude = null;
 			}
 		});
 	}

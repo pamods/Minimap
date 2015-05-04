@@ -59,6 +59,7 @@ public class MemoryApiWebservice extends Application {
 		case "80462":
 			return new B79896Accessor(useProcessId);
 		case "80684-pte":
+		case "81029-pte":
 			return new B80684Accessor(useProcessId);
 		default:
 			System.out.println("WARNING !!! : version "+version+ " is not tested and might not work.");
@@ -189,6 +190,7 @@ public class MemoryApiWebservice extends Application {
 		router.attach(
 				"/updateId/{updateId}/minPositionChange/{minPositionChange}",
 				new DeltaCompressedUnits(getContext(), pa));
+		router.attach("/query/features/{features}", new FeatureQuery(getContext(), pa));
 		return router;
 	}
 }

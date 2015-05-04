@@ -2,8 +2,10 @@ package info.nanodesu.reader.patches;
 
 import info.nanodesu.reader.AbstractPaAccessor;
 import info.nanodesu.reader.FullUnitInfo;
+import info.nanodesu.reader.FeatureLocation;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /*
@@ -37,10 +39,24 @@ public class PaAccessor1 extends AbstractPaAccessor {
 		public long currentHp;
 		public long maxHp;
 		public long armyId;
-		public long x;
-		public long y;
-		public long z;
+		public long unitX;
+		public long unitY;
+		public long unitZ;
 		public long planetId;
+		public String clientUnitClassInclude;
+		public String clientUnitsClassExclude;
+		
+		public boolean supportsFeatureQueries = false;
+		public long featureBase;
+		public long featureObjectBase;
+		public long featureSpecString;
+		public long featurePlanet;
+		public long featureX;
+		public long featureY;
+		public long featureZ;
+		public String featureSpecStringBase;
+		public String featureClassInclude;
+		public String featureClassExclude;
 	}
 	
 	protected static void l(long x) {
@@ -49,6 +65,7 @@ public class PaAccessor1 extends AbstractPaAccessor {
 	
 	private PaAccessor1Constants c;
 	private long cachedClientUnitClassAdr = -1; 
+	private long cachedMexClassAdr = -1;
 	
 	public PaAccessor1(int pid, PaAccessor1Constants constants) {
 		super(pid);
@@ -60,7 +77,8 @@ public class PaAccessor1 extends AbstractPaAccessor {
 		for (int i = 0; i < c.basePointer.length; i++) {
 			a = pa.readLong(a + c.basePointer[i]);
 		}
-		return a + c.finalBase;
+		a =  a + c.finalBase;
+		return a;
 	}
 	
 	private long findUnitStartPointer(long listPointer) {
@@ -71,15 +89,27 @@ public class PaAccessor1 extends AbstractPaAccessor {
 		return pa.readLong(listPointer + 0x8);
 	}
 	
-	private boolean isClientUnitClass(long clazzAdr) {
-		if (cachedClientUnitClassAdr == -1) {
+	private boolean isClassByString(long clazzAdr, String containString, String disallowString) {
+		if (clazzAdr != 0) {
 			String testStr = pa.readAsString(clazzAdr, c.classGuessStringLength);
-			if (testStr.contains("ClientUnit") && !testStr.contains("ClientPlanet")) {
-				cachedClientUnitClassAdr = clazzAdr;
-			}
+			return testStr != null && (containString == null || testStr.contains(containString)) && (disallowString == null || !testStr.contains(disallowString));
+		} else {
+			return false;
 		}
-		
+	}
+	
+	private boolean isClientUnitClass(long clazzAdr) {
+		if (cachedClientUnitClassAdr == -1 && isClassByString(clazzAdr, c.clientUnitClassInclude, c.clientUnitsClassExclude)) {
+			cachedClientUnitClassAdr = clazzAdr;
+		}
 		return clazzAdr == cachedClientUnitClassAdr;
+	}
+	
+	private boolean isMexClass(long clazzAdr) {
+		if (cachedMexClassAdr == -1 && isClassByString(clazzAdr, c.featureClassInclude, null)) {
+			cachedMexClassAdr = clazzAdr;
+		}
+		return clazzAdr == cachedMexClassAdr;
 	}
 	
 	private boolean isInterestingUnit(long unit) {
@@ -99,9 +129,9 @@ public class PaAccessor1 extends AbstractPaAccessor {
 			inf.setMaxHp(pa.readFloat(base + c.maxHp));
 		}
 		inf.setArmy(pa.readInt(base + c.armyId));
-		inf.setX(pa.readFloat(base + c.x));
-		inf.setY(pa.readFloat(base + c.y));
-		inf.setZ(pa.readFloat(base + c.z));
+		inf.setX(pa.readFloat(base + c.unitX));
+		inf.setY(pa.readFloat(base + c.unitY));
+		inf.setZ(pa.readFloat(base + c.unitZ));
 		inf.setPlanetId(pa.readInt(base + c.planetId));
 		return inf;
 	}
@@ -112,12 +142,44 @@ public class PaAccessor1 extends AbstractPaAccessor {
 		long startUnits = findUnitStartPointer(base);
 		long endUnits = findUnitEndPointer(base);
 		List<FullUnitInfo> lst = new ArrayList<>();
+
 		for (int i = 0; i + startUnits < endUnits; i+=8) {
 			long unit = pa.readLong(startUnits + i);
 			if (isInterestingUnit(unit)) {
 				lst.add(readUnit(unit));
 			}
 		}
+
 		return lst;
+	}
+
+	@Override
+	public List<FeatureLocation> readFeatureLocations(String featureKey) {
+		if (c.supportsFeatureQueries) {
+			long base = findBaseUnitListPointer();
+			long startUnits = findUnitStartPointer(base);
+			long endUnits = findUnitEndPointer(base);
+			List<FeatureLocation> lst = new ArrayList<>();
+			
+			for (int i = 0; i + startUnits < endUnits; i+=8) {
+				long unit = pa.readLong(startUnits + i);
+				if (isMexClass(pa.readLong(unit))) {
+					long b = pa.readLong(unit + c.featureBase);
+					long b1 = pa.readLong(b + c.featureObjectBase);
+					String fK = pa.readNullTerminatedString(pa.readLong(b1 + c.featureSpecString));
+					if ((c.featureSpecStringBase + featureKey).equals(fK)) {
+						FeatureLocation loc = new FeatureLocation();
+						loc.setX(pa.readFloat(b1 + c.featureX));
+						loc.setY(pa.readFloat(b1 + c.featureY));
+						loc.setZ(pa.readFloat(b1 + c.featureZ));
+						loc.setPlanetId(pa.readInt(b1 + c.featurePlanet));
+						lst.add(loc);
+					}
+				}
+			}
+			return lst;
+		} else {
+			return Collections.emptyList();
+		}
 	}
 }

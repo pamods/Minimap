@@ -19,10 +19,14 @@ public class B79896Accessor extends PaAccessor1 {
 				currentHp = 0xF8;
 				maxHp = 0xFC;
 				armyId = 0x58;
-				x = 0xC8;
-				y = 0xCC;
-				z = 0xD0;
+				unitX = 0xC8;
+				unitY = 0xCC;
+				unitZ = 0xD0;
 				planetId = 0x5C;
+				clientUnitClassInclude = "ClientUnit";
+				clientUnitsClassExclude = "ClientPlanet";
+				
+				// it is unknown how to do feature queries for this version, but this is just here mostly for historical reasons anyway...
 			}
 		});
 	}
