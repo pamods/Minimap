@@ -49,6 +49,11 @@
 	fill-opacity: .6;
 }
 
+.control {
+	fill: #00ffff;
+	fill-opacity: .8;
+}
+
 .spawns {
 	fill: none;
 	stroke: #FF9900;

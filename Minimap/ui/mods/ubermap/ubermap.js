@@ -1,5 +1,7 @@
 console.log("loaded ubermap.js");
 
+var paMemoryWebservice = "http://127.0.0.1:8184";
+
 // do not scroll this scene please
 window.onwheel = function(){ return false; }
 
@@ -87,6 +89,11 @@ var handlers = {};
 loadScript("coui://ui/mods/minimap/unitInfoParser.js");
 loadScript("coui://ui/mods/minimap/alertsManager.js");
 
+var unitSpecMapping = undefined;
+unitInfoParser.loadUnitTypeMapping(function(mapping) {
+	unitSpecMapping = mapping;
+});
+
 $(document).ready(function() {
 	var assumedIconSize = 52;
 	
@@ -158,7 +165,7 @@ $(document).ready(function() {
 		
 		var refreshData = function() {
 			var startQuery = new Date().getTime();
-			$.getJSON("http://127.0.0.1:8184/pa/updateId/"+lastUpdate+"/minPositionChange/"+minPositionChange, function(data) {
+			$.getJSON(paMemoryWebservice+"/pa/updateId/"+lastUpdate+"/minPositionChange/"+minPositionChange, function(data) {
 				lastUpdate = data.updateId;
 				if (data.reset) {
 					notifyRemove(currentUnits);
@@ -192,11 +199,6 @@ $(document).ready(function() {
 	}
 	
 	var memoryPA = new MemoryDataReceiver(250);
-	
-	var unitSpecMapping = undefined;
-	unitInfoParser.loadUnitTypeMapping(function(mapping) {
-		unitSpecMapping = mapping;
-	});
 	
 	var isStructure = function(spec) {
 		return contains(unitSpecMapping[spec], "Structure");
@@ -451,7 +453,9 @@ $(document).ready(function() {
 			if (model.mappingData() !== undefined) {
 				var ps = model.mappingData().planets;
 				for (var i = 0; i < ps.length; i++) {
-					if (ps[i].name === self.name()) {
+					// the case "name unset cameraId set" happens for planets which have only data directly from the memory reader
+					if (ps[i].name === self.name() || ps[i].cameraId === self.planet().id) {
+						ps[i].name = self.name();
 						result = ps[i];
 						break;
 					}
@@ -476,6 +480,7 @@ $(document).ready(function() {
 			return {
 				"spawns": 2 * Math.sqrt(self.widthSizeMod()) * self.planetSizeMod(),
 				"metal": 1.5 * Math.sqrt(self.widthSizeMod()) * self.planetSizeMod(),
+				"control": 2.5 * Math.sqrt(self.widthSizeMod()) * self.planetSizeMod(),
 				"land": 0.9 * self.widthSizeMod() * self.planetSizeMod(),
 				"sea": 0.9 * self.widthSizeMod() * self.planetSizeMod(),
 				"others": self.widthSizeMod() * self.planetSizeMod()
@@ -512,7 +517,7 @@ $(document).ready(function() {
 		});
 		
 		self.layers = ko.computed(function() {
-			return _.map(_.filter(['land', 'sea', 'metal', 'spawns'], function(layer) {
+			return _.map(_.filter(['land', 'sea', 'metal', 'spawns', 'control'], function(layer) {
 				return self.mappingObject()[layer] !== undefined;
 			}), function(layer) {
 				return {
@@ -1084,23 +1089,88 @@ $(document).ready(function() {
 		
 		self.loadMappingData = function(payload) {
 			var mapList = decode(localStorage["info.nanodesu.minimapkeys"]) || {};
+			var mapData = minimapSystems[payload.name];
 			var dbName = "info.nanodesu.info.minimaps";
+
 			
 			if (mapList[payload.name]) {
 				console.log("found minimap data in indexdb, will load key "+mapList[payload.name]);
 				DataUtility.readObject(dbName, mapList[payload.name]).then(function(data) {
-					self.mappingData(data);
-					console.log(data);
+					self.queryAndAttachFeatures(data, "metal", "metal_splat_02.json", function(d) {
+						self.queryAndAttachFeatures(data, "control", "control_point_01.json", function(d) {
+							console.log(d);
+							self.mappingData(d);
+						});
+					});
 				});
 			} else if (mapData) {
-				self.mappingData(data);
-				console.log("found minimap data in systems.js");
-				console.log(mapData);
+				console.log("systems.js seems to know this system");
+				self.queryAndAttachFeatures(mapData, "metal", "metal_splat_02.json", function(d) {
+					self.queryAndAttachFeatures(data, "control", "control_point_01.json", function(d) {
+						console.log(d);
+						self.mappingData(d);
+					});
+				});
 			} else {
-				console.log("No minimap data available for map with name "+payload.name);
+				console.log("No prepared minimap data available for map with name "+payload.name);
+				self.queryAndAttachFeatures({planets: []}, "metal", "metal_splat_02.json", function(d) {
+					self.queryAndAttachFeatures(data, "control", "control_point_01.json", function(d) {
+						console.log(d);
+						self.mappingData(d);
+					});
+				});
 			}
 		};
 		
+		self.queryAndAttachFeatures = function(data, attachKey, key, cb) {
+			$.getJSON(paMemoryWebservice+"/pa/query/features/"+key, function(result) {
+				var ars = {};
+				for (var i = 0; i < result.length; i++) {
+					var ar = ars[result[i].planetId];
+					if (ar === undefined) {
+						ar = [];
+					}
+					ar.push(convertToLonLan(result[i].x, result[i].y, result[i].z));
+					ars[result[i].planetId] = ar;
+				}
+				
+				_.forEach(ars, function(value, key) {
+					
+					var index = -1;
+					
+					for (var i = 0; i < data.planets.length; i++) {
+						if (data.planets[i].cameraId == key) {
+							index = i;
+							break;
+						}
+					}
+					
+					var planet = data.planets[index];
+					if (!planet) {
+						planet = {
+							cameraId: Number(key),
+							id: "p-id-" + key
+						};
+						data.planets.push(planet);
+					}
+					planet[attachKey] = {
+						"type" : "FeatureCollection",
+						"features" : [ {
+							"type" : "Feature",
+							"geometry" : {
+								"type" : "MultiPoint",
+								"coordinates" : value
+							}
+						}],
+						"source": "memory", // just a marker for me to be sure where this data came from when debugging
+						"properties": {
+							"type": attachKey
+						}
+					};
+				});
+				cb(data);
+			});
+		};
 
 		self.selectsNavyFighters = ko.observable(false);
 		self.selectsLandFighters = ko.observable(false);
@@ -1202,6 +1272,7 @@ $(document).ready(function() {
 		self.showsUberMap.subscribe(function(v) {
 			self.rubberbandSelector.setEnabled(v);
 		});
+		self.rubberbandSelector.setEnabled(self.showsUberMap());
 		
 		var lastSelectTime = 0;
 		

@@ -35,6 +35,7 @@
 	<div class="minimaps" data-bind="style: {'max-width': minimapAreaWidth()+'px'}">
 		<!-- ko foreach: minimaps -->
 		<div class="minimap" style="position: relative" data-bind="id: 'mm-' + name(), visible: !dead(), style: {width: width()+'px', height: height()+'px'}">
+			<div data-bind="text: name" style="position: absolute;" class="ignoreMouse"></div>
 			<svg class="ignoreMouse" data-bind="style: {position: 'absolute', width: width()+'px', height: height()+'px'}">
 				<defs>
 					<path data-bind="id: mappingObject().id+'-sphere', datum: {type: 'Sphere'}, d: path"></path>
