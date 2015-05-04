@@ -1169,6 +1169,9 @@ $(document).ready(function() {
 					};
 				});
 				cb(data);
+			}).fail(function() {
+				console.log("failed to get feature data from webservice :(");
+				cb(data);
 			});
 		};
 
