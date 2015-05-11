@@ -1,5 +1,8 @@
 package info.nanodesu.reader;
 
+import java.util.Collections;
+import java.util.List;
+
 public class FullUnitInfo {
 	private int id;
 	private String spec;
@@ -10,7 +13,17 @@ public class FullUnitInfo {
 	private int planetId;
 	private float currentHp;
 	private float maxHp;
-		
+	
+	private List<Integer> commands = Collections.emptyList();
+	
+	public List<Integer> getCommandIds() {
+		return commands;
+	}
+
+	public void setCommandIds(List<Integer> commands) {
+		this.commands = commands;
+	}
+
 	public int getPlanetId() {
 		return planetId;
 	}
@@ -85,9 +98,10 @@ public class FullUnitInfo {
 
 	@Override
 	public String toString() {
-		return "UnitAdd [id=" + id + ", unitSpec=" + spec + ", armyId="
-				+ army + ", x=" + x + ", y=" + y + ", z=" + z
-				+ ", currentHp=" + currentHp + ", maxHp=" + maxHp + "]";
+		return "FullUnitInfo [id=" + id + ", spec=" + spec + ", army=" + army
+				+ ", x=" + x + ", y=" + y + ", z=" + z + ", planetId="
+				+ planetId + ", currentHp=" + currentHp + ", maxHp=" + maxHp
+				+ ", commands=" + commands + "]";
 	}
 
 	@Override
@@ -95,11 +109,13 @@ public class FullUnitInfo {
 		final int prime = 31;
 		int result = 1;
 		result = prime * result + army;
+		result = prime * result
+				+ ((commands == null) ? 0 : commands.hashCode());
 		result = prime * result + Float.floatToIntBits(currentHp);
 		result = prime * result + id;
 		result = prime * result + Float.floatToIntBits(maxHp);
-		result = prime * result
-				+ ((spec == null) ? 0 : spec.hashCode());
+		result = prime * result + planetId;
+		result = prime * result + ((spec == null) ? 0 : spec.hashCode());
 		result = prime * result + Float.floatToIntBits(x);
 		result = prime * result + Float.floatToIntBits(y);
 		result = prime * result + Float.floatToIntBits(z);
@@ -117,12 +133,19 @@ public class FullUnitInfo {
 		FullUnitInfo other = (FullUnitInfo) obj;
 		if (army != other.army)
 			return false;
+		if (commands == null) {
+			if (other.commands != null)
+				return false;
+		} else if (!commands.equals(other.commands))
+			return false;
 		if (Float.floatToIntBits(currentHp) != Float
 				.floatToIntBits(other.currentHp))
 			return false;
 		if (id != other.id)
 			return false;
 		if (Float.floatToIntBits(maxHp) != Float.floatToIntBits(other.maxHp))
+			return false;
+		if (planetId != other.planetId)
 			return false;
 		if (spec == null) {
 			if (other.spec != null)

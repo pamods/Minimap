@@ -13,14 +13,18 @@ public class PaUnitInfoUpdate {
 	private long updateId;
 	
 	private List<FullUnitInfo> addedUnits;
+	private List<UnitCommand> addedCommands;
 	private List<UnitUpdate> updatedUnits;
 	private Set<Integer> removedUnits;
+	private Set<Integer> removedCommands;
 	private boolean reset;
 	
 	public PaUnitInfoUpdate() {
 		addedUnits = new ArrayList<>();
 		updatedUnits = new ArrayList<>();
 		removedUnits = new HashSet<>();
+		addedCommands = new ArrayList<>();
+		removedCommands = new HashSet<>();
 		reset = false;
 		
 		synchronized(mutex) {
@@ -28,7 +32,7 @@ public class PaUnitInfoUpdate {
 			updateIdBase++;
 		}
 	}
-		
+	
 	public boolean isReset() {
 		return reset;
 	}
@@ -53,10 +57,20 @@ public class PaUnitInfoUpdate {
 		return removedUnits;
 	}
 	
+	public List<UnitCommand> getAddedCommands() {
+		return addedCommands;
+	}
+	
+	public Set<Integer> getRemovedCommands() {
+		return removedCommands;
+	}
+
 	@Override
 	public String toString() {
 		return "PaUnitInfoUpdate [updateId=" + updateId + ", addedUnits="
-				+ addedUnits + ", updatedUnits=" + updatedUnits
-				+ ", removedUnits=" + removedUnits + "]";
+				+ addedUnits + ", addedCommands=" + addedCommands
+				+ ", updatedUnits=" + updatedUnits + ", removedUnits="
+				+ removedUnits + ", removedCommands=" + removedCommands
+				+ ", reset=" + reset + "]";
 	}
 }

@@ -1,5 +1,7 @@
 package info.nanodesu.reader;
 
+import java.util.List;
+
 public class UnitUpdate {
 	private int id;
 	private float x;
@@ -7,6 +9,17 @@ public class UnitUpdate {
 	private float z;
 	private int planetId;
 	private float currentHp;
+
+	// null => do not set
+	// list => overwrite state in the client with new commands
+	private List<Integer> newCommands;
+	
+	public List<Integer> getNewCommandIds() {
+		return newCommands;
+	}
+	public void setNewCommandIds(List<Integer> newCommands) {
+		this.newCommands = newCommands;
+	}
 	public int getPlanetId() {
 		return planetId;
 	}
@@ -43,10 +56,12 @@ public class UnitUpdate {
 	public void setCurrentHp(float currentHp) {
 		this.currentHp = currentHp;
 	}
+	
 	@Override
 	public String toString() {
 		return "UnitUpdate [id=" + id + ", x=" + x + ", y=" + y + ", z=" + z
-				+ ", currentHp=" + currentHp + "]";
+				+ ", planetId=" + planetId + ", currentHp=" + currentHp
+				+ ", newCommands=" + newCommands + "]";
 	}
 	@Override
 	public int hashCode() {
@@ -54,6 +69,9 @@ public class UnitUpdate {
 		int result = 1;
 		result = prime * result + Float.floatToIntBits(currentHp);
 		result = prime * result + id;
+		result = prime * result
+				+ ((newCommands == null) ? 0 : newCommands.hashCode());
+		result = prime * result + planetId;
 		result = prime * result + Float.floatToIntBits(x);
 		result = prime * result + Float.floatToIntBits(y);
 		result = prime * result + Float.floatToIntBits(z);
@@ -73,6 +91,13 @@ public class UnitUpdate {
 			return false;
 		if (id != other.id)
 			return false;
+		if (newCommands == null) {
+			if (other.newCommands != null)
+				return false;
+		} else if (!newCommands.equals(other.newCommands))
+			return false;
+		if (planetId != other.planetId)
+			return false;
 		if (Float.floatToIntBits(x) != Float.floatToIntBits(other.x))
 			return false;
 		if (Float.floatToIntBits(y) != Float.floatToIntBits(other.y))
@@ -81,4 +106,5 @@ public class UnitUpdate {
 			return false;
 		return true;
 	}
+
 }

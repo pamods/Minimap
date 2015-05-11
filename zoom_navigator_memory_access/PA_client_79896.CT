@@ -15,6 +15,14 @@
         <Offset>608</Offset>
       </Offsets>
     </CheatEntry>
+    <CheatEntry>
+      <ID>1</ID>
+      <Description>"Placeable byte"</Description>
+      <LastState Value="1" Activated="0" RealAddress="0B0AD298"/>
+      <Color>80000008</Color>
+      <VariableType>Byte</VariableType>
+      <Address>0B0AD298</Address>
+    </CheatEntry>
   </CheatEntries>
   <CheatCodes>
     <CodeEntry>
@@ -471,6 +479,35 @@
         <Byte>34</Byte>
         <Byte>F2</Byte>
         <Byte>48</Byte>
+      </After>
+    </CodeEntry>
+    <CodeEntry>
+      <Description>placeable = true</Description>
+      <Address>1400C4EC1</Address>
+      <ModuleName>PA.exe</ModuleName>
+      <ModuleNameOffset>C4EC1</ModuleNameOffset>
+      <Before>
+        <Byte>4C</Byte>
+        <Byte>24</Byte>
+        <Byte>70</Byte>
+        <Byte>75</Byte>
+        <Byte>0C</Byte>
+      </Before>
+      <Actual>
+        <Byte>C6</Byte>
+        <Byte>86</Byte>
+        <Byte>E8</Byte>
+        <Byte>00</Byte>
+        <Byte>00</Byte>
+        <Byte>00</Byte>
+        <Byte>01</Byte>
+      </Actual>
+      <After>
+        <Byte>E9</Byte>
+        <Byte>B7</Byte>
+        <Byte>03</Byte>
+        <Byte>00</Byte>
+        <Byte>00</Byte>
       </After>
     </CodeEntry>
   </CheatCodes>
@@ -6553,6 +6590,11 @@ unsichtbarerem "stale" Datensatz
     <DisassemblerComment>
       <Address>"PA.exe"+B79D5</Address>
       <Comment>the stuff in a loop
+</Comment>
+    </DisassemblerComment>
+    <DisassemblerComment>
+      <Address>"PA.exe"+C4EC1</Address>
+      <Comment>set "is placeable to true"
 </Comment>
     </DisassemblerComment>
     <DisassemblerComment>

@@ -39,5 +39,8 @@ public interface Memory64API {
 	byte[] readMemory(long adr, int count);
 
 	int writeMemory(long adr, byte[] bytesToWrite);
-
+	
+	void startBatchRead(long adr, byte[] cache);
+	void endBatchRead();
+	
 }

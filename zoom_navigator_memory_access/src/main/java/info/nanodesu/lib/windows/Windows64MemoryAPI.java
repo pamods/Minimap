@@ -35,6 +35,13 @@ public class Windows64MemoryAPI implements Memory64API {
     
     private HANDLE process = null;
 
+    private static final int READ_MEMORY_CACHE_SIZE = 15 * 1024;
+    private Memory readMemoryCache = new Memory(READ_MEMORY_CACHE_SIZE);
+    private IntByReference readSizeIntCache = new IntByReference();
+    
+    private long batchCacheStartAdr = -1;
+    private byte[] batchCache = null;
+    
     @Override
 	public boolean openProcessByPid(int pid) {
         int accessCode = Kernel32.PROCESS_VM_OPERATION | Kernel32.PROCESS_VM_READ | Kernel32.PROCESS_VM_WRITE;
@@ -47,29 +54,45 @@ public class Windows64MemoryAPI implements Memory64API {
     @Override
     public void close() {
         if (process != null) {
-        	//System.out.println("Close process handle: "+process);
             Kernel32.INSTANCE.CloseHandle(process);
+            process = null;
         }
+    }
+    
+    private boolean isCached(long adr, int size) {
+    	return batchCache != null && adr >= batchCacheStartAdr && adr + size < batchCacheStartAdr + batchCache.length;
     }
     
     @Override
 	public byte readByte(long adr) {
-        return readMemory(adr, 1)[0];
+    	if (isCached(adr, 1)) {
+    		return batchCache[(int)(adr-batchCacheStartAdr)];
+    	} else {
+    		return readMemory(adr, 1)[0];
+    	}
     }
     
     @Override
 	public int readInt(long adr) {
-        return bytesToInt(readMemory(adr, 4));
+    	if (isCached(adr, 4)) {
+    		return bytesToInt(batchCache, (int)(adr-batchCacheStartAdr));
+    	} else {
+    		return bytesToInt(readMemory(adr, 4), 0);    		
+    	}
     }
     
 	@Override
 	public long readLong(long adr) {
-		return bytesToLong(readMemory(adr, 8));
+		if (isCached(adr, 8)) {
+			return bytesToLong(batchCache, (int)(adr-batchCacheStartAdr));
+		} else {
+			return bytesToLong(readMemory(adr, 8), 0);			
+		}
 	}
     
     @Override
 	public float readFloat(long adr) {
-        return Float.intBitsToFloat(bytesToInt(readMemory(adr, 4)));
+        return Float.intBitsToFloat(readInt(adr));
     }
     
     @Override
@@ -78,7 +101,8 @@ public class Windows64MemoryAPI implements Memory64API {
     	byte[] r = null;
     	loop:	
     	do {
-    		r = readMemory(adr, 8);
+    		int batchSize = 32;
+    		r = readMemory(adr, batchSize);
     		
     		for (int i = 0; i < r.length; i++) {
     			if (r[i] == 0) {
@@ -87,7 +111,7 @@ public class Windows64MemoryAPI implements Memory64API {
     				builder.append((char) r[i]);
     			}
     		}
-    		adr += 8;
+    		adr += 32;
     	} while(true);
     	
     	return builder.toString();
@@ -150,46 +174,50 @@ public class Windows64MemoryAPI implements Memory64API {
         return dest;
     }
 
-    private static int bytesToInt(byte[] b) {
+    private static int bytesToInt(byte[] b, int offset) {
         int result = 0;
-
-        result |= (0xFF & b[3]) << 24;
-        result |= (0xFF & b[2]) << 16;
-        result |= (0xFF & b[1]) << 8;
-        result |= (0xFF & b[0]);
+        
+        for (int i = 3; i >= 0; i--) {
+        	result |= (0xFF & b[offset + i]) << 8 * i;
+        }
 
         return result;   
     }
 
-    private static long bytesToLong(byte[] b) {
+    private static long bytesToLong(byte[] b, int offset) {
         long result = 0;
-
-        result |= (long) (0xFF & b[7]) << 56;
-        result |= (long) (0xFF & b[6]) << 48;
-        result |= (long) (0xFF & b[5]) << 40;
-        result |= (long) (0xFF & b[4]) << 32;
-        result |= (long) (0xFF & b[3]) << 24;
-        result |= (long) (0xFF & b[2]) << 16;
-        result |= (long) (0xFF & b[1]) << 8;
-        result |= (long) (0xFF & b[0]);
+        
+        for (int i = 7; i >= 0; i--) {
+        	result |= (long) (0xFF & b[offset + i]) << i * 8;
+        }
 
         return result;    	
     }
     
-    @Override
-	public byte[] readMemory(long adr, int count) {
-        IntByReference bytesRead = new IntByReference();
+    private void readMemory(long adr, int count, byte[] output) {
+        IntByReference bytesRead = readSizeIntCache;
         
-        byte[] output = new byte[count];
-        
-        Memory mem = new Memory(output.length);
-        Kernel32.INSTANCE.ReadProcessMemory(process, adr, mem, output.length, bytesRead);
-        
-        System.arraycopy(mem.getByteArray(0, bytesRead.getValue()), 0, output, 0, bytesRead.getValue());
+        Memory mem = null; 
 
-        return output;
+        if (output.length < READ_MEMORY_CACHE_SIZE) {
+        	mem = readMemoryCache;
+        } else {
+        	System.out.println("WARN: reading " + count + " bytes from 0x" + Long.toHexString(adr) + ": size > cache!!!");
+        	mem = new Memory(output.length);
+        }
+        
+        Kernel32.INSTANCE.ReadProcessMemory(process, adr, mem, output.length, bytesRead);
+        mem.read(0, output, 0, bytesRead.getValue());
     }
     
+    @Override
+	public byte[] readMemory(long adr, int count) {
+    	byte[] output = new byte[count];
+    	readMemory(adr, count, output);
+    	return output;
+    }
+    
+    // TODO optimize write: write currently is not as optimized as read is, as it is not used in this project (yet)
     @Override
 	public int writeMemory(long adr, byte[] bytesToWrite) {
         IntByReference bytesWritten = new IntByReference();
@@ -218,8 +246,6 @@ public class Windows64MemoryAPI implements Memory64API {
         
         public boolean WriteProcessMemory(HANDLE hProcess, long inBaseAddress, Pointer inpputBuffer, int size,
                 IntByReference outNumberOfBytesRead);
-        
-        
     }
 
 	@Override
@@ -275,5 +301,16 @@ public class Windows64MemoryAPI implements Memory64API {
 		}
 	}
 
+	@Override
+	public void startBatchRead(long adr, byte[] cache) {
+		batchCache = cache;
+		batchCacheStartAdr = adr;
+		readMemory(adr, cache.length, cache);
+	}
+
+	@Override
+	public void endBatchRead() {
+		batchCache = null;
+	}
 }
 

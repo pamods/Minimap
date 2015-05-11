@@ -5,7 +5,7 @@ import java.util.List;
 public interface PaClientMemoryAccessor {
 	void attach();
 	boolean isAttached();
-	List<FullUnitInfo> readUnitInfos();
+	UnitInfoReadResult readUnitInfos();
 	List<FeatureLocation> readFeatureLocations(String featureKey);
 	void detach();
 	void updatePid(int pid);

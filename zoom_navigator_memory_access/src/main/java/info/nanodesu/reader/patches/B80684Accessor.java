@@ -5,7 +5,7 @@ public class B80684Accessor extends PaAccessor1 {
 	public B80684Accessor(int pid) {
 		super(pid, new PaAccessor1Constants() {
 			{
-				baseAdr = 0x14068BBA0L; // this is the only change compared to the B79896 accessor
+				baseAdr = 0x14068BBA0L;
 				basePointer = new long[]{0x608, 0x18, 0x80};
 				finalBase = 0x1D0;
 				visibilityBit = 0x19D;
@@ -37,6 +37,18 @@ public class B80684Accessor extends PaAccessor1 {
 				featureSpecStringBase = "/pa/effects/features/";
 				featureClassInclude = "total_metal_value";
 				featureClassExclude = null;
+				
+				supportsCommandQueries = true;
+				commandId = 0x10;
+				commandBase = 0x30;
+				commandType = 0x6C;
+				commandPlanet= 0x38;
+				commandX = 0x3C;
+				commandY = 0x40;
+				commandZ = 0x44;
+				commandsOffsetInUnit = 0x398;
+				commandClassInclude = "target positions for Multi";
+				commandClassExclude = null;
 			}
 		});
 	}
