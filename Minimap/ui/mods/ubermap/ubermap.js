@@ -1,9 +1,18 @@
 console.log("loaded ubermap.js");
 
 var paMemoryWebservice = "http://127.0.0.1:8184";
+var assumedIconSize = 52; // size of the svg icon raw data
+var noMemoryReaderPollTime = 10000;
+var unitPollTime = 250;
+var minPositionChange = 3;
+var camQueryTime = 90;
+var fps = 10;
 
-// do not scroll this scene please
-window.onwheel = function(){ return false; }
+// do not scroll this scene please ?!
+window.onscroll = function() {
+	window.scrollTo(0, 0);
+};
+$('body').mousedown(function(e){if(e.button==1)return false});
 
 ko.bindingHandlers.datum = {
 	update : function(element, valueAccessor, allBindings, viewModel, bindingContext) {
@@ -94,11 +103,11 @@ unitInfoParser.loadUnitTypeMapping(function(mapping) {
 	unitSpecMapping = mapping;
 });
 
+var memoryPA = undefined;
+
 $(document).ready(function() {
-	var assumedIconSize = 52;
-	
 	var hackRound = function(n) {
-		return (0.5 + n) << 0
+		return (0.5 + n) << 0;
 	};
 	
 	var selectUnitsById = function(ids) {
@@ -113,17 +122,111 @@ $(document).ready(function() {
 		return ar !== undefined && $.inArray(val, ar) !== -1;
 	}
 	
+	var cameraLocation = ko.observable();
+	
+	var queryCameraLocation = function() {
+		// assumes that the main holodeck has the ID 0. Afaik that is always correct
+		$.getJSON(paMemoryWebservice+"/pa/query/holodeck/cam/0", function(data) {
+			cameraLocation(data);
+			setTimeout(queryCameraLocation, camQueryTime);
+		}).fail(function() {
+			setTimeout(queryCameraLocation, noMemoryReaderPollTime);
+		});
+	};
+	setTimeout(queryCameraLocation, 3000);
+	
 	function MemoryDataReceiver(pollTime) {
 		var self = this;
 		var lastUpdate = 0;
-		var minPositionChange = 1.5;
-		var queryActive = false;
-		var noMemoryReaderPollTime = 10000;
-		
 		var currentUnits = {};
 		var addedUnitsListeners = [];
 		var updatedUnitsListeners = [];
 		var removeUnitsListeners = [];
+		
+		var unitLastFirstCommands = {};
+		var commandGroups = {};
+
+		self.getCommandGroups = function() {
+			return commandGroups;
+		};
+		
+		var addCommand = function(cmd) {
+			cmd.units = {};
+			cmd.origins = {};
+			cmd.queue = {}
+			commandGroups[cmd.id] = cmd;
+		};
+		
+		var removeCommand = function(id) {
+			var cmd = commandGroups[id];
+			if (cmd) {
+				_.forEach(cmd.queue, function(q) {
+					q.origins[id] = undefined;
+				});
+			}
+			delete commandGroups[id];
+		};
+		
+		var hasMoreElements = function(u) {
+			for (var p in u) {
+				if (u.hasOwnProperty(p) && u[p] != undefined) {
+					return true;
+				}
+			}
+			return false;
+		};
+		
+		var mayCleanCommands = function(cmd) {
+			if (cmd && commandGroups[cmd.id] && !(hasMoreElements(cmd.units) || hasMoreElements(cmd.origins))) {
+				_.forEach(cmd.queue, function(q) {
+					q.origins[cmd.id] = undefined;
+					mayCleanCommands(q);
+				});
+				removeCommand(cmd.id);
+			}
+		};
+		
+		var cleanCommands = function() {
+			_.forEach(commandGroups, function(value, key) {
+				mayCleanCommands(value);
+			});
+		};
+		
+		var removeUnitForCommandId = function(unitId, cmdId) {
+			if (cmdId) {
+				var c = commandGroups[cmdId]; 
+				if (c) {
+					c.units[unitId] = undefined;
+				}
+			}
+		};
+		
+		var removeUnitFromCommand = function(unit) {
+			if (unit.commandIds[0]) {
+				removeUnitForCommandId(unit.id, unit.commandIds[0]);
+			}
+		};
+		
+		var linkCommandsOfUnit = function(unit) {
+			var cmdBefore = undefined;
+			_.forEach(unit.commandIds, function(cmd) {
+				var c = commandGroups[cmd];
+				if (c) {
+					if (cmdBefore) {
+						c.origins[cmdBefore.id] = cmdBefore;
+						cmdBefore.queue[c.id] = c;
+					} else {
+						c.units[unit.id] = unit;
+					}
+					cmdBefore = c;
+				}
+			});
+		};
+		
+		var checkCommandsOfUnit = function(unit) {
+			removeUnitFromCommand(unit);
+			linkCommandsOfUnit(unit);
+		};
 		
 		var addRemovableListener = function(ar, lis) {
 			ar.push(lis);
@@ -170,23 +273,44 @@ $(document).ready(function() {
 				if (data.reset) {
 					notifyRemove(currentUnits);
 					currentUnits = {};
+					commandGroups = {};
+					unitLastFirstCommands = {};
 				}
+				
+				_.forEach(data.addedCommands, function(cmd) {
+					addCommand(cmd);
+				});
+				
+				_.forEach(data.removedCommands, function(id) {
+					removeCommand(id);
+				});
 				
 				_.forEach(data.addedUnits, function(unit) {
 					currentUnits[unit.id] = true;
+					unitLastFirstCommands[unit.id] = unit.commandIds[0];
+					linkCommandsOfUnit(unit);
 					notifyAdd(unit);
 				});
 				
 				_.forEach(data.updatedUnits, function(unit) {
+					if (unit.newCommandIds) {
+						unit.commandIds = unit.newCommandIds;
+						unitLastFirstCommands[unit.id] = unit.commandIds[0];
+						checkCommandsOfUnit(unit);
+					}
 					notifyUpdate(unit);
 				});
 				
 				var removeKeys = {};
 				_.forEach(data.removedUnits, function(id) {
+					removeUnitForCommandId(id, unitLastFirstCommands[id]);
+					unitLastFirstCommands[id] = undefined;
 					currentUnits[id] = undefined;
 					removeKeys[id] = true;
 				});
 				notifyRemove(removeKeys);
+				
+				cleanCommands();
 				
 				setTimeout(refreshData, Math.max(0, pollTime - (new Date().getTime() - startQuery)));
 			}).fail(function() {
@@ -198,7 +322,7 @@ $(document).ready(function() {
 		setTimeout(refreshData, 1000);
 	}
 	
-	var memoryPA = new MemoryDataReceiver(250);
+	memoryPA = new MemoryDataReceiver(unitPollTime);
 	
 	var isStructure = function(spec) {
 		return contains(unitSpecMapping[spec], "Structure");
@@ -395,11 +519,87 @@ $(document).ready(function() {
 			});
 		});
 		
-		var fps = 10;
 		var now;
 		var then = Date.now();
 		var interval = 1000/fps;
 		var delta;
+		
+		var drawCameraPosition = function(ctx) {
+			var cam = cameraLocation();
+			if (cam && cam.planet == self.planet().id) {
+				var ll = convertToLonLan(cam.x, cam.y, cam.z);
+				var projected = self.projection()(ll);
+				var x = projected[0];
+				var y = projected[1];
+				
+				ctx.beginPath();
+				ctx.arc(x, y, 20 * self.widthSizeMod(), 0, 2 * Math.PI, false);
+				ctx.lineWidth = 1;
+				ctx.strokeStyle = "#000000";
+				ctx.stroke();
+			}
+		};
+		
+		var getLocationByUnits = function(units) {
+			var x = 0;
+			var y = 0;
+			var z = 0;
+			var planet = 0;
+			var num = 0;
+			_.forEach(units, function(value, key) {
+				value = self.unitMap[value.id];
+				if (value) {
+					value = value.unit;
+				}
+				if (value) {
+					x += value.x;
+					y += value.y;
+					z += value.z;
+					planet = value.planetId; // TODO this might look a little buggy in case a command is issued to a group of units that is spread over multiple planets...
+					num++;
+				}
+			});
+			if (planet == self.planet().id && num > 0) {
+				x /= num;
+				y /= num;
+				z /= num;
+				return makeProjected(x, y, z);
+			} else {
+				return undefined;
+			}
+		};
+		
+		var makeProjected = function(x, y, z) {
+			var ll = convertToLonLan(x, y, z);
+			return self.projection()(ll);			
+		};
+		
+		var drawLine = function(ctx, x1, y1, x2, y2, clr) {
+			ctx.beginPath();
+			ctx.moveTo(x1, y1);
+			ctx.lineTo(x2, y2);
+			ctx.strokeStyle = clr;
+			ctx.stroke();
+		};
+		
+		var drawCommands = function(ctx) {
+			_.forEach(memoryPA.getCommandGroups(), function(cmdGrp) {
+				if (cmdGrp.planetId === self.planet().id) {
+					var tP = makeProjected(cmdGrp.x, cmdGrp.y, cmdGrp.z);
+					_.forEach(cmdGrp.origins, function(origin) {
+						if (origin !== undefined && origin.planetId === self.planet().id) {
+							var oP = makeProjected(origin.x, origin.y, origin.z);
+							drawLine(ctx, oP[0], oP[1], tP[0], tP[1], "#FFFFFF");
+						}
+					});
+					
+					var locByUnits = getLocationByUnits(cmdGrp.units);
+					if (locByUnits) {
+						drawLine(ctx, locByUnits[0], locByUnits[1], tP[0], tP[1], "#FFFFFF");
+					}
+				}
+			});
+		};
 		
 		self.drawIcons = function() {
 			now = Date.now();
@@ -429,6 +629,12 @@ $(document).ready(function() {
 					_.forEach(selectedUnits, function(unit) {
 						model.drawUnit(ctx, unit);
 					});
+					
+					drawCommands(ctx);
+					
+					if (!model.showsUberMap()) {
+						drawCameraPosition(ctx);
+					}
 				}
 			}
 			requestAnimationFrame(self.drawIcons);
@@ -1293,6 +1499,8 @@ $(document).ready(function() {
 					_.merge(targets, r);
 				}
 			}
+			
+			/*
 			_.forEach(self.minimaps(), function(m) {
 				var r = m.findUnitsInside(x, y, w, h);
 				if (r.found) {
@@ -1300,6 +1508,7 @@ $(document).ready(function() {
 					_.merge(targets, r);
 				}
 			});
+			*/
 			
 			// check for double click selects and modify selection accordingly
 			var ar = [];
@@ -1381,6 +1590,9 @@ $(document).ready(function() {
 	};
 	
 	handlers.setUberMapVisible = function(show) {
+		if (show) {
+			model.activePlanet(cameraLocation().planet);
+		}
 		model.showsUberMap(show);
 	};
 	
@@ -1395,17 +1607,6 @@ $(document).ready(function() {
 		if (aum) {
 			aum.switchCameraToPosition(x, y);
 		}
-	};
-	
-	handlers.zoom_level = function(payload) {
-//		console.log("zoom level");
-//		console.log(payload);
-	};
-	
-	handlers.focus_planet_changed = function(payload) {
-//		console.log("focus planet");
-//		console.log(payload);
-		// TOO buggy to be helpful
 	};
 	
 	handlers.shiftState = function(state) {
