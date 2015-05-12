@@ -10,4 +10,5 @@ public interface PaClientMemoryAccessor {
 	void detach();
 	void updatePid(int pid);
 	int getPid();
+	CamPosition readCamPosition(int holodeckId);
 }

@@ -1,6 +1,7 @@
 package info.nanodesu.reader.patches;
 
 import info.nanodesu.reader.AbstractPaAccessor;
+import info.nanodesu.reader.CamPosition;
 import info.nanodesu.reader.FeatureLocation;
 import info.nanodesu.reader.FullUnitInfo;
 import info.nanodesu.reader.UnitCommand;
@@ -77,6 +78,18 @@ public class PaAccessor1 extends AbstractPaAccessor {
 		public long commandsOffsetInUnit;
 		public String commandClassInclude;
 		public String commandClassExclude;
+		
+		public boolean supportsTrackingCamera = false;
+		public long holodecksBase;
+		public long[] holodecksBasePtrs;
+		public long holodecksFinalBase;
+		public long holodecksCam;
+		public long holodecksId;
+		public long camLocation;
+		public long camX;
+		public long camY;
+		public long camZ;
+		public long camPlanet;
 	}
 	
 	protected static void l(long x) {
@@ -98,13 +111,20 @@ public class PaAccessor1 extends AbstractPaAccessor {
 		readCacheLarge = new byte[c.bigReadCacheSize];
 	}
 	
-	private long findBaseUnitListPointer() {
-		long a = pa.readLong(c.baseAdr);
-		for (int i = 0; i < c.basePointer.length; i++) {
-			a = pa.readLong(a + c.basePointer[i]);
+	private long followPointerPatch(long base, long[] path) {
+		long a = pa.readLong(base);
+		for (int i = 0; i < path.length; i++) {
+			a = pa.readLong(a + path[i]);
 		}
-		a =  a + c.finalBase;
 		return a;
+	}
+	
+	private long findBaseUnitListPointer() {
+		return followPointerPatch(c.baseAdr, c.basePointer) + c.finalBase;
+	}
+	
+	private long findBaseHolodecksPointer() {
+		return followPointerPatch(c.holodecksBase, c.holodecksBasePtrs) + c.holodecksFinalBase;
 	}
 	
 	private long findUnitStartPointer(long listPointer) {
@@ -153,7 +173,6 @@ public class PaAccessor1 extends AbstractPaAccessor {
 		FullUnitInfo inf = new FullUnitInfo();
 		long base = pa.readLong(unit + c.unitBase) + c.unitStruct;
 		
-		// TODO validate the performance implications with many units!!!
 		pa.startBatchRead(base, readCacheSmall);
 		
 		inf.setId(pa.readInt(base + c.unitId));
@@ -237,7 +256,7 @@ public class PaAccessor1 extends AbstractPaAccessor {
 			}
 		}
 		
-	UnitInfoReadResult result = new UnitInfoReadResult();
+		UnitInfoReadResult result = new UnitInfoReadResult();
 		result.unitInfos = units;
 		result.commands = commands;
 		return result;
@@ -271,5 +290,36 @@ public class PaAccessor1 extends AbstractPaAccessor {
 		} else {
 			return Collections.emptyList();
 		}
+	}
+	
+	@Override
+	public CamPosition readCamPosition(int holodeckId) {
+		CamPosition position = new CamPosition();
+		if (c.supportsTrackingCamera) {
+			
+			long startHolodecks = findBaseHolodecksPointer();
+			long endHolodecks = startHolodecks + 0x8;
+			
+			startHolodecks = pa.readLong(startHolodecks);
+			endHolodecks = pa.readLong(endHolodecks);
+			
+			for (int i = 0; i + startHolodecks < endHolodecks; i+=8) {
+				long hdeck = pa.readLong(startHolodecks + i);
+				int id = pa.readInt(hdeck + c.holodecksId);
+				if (id == holodeckId) {
+					long hcam = pa.readLong(hdeck + c.holodecksCam);
+					if (hcam != 0) {
+						long camLoc = pa.readLong(hcam + c.camLocation);
+						position.setX(pa.readFloat(camLoc + c.camX));
+						position.setY(pa.readFloat(camLoc + c.camY));
+						position.setZ(pa.readFloat(camLoc + c.camZ));
+						position.setPlanet(pa.readInt(camLoc + c.camPlanet));
+						position.setValidPosition(true);
+					}
+					break;
+				}
+			}
+		}
+		return position;
 	}
 }

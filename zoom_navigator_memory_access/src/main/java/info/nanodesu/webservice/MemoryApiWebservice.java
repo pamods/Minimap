@@ -187,10 +187,9 @@ public class MemoryApiWebservice extends Application {
 	@Override
 	public Restlet createInboundRoot() {
 		Router router = new Router(getContext());
-		router.attach(
-				"/updateId/{updateId}/minPositionChange/{minPositionChange}",
-				new DeltaCompressedUnits(getContext(), pa));
+		router.attach("/updateId/{updateId}/minPositionChange/{minPositionChange}", new DeltaCompressedUnits(getContext(), pa));
 		router.attach("/query/features/{features}", new FeatureQuery(getContext(), pa));
+		router.attach("/query/holodeck/cam/{hdeck}", new CamQuery(getContext(), pa));
 		return router;
 	}
 }

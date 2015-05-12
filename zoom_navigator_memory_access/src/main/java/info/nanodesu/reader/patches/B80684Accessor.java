@@ -49,6 +49,18 @@ public class B80684Accessor extends PaAccessor1 {
 				commandsOffsetInUnit = 0x398;
 				commandClassInclude = "target positions for Multi";
 				commandClassExclude = null;
+				
+				supportsTrackingCamera = true;
+				holodecksBase = 0x14068BBA0L;
+				holodecksBasePtrs = new long[]{};
+				holodecksFinalBase = 0x5D8;
+				holodecksCam = 0x20;
+				holodecksId = 0x10;
+				camLocation = 0x8;
+				camX = 0x18;
+				camY = 0x1C;
+				camZ = 0x20;
+				camPlanet = 0x14;
 			}
 		});
 	}
