@@ -212,8 +212,6 @@ public class PaAccessor1 extends AbstractPaAccessor {
 	
 	@Override
 	public UnitInfoReadResult readUnitInfos() {
-		long dt = System.currentTimeMillis();
-		
 		long base = findBaseUnitListPointer();
 		long startUnits = findUnitStartPointer(base);
 		long endUnits = findUnitEndPointer(base);
@@ -239,10 +237,7 @@ public class PaAccessor1 extends AbstractPaAccessor {
 			}
 		}
 		
-		System.out.println(System.currentTimeMillis() - dt);
-		
-		
-		UnitInfoReadResult result = new UnitInfoReadResult();
+	UnitInfoReadResult result = new UnitInfoReadResult();
 		result.unitInfos = units;
 		result.commands = commands;
 		return result;
