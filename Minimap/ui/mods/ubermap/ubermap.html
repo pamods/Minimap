@@ -34,7 +34,7 @@
 	<div id='selection_layer' data-bind="css: {receiveMouse: showsUberMap, ignoreMouse: !showsUberMap()}, style: {width: parentWidth, height: parentHeight}" style='position: fixed; top: 0px; left: 0px; z-index: -999'></div>
 	<div class="minimaps" data-bind="style: {'max-width': minimapAreaWidth()+'px'}">
 		<!-- ko foreach: minimaps -->
-		<div class="minimap" style="position: relative" data-bind="id: 'mm-' + name(), visible: !dead(), style: {width: width()+'px', height: height()+'px'}">
+		<div class="minimap hwaccelerate" style="position: relative" data-bind="id: 'mm-' + name(), visible: !dead(), style: {width: width()+'px', height: height()+'px'}">
 			<div data-bind="text: name" style="position: absolute;" class="ignoreMouse"></div>
 			<svg class="ignoreMouse" data-bind="style: {position: 'absolute', width: width()+'px', height: height()+'px'}">
 				<defs>
@@ -58,8 +58,8 @@
 	
 	<div class="ubermaps">
 		<!-- ko foreach: ubermaps -->
-		<div style="position: absolute;" data-bind="id: 'um-' + name(), style: {width: width()+'px', height: height()+'px', top: top()+'px', left: left()+'px'}">
-			<div style="position: relative">
+		<div style="position: absolute;" data-bind="id: 'um-' + name(), style: {width: width()+'px', height: height()+'px', top: top()+'px', left: left()+'px', 'margin-top': hideByMargin()}">
+			<div class="hwaccelerate" style="position: relative">
 				<svg class="ignoreMouse" data-bind="style: {position: 'absolute', width: width()+'px', height: height()+'px'}">
 					<defs>
 						<path data-bind="id: mappingObject().id+'-um-sphere', datum: {type: 'Sphere'}, d: path"></path>

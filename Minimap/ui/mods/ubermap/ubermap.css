@@ -6,6 +6,11 @@
 	pointer-events: none;
 }
 
+/*  http://davidwalsh.name/translate3d warp speed ahead.... not 100% certain this helps or not, but it does not seem to hurt and may help */
+.hwaccelerate {
+	-webkit-transform: translate3d(0, 0, 0);
+}
+
 .graticule {
 	fill: none;
 	stroke: #777;
@@ -34,6 +39,7 @@
 }
 
 .ubermaps {
+	overflow: hidden;
 }
 
 .land {

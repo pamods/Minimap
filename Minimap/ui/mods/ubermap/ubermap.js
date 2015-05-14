@@ -612,7 +612,7 @@ $(document).ready(function() {
 			
 			// various "try to use low fps for everything that doesnt look too bad"-things
 			if (self.isUberMap && !self.visible()) {
-				interval = 1000 / 1; // 1 fps for invisible ubermaps
+				interval = 1000 / 2; // 2 fps for invisible ubermaps
 			} else if (!self.isUberMap && (model.showsUberMap()
 								|| model.activePlanet() !== self.planet().id)) {
 				interval = 1000 / 3; // 3 fps for minimaps that are not focused or while the ubermap is open
@@ -654,10 +654,10 @@ $(document).ready(function() {
 			var dt = interval - delta;
 			if (dt >= 4) {
 				setTimeout(function() {
-					requestAnimationFrame(self.drawIcons);
+					requestAnimationFrame(self.drawIcons, self.canvas());
 				}, dt);
 			} else {
-				requestAnimationFrame(self.drawIcons);
+				requestAnimationFrame(self.drawIcons, self.canvas());
 			}
 		};
 
@@ -1014,19 +1014,22 @@ $(document).ready(function() {
 		
 		self.isUberMap = true;
 		
-		// the elements are hidden offscreen using  the top value
+		// the elements are hidden offscreen using  the margin-top value
 		// that turns out to be faster (well maybe that part is my imagination...) in some situations and has less issues with the svg rendering,
 		// which seems to fail to adjust to resize events while it is set to be really visibility: none
 		self.visible = ko.computed(function() {
 			return model.showsUberMap() && model.activePlanet() === self.planet().id;
 		});
 		
+		self.hideByMargin = ko.computed(function() {
+			return self.visible() ? "0px" : "-1000000px";
+		});
+		
 		self.width = model.uberMapWidth;
 		self.height = model.uberMapHeight;
 		
 		self.top = ko.computed(function() {
-			// if not visible hide offscreen
-			return self.visible() ? model.ubermapTop() : -1000;
+			return model.ubermapTop();
 		});
 		self.left = model.ubermapLeft;
 		
@@ -1125,12 +1128,17 @@ $(document).ready(function() {
 			return Math.floor(self.uberMapWidthDedicatesHeight() ? self.optimalUberMapWidth() / self.mapSidesRatio() : self.optimalUberMapHeight());
 		});
 		
+		
+		// it turns out that resizing it only on demand when the ubermap is shown delays the moment until the ubermap shows up, so
+		// better accept that the page always has the full size for faster ubermap switch on/off
 		self.bodyWidth = ko.computed(function() {
-			return self.showsUberMap() ? self.parentWidth() : self.minimapAreaWidth(); // + self.minimapUbermapGap() + self.uberMapWidth();
+//			return self.showsUberMap() ? self.parentWidth() : self.minimapAreaWidth(); // + self.minimapUbermapGap() + self.uberMapWidth();
+			return self.parentWidth();
 		});
 		
 		self.bodyHeight = ko.computed(function() {
-			return self.showsUberMap() ? self.parentHeight() : self.ubermapTop() + self.uberMapHeight();
+//			return self.showsUberMap() ? self.parentHeight() : self.ubermapTop() + self.uberMapHeight();
+			return self.parentHeight();
 		});
 	};
 	
