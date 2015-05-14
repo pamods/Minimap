@@ -151,14 +151,17 @@ $(document).ready(function() {
 		var updatedUnitsListeners = [];
 		var removeUnitsListeners = [];
 		
-		var unitLastFirstCommands = {};
+		var unitLastCommands = {};
 		var commandGroups = {};
-
+		var prematureCommandQueues = [];
+		
 		self.getCommandGroups = function() {
 			return commandGroups;
 		};
 		
 		var addCommand = function(cmd) {
+//			console.log("ADD CMD");
+//			console.log(cmd);
 			cmd.units = {};
 			cmd.origins = {};
 			cmd.queue = {}
@@ -171,8 +174,11 @@ $(document).ready(function() {
 				_.forEach(cmd.queue, function(q) {
 					q.origins[id] = undefined;
 				});
+//				console.log("RM CMD ");
+//				console.log(id);
+				delete commandGroups[id];
 			}
-			delete commandGroups[id];
+			
 		};
 		
 		var hasMoreElements = function(u) {
@@ -185,7 +191,7 @@ $(document).ready(function() {
 		};
 		
 		var mayCleanCommands = function(cmd) {
-			if (cmd && commandGroups[cmd.id] && !(hasMoreElements(cmd.units) || hasMoreElements(cmd.origins))) {
+			if (cmd && commandGroups[cmd.id] && (Date.now() - cmd.creationTime > 10000) && !(hasMoreElements(cmd.units) || hasMoreElements(cmd.origins))) {
 				_.forEach(cmd.queue, function(q) {
 					q.origins[cmd.id] = undefined;
 					mayCleanCommands(q);
@@ -209,14 +215,9 @@ $(document).ready(function() {
 			}
 		};
 		
-		var removeUnitFromCommand = function(unit) {
-			if (unit.commandIds[0]) {
-				removeUnitForCommandId(unit.id, unit.commandIds[0]);
-			}
-		};
-		
 		var linkCommandsOfUnit = function(unit) {
 			var cmdBefore = undefined;
+			var hasUnknownCommands = false;
 			_.forEach(unit.commandIds, function(cmd) {
 				var c = commandGroups[cmd];
 				if (c) {
@@ -227,13 +228,24 @@ $(document).ready(function() {
 						c.units[unit.id] = unit;
 					}
 					cmdBefore = c;
+				} else {
+					hasUnknownCommands = true;
 				}
 			});
+			return hasUnknownCommands;
+		};
+		
+		var clearOldCommandsForUnit = function(id) {
+			if (unitLastCommands[id]) {
+				for (var i = 0; i < unitLastCommands[id].length; i++) {
+					removeUnitForCommandId(id, unitLastCommands[id][i]);
+				}
+			}
 		};
 		
 		var checkCommandsOfUnit = function(unit) {
-			removeUnitFromCommand(unit);
-			linkCommandsOfUnit(unit);
+			clearOldCommandsForUnit(unit.id);
+			return linkCommandsOfUnit(unit);
 		};
 		
 		var addRemovableListener = function(ar, lis) {
@@ -282,11 +294,23 @@ $(document).ready(function() {
 					notifyRemove(currentUnits);
 					currentUnits = {};
 					commandGroups = {};
-					unitLastFirstCommands = {};
+					unitLastCommands = {};
+					prematureCommandQueues = [];
 				}
 				
 				_.forEach(data.addedCommands, function(cmd) {
+					// used to only remove commands that are known for at least a few seconds.
+					// required since commands sometimes arrive after the unit has been given the command
+					cmd.creationTime = Date.now();
 					addCommand(cmd);
+					
+					for (var i = 0; i < prematureCommandQueues.length; i++) {
+						if (!linkCommandsOfUnit(prematureCommandQueues[i])) {
+//							console.log("RM PREMATURE CMD QUEUES FOR UNIT " + prematureCommandQueues[i].id);
+							prematureCommandQueues.splice(i, 1);
+							i--;
+						}
+					}
 				});
 				
 				_.forEach(data.removedCommands, function(id) {
@@ -294,25 +318,37 @@ $(document).ready(function() {
 				});
 				
 				_.forEach(data.addedUnits, function(unit) {
+//					console.log("ADD");
+//					console.log(unit);
 					currentUnits[unit.id] = true;
-					unitLastFirstCommands[unit.id] = unit.commandIds[0];
-					linkCommandsOfUnit(unit);
+					unitLastCommands[unit.id] = unit.commandIds;
+					if (linkCommandsOfUnit(unit)) {
+//						console.log("FOUND PREMATURE COMMAND QUEUE");
+//						console.log(unit);
+						prematureCommandQueues.push(unit);
+					}
 					notifyAdd(unit);
 				});
 				
 				_.forEach(data.updatedUnits, function(unit) {
 					if (unit.newCommandIds) {
 						unit.commandIds = unit.newCommandIds;
-						unitLastFirstCommands[unit.id] = unit.commandIds[0];
-						checkCommandsOfUnit(unit);
+//						console.log("update");
+//						console.log(unit);
+						if (checkCommandsOfUnit(unit)) {
+//							console.log("FOUND PREMATURE COMMAND QUEUE");
+//							console.log(unit);
+							prematureCommandQueues.push(unit);
+						}
+						unitLastCommands[unit.id] = unit.commandIds;
 					}
 					notifyUpdate(unit);
 				});
 				
 				var removeKeys = {};
 				_.forEach(data.removedUnits, function(id) {
-					removeUnitForCommandId(id, unitLastFirstCommands[id]);
-					unitLastFirstCommands[id] = undefined;
+					clearOldCommandsForUnit();
+					unitLastCommands[id] = undefined;
 					currentUnits[id] = undefined;
 					removeKeys[id] = true;
 				});
@@ -558,7 +594,9 @@ $(document).ready(function() {
 			var planet = 0;
 			var num = 0;
 			_.forEach(units, function(value, key) {
-				value = self.unitMap[value.id];
+				if (value) {
+					value = self.unitMap[value.id];
+				}
 				if (value) {
 					value = value.unit;
 				}
@@ -604,7 +642,7 @@ $(document).ready(function() {
 			});
 		};
 		
-		self.drawIcons = function() {
+		self.drawStuff = function() {
 			now = Date.now();
 			delta = now - then;
 			
@@ -636,6 +674,8 @@ $(document).ready(function() {
 						}
 					});
 					
+					drawCommands(ctx);
+					
 					_.forEach(unselectedUnits, function(unit) {
 						model.drawUnit(ctx, unit, self);
 					});
@@ -643,8 +683,6 @@ $(document).ready(function() {
 					_.forEach(selectedUnits, function(unit) {
 						model.drawUnit(ctx, unit, self);
 					});
-					
-					drawCommands(ctx);
 					
 					if (!model.showsUberMap()) {
 						drawCameraPosition(ctx);
@@ -654,14 +692,14 @@ $(document).ready(function() {
 			var dt = interval - delta;
 			if (dt >= 4) {
 				setTimeout(function() {
-					requestAnimationFrame(self.drawIcons, self.canvas());
+					requestAnimationFrame(self.drawStuff, self.canvas());
 				}, dt);
 			} else {
-				requestAnimationFrame(self.drawIcons, self.canvas());
+				requestAnimationFrame(self.drawStuff, self.canvas());
 			}
 		};
 
-		self.drawIcons();
+		self.drawStuff();
 	};
 	
 	var appendMapDefaults = function(self, p) {
