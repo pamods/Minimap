@@ -1433,10 +1433,35 @@ $(document).ready(function() {
 		self.selectsAllLand = groupedBooleansComputed(self.selectsLandWorkers, self.selectsLandFighters);
 		self.selectsAllAir = groupedBooleansComputed(self.selectsAirWorkers, self.selectsAirFighters);
 		self.selectsAllOrbital = groupedBooleansComputed(self.selectsOrbitalWorkers, self.selectsOrbitalFighters);
-		self.selectsAllFighters = groupedBooleansComputed(self.selectsNavyFighters, self.selectsLandFighters, self.selectsAirFighters, self.selectsOrbitalFighters);
-		self.selectsAllWorkers = groupedBooleansComputed(self.selectsNavyWorkers, self.selectsLandWorkers, self.selectsAirWorkers, self.selectsOrbitalWorkers);
+		self.selectsAllFighters = groupedBooleansComputed(
+				self.selectsNavyFighters, 
+				self.selectsLandFighters, 
+				self.selectsAirFighters, 
+				self.selectsOrbitalFighters,
+				invertedBoolean(self.selectsNavyWorkers),
+				invertedBoolean(self.selectsLandWorkers),
+				invertedBoolean(self.selectsAirWorkers),
+				invertedBoolean(self.selectsOrbitalWorkers));
 		
-		self.selectsAll = groupedBooleansComputed(self.selectsAllFighters, self.selectsAllWorkers);
+		self.selectsAllWorkers = groupedBooleansComputed(
+					self.selectsNavyWorkers,
+					self.selectsLandWorkers,
+					self.selectsAirWorkers,
+					self.selectsOrbitalWorkers,
+					invertedBoolean(self.selectsNavyFighters),
+					invertedBoolean(self.selectsLandFighters),
+					invertedBoolean(self.selectsAirFighters),
+					invertedBoolean(self.selectsOrbitalFighters));
+		
+		self.selectsAll = groupedBooleansComputed(
+				self.selectsNavyFighters, 
+				self.selectsLandFighters, 
+				self.selectsAirFighters, 
+				self.selectsOrbitalFighters,
+				self.selectsNavyWorkers,
+				self.selectsLandWorkers,
+				self.selectsAirWorkers,
+				self.selectsOrbitalWorkers);
 		
 		self.selectsAllFighters(true);
 		
