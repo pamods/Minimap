@@ -142,6 +142,8 @@ $(document).ready(function() {
 	$('#game_over').css("z-index", "99999");
 	$('#message').css("z-index", "99999");
 	$('#player_guide').css("z-index", "99999");
+	$('#popup').css('z-index', "99999");
+
 	var $panel;
 	var func = function(v) {
 		if (!v) {

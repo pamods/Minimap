@@ -158,7 +158,7 @@ public class MemoryApiWebservice extends Application {
 					int p = api.findPAProcess();
 					wTime = 15000;
 					if (p != pa.getPid()) {
-						System.out.println("found a new pid for pa.exe, switching over to "+p);
+						System.out.println("found a new pid for pa.exe, switching over to "+p + ". Notice that if you changed the version of PA you will potentially need to restart the memory reader or need an update for the reader.");
 						pa.updatePid(p);
 					}
 				} catch (Exception ex) {

@@ -6,13 +6,13 @@ var noMemoryReaderPollTime = 10000;
 var unitPollTime = 250;
 var minPositionChange = 3;
 var camQueryTime = 90;
-var fps = 10;
+var fps = 7;
 
 // do not scroll this scene please ?!
 window.onscroll = function() {
 	window.scrollTo(0, 0);
 };
-$('body').mousedown(function(e){if(e.button==1)return false});
+$(document).mousedown(function(e){if(e.which==2)return false});
 
 ko.bindingHandlers.datum = {
 	update : function(element, valueAccessor, allBindings, viewModel, bindingContext) {
@@ -90,6 +90,14 @@ var invertedBoolean = function(src) {
 			src(!value);
 		}
 	});
+};
+
+var drawLine = function(ctx, x1, y1, x2, y2, clr) {
+	ctx.beginPath();
+	ctx.moveTo(x1, y1);
+	ctx.lineTo(x2, y2);
+	ctx.strokeStyle = clr;
+	ctx.stroke();
 };
 
 var model = undefined;
@@ -424,6 +432,10 @@ $(document).ready(function() {
 		self.currentHp = ko.observable(unit.currentHp);
 		self.maxHp = ko.observable(unit.maxHp);
 		
+		self.hpFactor = ko.computed(function() {
+			return self.currentHp() / self.maxHp();
+		});
+		
 		self.updateData = function(update) {
 			self.planetId(update.planetId);
 			self.x(update.x);
@@ -521,7 +533,6 @@ $(document).ready(function() {
 		
 		var now;
 		var then = Date.now();
-		var interval = 1000/fps;
 		var delta;
 		
 		var drawCameraPosition = function(ctx) {
@@ -574,14 +585,6 @@ $(document).ready(function() {
 			return self.projection()(ll);			
 		};
 		
-		var drawLine = function(ctx, x1, y1, x2, y2, clr) {
-			ctx.beginPath();
-			ctx.moveTo(x1, y1);
-			ctx.lineTo(x2, y2);
-			ctx.strokeStyle = clr;
-			ctx.stroke();
-		};
-		
 		var drawCommands = function(ctx) {
 			_.forEach(memoryPA.getCommandGroups(), function(cmdGrp) {
 				if (cmdGrp.planetId === self.planet().id) {
@@ -604,6 +607,17 @@ $(document).ready(function() {
 		self.drawIcons = function() {
 			now = Date.now();
 			delta = now - then;
+			
+			var interval = 1000/fps;
+			
+			// various "try to use low fps for everything that doesnt look too bad"-things
+			if (self.isUberMap && !self.visible()) {
+				interval = 1000 / 1; // 1 fps for invisible ubermaps
+			} else if (!self.isUberMap && (model.showsUberMap()
+								|| model.activePlanet() !== self.planet().id)) {
+				interval = 1000 / 3; // 3 fps for minimaps that are not focused or while the ubermap is open
+			}
+			
 			if (delta > interval) {
 				then = now - (delta % interval);
 				
@@ -623,11 +637,11 @@ $(document).ready(function() {
 					});
 					
 					_.forEach(unselectedUnits, function(unit) {
-						model.drawUnit(ctx, unit);
+						model.drawUnit(ctx, unit, self);
 					});
 					
 					_.forEach(selectedUnits, function(unit) {
-						model.drawUnit(ctx, unit);
+						model.drawUnit(ctx, unit, self);
 					});
 					
 					drawCommands(ctx);
@@ -637,9 +651,16 @@ $(document).ready(function() {
 					}
 				}
 			}
-			requestAnimationFrame(self.drawIcons);
+			var dt = interval - delta;
+			if (dt >= 4) {
+				setTimeout(function() {
+					requestAnimationFrame(self.drawIcons);
+				}, dt);
+			} else {
+				requestAnimationFrame(self.drawIcons);
+			}
 		};
-		
+
 		self.drawIcons();
 	};
 	
@@ -961,6 +982,8 @@ $(document).ready(function() {
 	function MiniMapModel(p) {
 		var self = this;
 		
+		self.isUberMap = false;
+		
 		self.width = model.minimapWidth;
 		self.height = model.minimapHeight;
 		
@@ -989,8 +1012,10 @@ $(document).ready(function() {
 	function UberMapModel(p, partnerMiniMap) {
 		var self = this;
 		
+		self.isUberMap = true;
+		
 		// the elements are hidden offscreen using  the top value
-		// that turns out to be faster in some situations and has less issues with the svg rendering,
+		// that turns out to be faster (well maybe that part is my imagination...) in some situations and has less issues with the svg rendering,
 		// which seems to fail to adjust to resize events while it is set to be really visibility: none
 		self.visible = ko.computed(function() {
 			return model.showsUberMap() && model.activePlanet() === self.planet().id;
@@ -1187,7 +1212,7 @@ $(document).ready(function() {
 		
 		self.selection = ko.observable({});
 		
-		self.drawUnit = function(ctx, unit) {
+		self.drawUnit = function(ctx, unit, map) {
 			var fillImg = self.getUnitSpecImage(unit.spec(), true, unit.armyColor(), undefined);
 			var borderImg = self.getUnitSpecImage(unit.spec(), false, undefined, self.selection()[unit.id()]);
 
@@ -1203,9 +1228,22 @@ $(document).ready(function() {
 			if (x === 0 && y === 0 && isOrbital(unit.spec())) { // do not draw orbital units while they are being build, their position is buggy while that happens and is always 0/0
 				return;
 			}
-			
 			ctx.drawImage(fillImg, x, y, size, size);
 			ctx.drawImage(borderImg, x, y, size, size);
+			
+			if (map.isUberMap && unit.hpFactor() != 1) {
+				var clrP = Math.ceil(255 * unit.hpFactor());
+				var hpColor;
+				if (unit.hpFactor() > 0.7) {
+					hpColor = "rgb(0,255,0)";
+				} else if (unit.hpFactor() > 0.3) {
+					hpColor = "rgb(255,255,0)";
+				} else {
+					hpColor = "rgb(255,0,0)";
+				}
+				var hpLength = size * unit.hpFactor();
+				drawLine(ctx, x, t[1] + size / 3, x + hpLength, t[1] + size / 3, hpColor);
+			}
 		};
 		
 		self.armyColors = ko.observable({});
