@@ -988,7 +988,7 @@ $(document).ready(function() {
 		self.height = model.minimapHeight;
 		
 		// rotation is only possible in the x-axis, so north always points up
-		self.rotationX = ko.observable(50);
+		self.rotationX = ko.observable(50).extend({ local: 'minimap-rotation-' + p.name + "_" + p.id });
 		self.rotation = ko.computed(function() {
 			return [self.rotationX(), 0];
 		});
@@ -1661,7 +1661,7 @@ $(document).ready(function() {
 	};
 	
 	handlers.setUberMapVisible = function(show) {
-		if (show) {
+		if (show && cameraLocation() !== undefined) {
 			model.activePlanet(cameraLocation().planet);
 		}
 		model.showsUberMap(show);
@@ -1669,13 +1669,13 @@ $(document).ready(function() {
 	
 	handlers.zoomIntoUberMap = function(args) {
 		var aum = model.mouseHoverMap;
-		var pageX = args[0];
-		var pageY = args[1];
-		var offset = $(aum.canvas()).offset();
-		var x = pageX - offset.left;
-		var y = pageY - offset.top;
-		model.showsUberMap(false);
 		if (aum) {
+			var pageX = args[0];
+			var pageY = args[1];
+			var offset = $(aum.canvas()).offset();
+			var x = pageX - offset.left;
+			var y = pageY - offset.top;
+			model.showsUberMap(false);
 			aum.switchCameraToPosition(x, y);
 		}
 	};
