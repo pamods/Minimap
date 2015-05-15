@@ -626,17 +626,37 @@ $(document).ready(function() {
 		var drawCommands = function(ctx) {
 			_.forEach(memoryPA.getCommandGroups(), function(cmdGrp) {
 				if (cmdGrp.planetId === self.planet().id) {
+					var clr;
+					if (cmdGrp.type === 0) { // Move
+						clr = "00FF26";
+					} else if (cmdGrp.type === 4) { // ATK
+						clr = "FF0009";
+					} else if (cmdGrp.type === 9) { // ALT Fire
+						clr = "FF0009";
+					} else if (cmdGrp.type === 7) { // Assist
+						clr = "006FFF";
+					} else if (cmdGrp.type === 6) { // Repair
+						clr = "006FFF";
+					} else if (cmdGrp.type === 5) { // Reclaim
+						clr = "FF0009";
+					} else if (cmdGrp.type === 2) { // Patrol
+						clr = "00FF26";
+					} else { // Whatever else I forgot
+						clr = "#FFFFFF";
+						console.log(cmdGrp.type);
+					}
+					
 					var tP = makeProjected(cmdGrp.x, cmdGrp.y, cmdGrp.z);
 					_.forEach(cmdGrp.origins, function(origin) {
 						if (origin !== undefined && origin.planetId === self.planet().id) {
 							var oP = makeProjected(origin.x, origin.y, origin.z);
-							drawLine(ctx, oP[0], oP[1], tP[0], tP[1], "#FFFFFF");
+							drawLine(ctx, oP[0], oP[1], tP[0], tP[1], clr);
 						}
 					});
 					
 					var locByUnits = getLocationByUnits(cmdGrp.units);
 					if (locByUnits) {
-						drawLine(ctx, locByUnits[0], locByUnits[1], tP[0], tP[1], "#FFFFFF");
+						drawLine(ctx, locByUnits[0], locByUnits[1], tP[0], tP[1], clr);
 					}
 				}
 			});
@@ -925,11 +945,11 @@ $(document).ready(function() {
 			return false;
 		};
 		
-		self.findUnitsBySpec = function(spec) {
+		self.findControllableUnitsBySpec = function(spec) {
 			var units = [];
 			
 			_.forEach(self.units(), function(unit) {
-				if (unit.spec() === spec) {
+				if (unit.army() === model.armyId() && unit.spec() === spec) {
 					units.push(unit.id());
 				}
 			});
@@ -937,7 +957,7 @@ $(document).ready(function() {
 			return units;
 		};
 		
-		self.findUnitsInside = function(x, y, w, h) {
+		self.findControllableUnitsInside = function(x, y, w, h) {
 			// direct clicks tend to have 0 width and height, but it needs to be at minimum 1
 			if (w === 0) {
 				w++;
@@ -970,6 +990,10 @@ $(document).ready(function() {
 				var zUnits = self.zSortedUnits();
 				for (var u = zUnits.length - 1; u >= 0; u--) {
 					var unit = zUnits[u];
+
+					if (unit.army() !== model.armyId()) {
+						continue;
+					}
 					
 					var translate = unit.translate();
 					// this is the center of the unit-icon
@@ -1294,6 +1318,8 @@ $(document).ready(function() {
 		
 		self.armyColors = ko.observable({});
 		
+		self.armyId = ko.observable(undefined);
+		
 		self.mappingData = ko.observable();
 		
 		self.showsUberMap = ko.observable(false);
@@ -1602,7 +1628,7 @@ $(document).ready(function() {
 			// find the units clicked
 			var um = self.findActiveUberMap();
 			if (um) {
-				var r = um.findUnitsInside(x, y, w, h);
+				var r = um.findControllableUnitsInside(x, y, w, h);
 				if (r.found) {
 					hitMap = um;
 					_.merge(targets, r);
@@ -1611,7 +1637,7 @@ $(document).ready(function() {
 			
 			/*
 			_.forEach(self.minimaps(), function(m) {
-				var r = m.findUnitsInside(x, y, w, h);
+				var r = m.findControllableUnitsInside(x, y, w, h);
 				if (r.found) {
 					hitMap = m;
 					_.merge(targets, r);
@@ -1628,10 +1654,10 @@ $(document).ready(function() {
 			});
 
 			if (ar.length === 1 && w * h < 4) {
-				var isDoubleSelect = (new Date().getTime() - lastSelectTime) < 500;
+				var isDoubleSelect = (new Date().getTime() - lastSelectTime) < 350;
 				lastSelectTime = new Date().getTime();
 				if (isDoubleSelect && hitMap) {
-					ar = hitMap.findUnitsBySpec(hitMap.unitMap[ar[0]].spec());
+					ar = hitMap.findControllableUnitsBySpec(hitMap.unitMap[ar[0]].spec());
 				}
 			}
 			
@@ -1692,10 +1718,11 @@ $(document).ready(function() {
 		ko.processAllDeferredBindingUpdates();
 	};
 	
-	handlers.setArmyColors = function(clrs) {
-		console.log("got colors");
-		console.log(clrs);
-		model.armyColors(clrs);
+	handlers.setArmyInfo = function(args) {
+		console.log("got army info");
+		console.log(args);
+		model.armyColors(args[0]);
+		model.armyId(args[1]);
 	};
 	
 	handlers.setUberMapVisible = function(show) {
@@ -1704,7 +1731,7 @@ $(document).ready(function() {
 		}
 		model.showsUberMap(show);
 	};
-	
+
 	handlers.zoomIntoUberMap = function(args) {
 		var aum = model.mouseHoverMap;
 		if (aum) {
@@ -1731,7 +1758,7 @@ $(document).ready(function() {
 	
 	setTimeout(function() {
 		api.Panel.message(api.Panel.parentId, 'queryViewportSize');
-		api.Panel.message(api.Panel.parentId, 'queryArmyColors');
+		api.Panel.message(api.Panel.parentId, 'queryArmyInfo');
 		api.Panel.message(api.Panel.parentId, 'setUberMapState', model.showsUberMap());
 	}, 500);
 });

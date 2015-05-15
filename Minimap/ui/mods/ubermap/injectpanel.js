@@ -67,31 +67,29 @@ console.log("inject ubermap");
 	
 	var colorByArmyId = {};
 	var oldServerState = handlers.server_state;
+	var selfArmyId = undefined;
 	handlers.server_state = function(msg) {
+		console.log("server state");
+		console.log(msg);
 		oldServerState(msg);
-//		if (msg.data.client && msg.data.client.commander && msg.data.client.commander.id && msg.data.client.commander.army) {
-//			commanderId = msg.data.client.commander.id;
-//			commanderArmy = msg.data.client.commander.army.id;
-//		}
 		if (msg.data.armies) {
 			for (var i = 0; i < msg.data.armies.length; i++) {
 				colorByArmyId[msg.data.armies[i].id] = msg.data.armies[i].color;
 			}
 		}
 		
-		handlers.queryArmyColors();
+		if (msg.data.client.army_id) {
+			selfArmyId = msg.data.client.army_id;
+		}
 		
-//		if (msg.data.client.army_id) {
-//			api.panels.minimap_panel.message("setMyArmyId", msg.data.client.army_id);
-//		}
-		
-//		playing = msg.state === "playing";
-//		handlers.queryIsPlaying();
+		handlers.queryArmyInfo();
 	};
 	
-	handlers.queryArmyColors = function() {
+	handlers.queryArmyInfo = function() {
 		console.log("query army colors called...");
-		api.panels.ubermap_panel.message("setArmyColors", colorByArmyId);
+		if (api.panels.ubermap_panel) {
+			api.panels.ubermap_panel.message("setArmyInfo", [colorByArmyId, selfArmyId]);
+		}
 	};
 	
 	model.showsUberMap = ko.observable(false);
@@ -168,8 +166,10 @@ $(document).ready(function() {
 		}
 	};
 	
-	func(model.isSpectator());
-	model.isSpectator.subscribe(func);
+//	func(model.isSpectator());
+//	model.isSpectator.subscribe(func);
+	
+	func(false);
 	
 	$(document).keydown(function (e) {
 		 if (e.which === 32 && !model.chatSelected()) {
