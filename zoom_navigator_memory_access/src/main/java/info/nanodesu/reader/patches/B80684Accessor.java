@@ -41,7 +41,7 @@ public class B80684Accessor extends PaAccessor1 {
 				supportsCommandQueries = true;
 				commandId = 0x10;
 				commandBase = 0x30;
-				commandType = 0x6C;
+				commandType = 0x68;
 				commandPlanet= 0x38;
 				commandX = 0x3C;
 				commandY = 0x40;

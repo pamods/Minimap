@@ -25,8 +25,43 @@ public class B79896Accessor extends PaAccessor1 {
 				planetId = 0x5C;
 				clientUnitClassInclude = "ClientUnit";
 				clientUnitsClassExclude = "ClientPlanet";
+
+				supportsFeatureQueries = true;
+				featureBase = 0x30;
+				featureObjectBase = 0x18;
+				featureSpecString = 0x48;
+				featurePlanet = 0x68;
+				featureX = 0x6C;
+				featureY = 0x70;
+				featureZ = 0x74;
+				featureSpecStringBase = "/pa/effects/features/";
+				featureClassInclude = "total_metal_value";
+				featureClassExclude = null;
 				
-				// it is unknown how to do feature queries for this version, but this is just here mostly for historical reasons anyway...
+				supportsCommandQueries = true;
+				commandId = 0x10;
+				commandBase = 0x30;
+				commandType = 0x68;
+				commandPlanet= 0x38;
+				commandX = 0x3C;
+				commandY = 0x40;
+				commandZ = 0x44;
+				commandsOffsetInUnit = 0x398;
+				commandClassInclude = "target positions for Multi";
+				commandClassExclude = null;
+				
+				supportsTrackingCamera = true;
+				holodecksBase = 0x14068BB90L;
+				holodecksBasePtrs = new long[]{};
+				holodecksFinalBase = 0x5D8;
+				holodecksCam = 0x20;
+				holodecksId = 0x10;
+				camLocation = 0x8;
+				camX = 0x18;
+				camY = 0x1C;
+				camZ = 0x20;
+				camPlanet = 0x14;
+				
 			}
 		});
 	}

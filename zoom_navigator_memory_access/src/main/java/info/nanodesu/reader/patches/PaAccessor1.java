@@ -215,9 +215,10 @@ public class PaAccessor1 extends AbstractPaAccessor {
 		
 		r.setId(pa.readInt(adr + c.commandId));
 		long base = pa.readLong(adr + c.commandBase);
+		
 		r.setType((byte) pa.readInt(adr + c.commandType));
 		
-		pa.startBatchRead(adr, readCacheSmall);
+		pa.startBatchRead(base, readCacheSmall);
 		
 		r.setPlanetId(pa.readInt(base + c.commandPlanet));
 		r.setX(pa.readFloat(base + c.commandX));
