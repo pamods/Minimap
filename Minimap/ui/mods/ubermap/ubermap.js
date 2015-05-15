@@ -1275,8 +1275,8 @@ $(document).ready(function() {
 		self.checkSpecExists = function(spec) {
 			if (self.unitSpecPathsMap[spec] === undefined) {
 				// create Path2D for the svg path string
-				var b = new Path2D(strategicIconPaths[spec + '_border'] || strategicIconsPaths.fallback_border);
-				var f = new Path2D(strategicIconPaths[spec + '_fill'] || strategicIconsPaths.fallback_fill);
+				var b = new Path2D(strategicIconPaths[spec + '_border'] || strategicIconPaths.fallback_border);
+				var f = new Path2D(strategicIconPaths[spec + '_fill'] || strategicIconPaths.fallback_fill);
 				self.unitSpecPathsMap[spec+"_b"] = b;
 				self.unitSpecPathsMap[spec+"_f"] = f;
 				
@@ -1356,7 +1356,7 @@ $(document).ready(function() {
 			ctx.drawImage(fillImg, x, y, size, size);
 			ctx.drawImage(borderImg, x, y, size, size);
 			
-			if (map.isUberMap && unit.hpFactor() != 1) {
+			if (map.isUberMap && unit.hpFactor() < 0.99) {
 				var clrP = Math.ceil(255 * unit.hpFactor());
 				var hpColor;
 				if (unit.hpFactor() > 0.7) {
