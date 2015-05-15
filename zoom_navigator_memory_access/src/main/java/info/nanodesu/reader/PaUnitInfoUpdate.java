@@ -14,6 +14,7 @@ public class PaUnitInfoUpdate {
 	
 	private List<FullUnitInfo> addedUnits;
 	private List<UnitCommand> addedCommands;
+	private List<UnitCommand> updatedCommands;
 	private List<UnitUpdate> updatedUnits;
 	private Set<Integer> removedUnits;
 	private Set<Integer> removedCommands;
@@ -25,6 +26,7 @@ public class PaUnitInfoUpdate {
 		removedUnits = new HashSet<>();
 		addedCommands = new ArrayList<>();
 		removedCommands = new HashSet<>();
+		updatedCommands = new ArrayList<>();
 		reset = false;
 		
 		synchronized(mutex) {
@@ -64,7 +66,9 @@ public class PaUnitInfoUpdate {
 	public Set<Integer> getRemovedCommands() {
 		return removedCommands;
 	}
-
+	public List<UnitCommand> getUpdatedCommands() {
+		return updatedCommands;
+	}
 	@Override
 	public String toString() {
 		return "PaUnitInfoUpdate [updateId=" + updateId + ", addedUnits="

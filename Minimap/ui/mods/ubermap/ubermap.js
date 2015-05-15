@@ -357,6 +357,15 @@ $(document).ready(function() {
 					}
 				});
 				
+				_.forEach(data.updatedCommands, function(cmd) {
+					var old = commandGroups[cmd.id];
+					old.x = cmd.x;
+					old.y = cmd.y;
+					old.z = cmd.z;
+					old.planetId = cmd.planetId;
+					old.type = cmd.type;
+				});
+				
 				_.forEach(data.removedCommands, function(id) {
 					removeCommand(id);
 				});

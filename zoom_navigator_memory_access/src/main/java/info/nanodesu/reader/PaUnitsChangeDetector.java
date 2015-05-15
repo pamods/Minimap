@@ -39,6 +39,10 @@ public class PaUnitsChangeDetector {
 		return !newUnit.getCommandIds().equals(unitsMap.get(newUnit.getId()).getCommandIds());
 	}
 	
+	private boolean commandChanged(UnitCommand cmd) {
+		return !cmd.equals(commandsMap.get(cmd.getId()));
+	}
+	
 	public PaUnitInfoUpdate generateUpdate(long lastUpdateId, float minPositionChange) {
 		PaUnitInfoUpdate update = new PaUnitInfoUpdate();
 
@@ -106,7 +110,9 @@ public class PaUnitsChangeDetector {
 		for (UnitCommand cmd: cmds) {
 			if (!commandsMap.containsKey(cmd.getId())) {
 				update.getAddedCommands().add(cmd);
-			} // commmands never changed. They are only created and removed
+			} else if (commandChanged(cmd)) {
+				update.getUpdatedCommands().add(cmd);
+			}
 			
 			newKnownCommands.put(cmd.getId(), cmd);
 		}
