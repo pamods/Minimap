@@ -552,7 +552,7 @@ $(document).ready(function() {
 		
 		// the same for all units
 		self.unitScaleComputed = ko.computed(function() {
-			return Math.sqrt(Math.sqrt(self.widthSizeMod())) * Math.sqrt(Math.sqrt(self.planetSizeMod())) * 0.4;
+			return Math.sqrt(Math.sqrt(self.widthSizeMod())) * Math.sqrt(Math.sqrt(self.planetSizeMod())) * 0.35;
 		});	
 
 		self.unitMap = {};
