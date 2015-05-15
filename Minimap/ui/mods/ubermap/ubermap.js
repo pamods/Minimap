@@ -678,7 +678,7 @@ $(document).ready(function() {
 		};
 		
 		var drawCommandLine = function(ctx, x1, y1, z1, x2, y2, z2, clr) {
-			dottedLine(x1, y1, z1, x2, y2, z2, 5, 75, function(x, y, z) {
+			dottedLine(x1, y1, z1, x2, y2, z2, 4, 75, function(x, y, z) {
 				var p = makeProjected(x, y, z);
 				drawDot(ctx, p[0], p[1], 1 * self.unitScaleComputed(), clr);
 			});
