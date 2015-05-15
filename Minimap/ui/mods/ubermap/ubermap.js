@@ -6,7 +6,7 @@ var noMemoryReaderPollTime = 10000;
 var unitPollTime = 250;
 var minPositionChange = 3;
 var camQueryTime = 90;
-var fps = 7;
+var fps = 15;
 
 // do not scroll this scene please ?!
 window.onscroll = function() {
@@ -98,6 +98,50 @@ var drawLine = function(ctx, x1, y1, x2, y2, clr) {
 	ctx.lineTo(x2, y2);
 	ctx.strokeStyle = clr;
 	ctx.stroke();
+};
+
+var drawDot = function(ctx, x1, y1, radius, clr) {
+	ctx.beginPath();
+	ctx.arc(x1, y1, radius, 0, 2 * Math.PI, false);
+	ctx.fillStyle = clr;
+	ctx.fill();
+};
+
+var startTime = Date.now();
+
+var dottedLine = function(x1, y1, z1, x2, y2, z2, dotDistance, speedFactor, cb) {
+	var dx = x2 - x1;
+	var dy = y2 - y1;
+	var dz = z2 - z1;
+	
+	var length = Math.sqrt(dx*dx + dy*dy + dz*dz);
+	var dotCount = Math.ceil(length / dotDistance);
+	
+	var dx1 = dx / length;
+	var dy1 = dy / length;
+	var dz1 = dz / length;
+	
+	var ddx = dx / dotCount;
+	var ddy = dy / dotCount;
+	var ddz = dz / dotCount;
+	
+	var time = (Date.now() - startTime) * speedFactor;
+	
+	for (var i = 0; i < dotCount; i++) {
+		var incx = ddx * i;
+		var incy = ddy * i;
+		var incz = ddz * i;
+
+		incx = (incx + (time * dx1)) % dx;
+		incy = (incy + (time * dy1)) % dy;
+		incz = (incz + (time * dz1)) % dz;		
+		
+		var px = x1 + incx;
+		var py = y1 + incy;
+		var pz = z1 + incz;
+		
+		cb(px, py, pz);
+	}
 };
 
 var model = undefined;
@@ -587,6 +631,7 @@ $(document).ready(function() {
 			}
 		};
 		
+		// TODO use DBSCAN or similar to cluster units together instead of just using the middle of ALL units...
 		var getLocationByUnits = function(units) {
 			var x = 0;
 			var y = 0;
@@ -612,7 +657,7 @@ $(document).ready(function() {
 				x /= num;
 				y /= num;
 				z /= num;
-				return makeProjected(x, y, z);
+				return [x, y, z];
 			} else {
 				return undefined;
 			}
@@ -621,6 +666,17 @@ $(document).ready(function() {
 		var makeProjected = function(x, y, z) {
 			var ll = convertToLonLan(x, y, z);
 			return self.projection()(ll);			
+		};
+		
+		var drawCommandLine = function(ctx, x1, y1, z1, x2, y2, z2, clr) {
+			dottedLine(x1, y1, z1, x2, y2, z2, 5, 75, function(x, y, z) {
+				var p = makeProjected(x, y, z);
+				drawDot(ctx, p[0], p[1], 1 * self.unitScaleComputed(), clr);
+			});
+			dottedLine(x1, y1, z1, x2, y2, z2, 100, 0.1, function(x, y, z) {
+				var p = makeProjected(x, y, z);
+				drawDot(ctx, p[0], p[1], 3 * self.unitScaleComputed(), clr);
+			});
 		};
 		
 		var drawCommands = function(ctx) {
@@ -649,14 +705,13 @@ $(document).ready(function() {
 					var tP = makeProjected(cmdGrp.x, cmdGrp.y, cmdGrp.z);
 					_.forEach(cmdGrp.origins, function(origin) {
 						if (origin !== undefined && origin.planetId === self.planet().id) {
-							var oP = makeProjected(origin.x, origin.y, origin.z);
-							drawLine(ctx, oP[0], oP[1], tP[0], tP[1], clr);
+							drawCommandLine(ctx, origin.x, origin.y, origin.z, cmdGrp.x, cmdGrp.y, cmdGrp.z, clr);
 						}
 					});
 					
 					var locByUnits = getLocationByUnits(cmdGrp.units);
 					if (locByUnits) {
-						drawLine(ctx, locByUnits[0], locByUnits[1], tP[0], tP[1], clr);
+						drawCommandLine(ctx, locByUnits[0], locByUnits[1], locByUnits[2], cmdGrp.x, cmdGrp.y, cmdGrp.z, clr);
 					}
 				}
 			});
