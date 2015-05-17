@@ -10,7 +10,7 @@
     "signature": "not yet implemented",
     "id": "uimod-ubermap",
     "priority": 100,
-    "forum": "TODO",
+    "forum": "https://forums.uberent.com/threads/rel-the-ubermap.68808/",
     "scenes": {
     	"global_mod_list": [
     		"coui://ui/mods/ubermap/ubermapActionSets.js"
