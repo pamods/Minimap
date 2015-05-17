@@ -227,7 +227,7 @@ public class PaAccessor1 extends AbstractPaAccessor {
 		r.setZ(pa.readFloat(base + c.commandZ));
 		r.setUnitSpec(pa.readNullTerminatedString(pa.readLong(base + c.commandUnitSpec)));
 		
-		if (r.getUnitSpec() != null && !(r.getUnitSpec().contains("/pa/units/") && r.getUnitSpec().endsWith(".json"))) {
+		if (r.getUnitSpec() != null && !(r.getUnitSpec().startsWith("/pa/units/") && r.getUnitSpec().endsWith(".json"))) {
 			r.setUnitSpec(null);
 		}
 		
