@@ -21,7 +21,8 @@
         ],
         "live_game_unit_alert": [
         	"coui://ui/mods/ubermap/unitInfoParser.js",
-        	"coui://ui/mods/ubermap/alertsManager.js"
+        	"coui://ui/mods/ubermap/alertsManager.js",
+        	"coui://ui/mods/ubermap/unit_alerts.js"
         ],
         "live_game_players": [
         	"coui://ui/mods/ubermap/playerlist.js"
