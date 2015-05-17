@@ -169,7 +169,6 @@ var pmUberMap = function(handler, arguments) {
 			focusBefore.focus();
 		}
 	};
-	
 }());
 
 $(document).ready(function() {
@@ -177,7 +176,8 @@ $(document).ready(function() {
 	$('.div_sidebar_left').css("z-index", "99999");
 	$('#chat').css("z-index", "99999");
 	$('#message').css("z-index", "99999");
-	$('.div_game_paused').css("z-index", "99999");
+	$('.div_game_paused').css("z-index", "99998");
+	$('#settings').css("z-index", "99999");
 	$('.div_gamestats_panel').css("z-index", "99999");
 	$('#game_over').css("z-index", "99999");
 	$('#message').css("z-index", "99999");
@@ -212,10 +212,60 @@ $(document).ready(function() {
 //	model.isSpectator.subscribe(func);
 	func(false);
 	
+	model.uber_map_toggle_uber_map = function() {
+		if (!model.chatSelected()) {
+			model.showsUberMap(!model.showsUberMap());
+		}
+	};
+	
+	model.uber_map_toggle_select_fighters = function() {
+		pmUberMap('toggleByName', "selectsAllFighters");
+	};
+	model.uber_map_toggle_select_workers = function() {
+		pmUberMap('toggleByName', "selectsAllWorkers");
+	};
+	model.uber_map_toggle_select_all = function() {
+		pmUberMap('toggleByName', "selectsAll");
+	};
+	model.uber_map_toggle_select_orbital = function() {
+		pmUberMap('toggleByName', "selectsAllOrbital");
+	};
+	model.uber_map_toggle_select_air = function() {
+		pmUberMap('toggleByName', "selectsAllAir");
+	};
+	model.uber_map_toggle_select_land = function() {
+		pmUberMap('toggleByName', "selectsAllLand");
+	};
+	model.uber_map_toggle_select_navy = function() {
+		pmUberMap('toggleByName', "selectsAllNavy");
+	};
+	model.uber_map_toggle_select_navy_fighters = function() {
+		pmUberMap('toggleByName', "selectsNavyFighters");
+	};
+	model.uber_map_toggle_select_navy_workers = function() {
+		pmUberMap('toggleByName', "selectsNavyWorkers");
+	};
+	model.uber_map_toggle_select_land_fighters = function() {
+		pmUberMap('toggleByName', "selectsLandFighters");
+	};
+	model.uber_map_toggle_select_land_workers = function() {
+		pmUberMap('toggleByName', "selectsLandWorkers");
+	};
+	model.uber_map_toggle_select_air_fighters = function() {
+		pmUberMap('toggleByName', "selectsAirFighters");
+	};
+	model.uber_map_toggle_select_air_workers = function() {
+		pmUberMap('toggleByName', "selectsAirWorkers");
+	};
+	model.uber_map_toggle_select_orbital_fighters = function() {
+		pmUberMap('toggleByName', "selectsOrbitalFighters");
+	};
+	model.uber_map_toggle_select_orbital_workers = function() {
+		pmUberMap('toggleByName', "selectsOrbitalWorkers");
+	};
+	
 	$(document).keydown(function (e) {
-		 if (e.which === 32 && !model.chatSelected()) {
-			 model.showsUberMap(!model.showsUberMap());
-		 } else if (e.which === 16) {
+		 if (e.which === 16) {
 			 pmUberMap("shiftState", true);
 		 } else if (e.which === 17) {
 			 pmUberMap("ctrlState", true);

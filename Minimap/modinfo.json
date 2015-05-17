@@ -2,7 +2,7 @@
     "context": "client",
     "identifier": "info.nanodesu.ubermap",
     "display_name": "UberMap",
-    "description": "Read the forumslink, successor of AlertsMinimap",
+    "description": "Read the forumslink, powerful successor of AlertsMinimap",
     "author": "Cola_Colin",
     "version": "1.0",
     "build": "80462",
@@ -12,6 +12,9 @@
     "priority": 100,
     "forum": "TODO",
     "scenes": {
+    	"global_mod_list": [
+    		"coui://ui/mods/ubermap/ubermapActionSets.js"
+    	],
         "live_game": [
         	"coui://ui/mods/ubermap/unitCommands.js",
         	"coui://ui/mods/ubermap/injectpanel.js"

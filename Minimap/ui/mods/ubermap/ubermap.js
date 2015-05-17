@@ -1876,6 +1876,10 @@ $(document).ready(function() {
 		model.commandMode(mode);
 	};
 	
+	handlers.toggleByName = function(name) {
+		model[name](!model[name]());
+	};
+	
 	app.registerWithCoherent(model, handlers);
 	ko.applyBindings(model);
 	
