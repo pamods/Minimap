@@ -70,6 +70,20 @@ var unitCommands =
 			});
 		};
 		
+		var runCmd = function(cmd, x, y, z, queue) {
+			runLocationCommand(x, y, z, queue, function() {
+				self.hdeck.unitCommand(cmd, clickTarget, clickTarget, queue === undefined ? false : queue);
+			});
+		};
+		
+		self.patrolSelected = function(x, y, z, queue) {
+			runCmd("patrol", x, y, z, queue);
+		};
+		
+		self.attackSelected = function(x, y, z, queue) {
+			runCmd("attack", x, y, z, queue);
+		};
+		
 		self.ping = function(x, y, z) {
 			runLocationCommand(x, y, z, false, function() {
 				self.hdeck.unitCommand("ping", clickTarget, clickTarget, false);
@@ -80,9 +94,7 @@ var unitCommands =
 			runLocationCommand(x, y, z, false, function() {
 				// noop. This is used for invisible camera movements to get rid of network optimizations for the unit icons
 			}, "orbital");
-		}
-		
-		// TODO add other commands
+		};
 	}
 	
 	var hackPlanetMapping = {};
@@ -131,6 +143,12 @@ var unitCommands =
 		},
 		moveSelected: function(x, y, z, p, queue) {
 			getHackDeck(p).moveSelected(x, y, z, queue);
+		},
+		attackSelected: function(x, y, z, p, queue) {
+			getHackDeck(p).attackSelected(x, y, z, queue);
+		},
+		patrolSelected: function(x, y, z, p, queue) {
+			getHackDeck(p).patrolSelected(x, y, z, queue);
 		},
 		noopcam: function(x, y, z, p) {
 			getHackDeck(p).noopcam(x, y, z);

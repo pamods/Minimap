@@ -1,6 +1,50 @@
 console.log("inject ubermap");
 
+var pmUberMap = function(handler, arguments) {
+	if (api.panels.ubermap_panel) {
+		api.panels.ubermap_panel.message(handler, arguments);
+	} else {
+		setTimeout(function() {
+			pmUberMap(handler, arguments);
+		}, 500);
+	}
+};
+
 (function() {
+	var cursorKey = "info.nanodesu.defaultIconKey";
+	var oldEngineCall = engine.call;
+	engine.call = function() {
+		if (arguments && arguments.length && arguments.length > 0 && arguments[0] === "pop_mouse_constraint_flag") {
+			localStorage[cursorKey] = "coui://ui/main/game/live_game/img/cursors/cursor.png";
+		}
+		return oldEngineCall.apply(this, arguments);
+	};
+	
+	var cursorTypeComputed = ko.computed(function() {
+		var hasSelection = model.hasSelection();
+		if ((model.mode() === "default" || model.mode() === "command_move") && hasSelection) {
+			localStorage[cursorKey] ="coui://ui/main/game/live_game/img/cursors/icons_command_move.png";
+		} else if (hasSelection && model.mode() === "command_patrol") {
+			localStorage[cursorKey] ="coui://ui/main/game/live_game/img/cursors/icons_command_patrol.png";
+		} else if (hasSelection && model.mode() === "command_attack") {
+			localStorage[cursorKey] = "coui://ui/main/game/live_game/img/cursors/icons_command_attack.png";
+		} else if (model.mode() === "command_ping") {
+			localStorage[cursorKey] = "coui://ui/main/game/live_game/img/cursors/icons_command_ping.png";
+		} else {
+			localStorage[cursorKey] ="coui://ui/main/game/live_game/img/cursors/cursor.png";
+		}
+	});
+	
+	model.mode.subscribe(function(m) {
+		if (m === "command_move" || m === "command_patrol" || m === "command_attack" || m === "command_ping") {
+			pmUberMap('commandMode', m);
+		} else {
+			pmUberMap('commandMode', "default");
+		}
+	});
+	
+	handlers.quitCommandMode = model.endCommandMode;
+	
 	var unoptimizeStarted = false;
 	var startUnoptimizeForPlanet = function(id, delay) {
 		var flip = 1;
@@ -33,7 +77,7 @@ console.log("inject ubermap");
 	};
 	
 	handlers.queryViewportSize = function() {
-		api.panels.ubermap_panel.message('setSize', [window.screen.width, window.screen.height]);
+		pmUberMap('setSize', [window.screen.width, window.screen.height]);
 	};
 	
 	var oldOnResize = window.onresize;
@@ -87,9 +131,7 @@ console.log("inject ubermap");
 	
 	handlers.queryArmyInfo = function() {
 		console.log("query army colors called...");
-		if (api.panels.ubermap_panel) {
-			api.panels.ubermap_panel.message("setArmyInfo", [colorByArmyId, selfArmyId]);
-		}
+		pmUberMap("setArmyInfo", [colorByArmyId, selfArmyId]);
 	};
 	
 	model.showsUberMap = ko.observable(false);
@@ -113,7 +155,7 @@ console.log("inject ubermap");
 	};
 
 	model.showsUberMap.subscribe(function(v) {
-		api.panels.ubermap_panel.message("setUberMapVisible", v);
+		pmUberMap("setUberMapVisible", v);
 	});
 	
 	handlers.setMainCamera = function(target) {
@@ -168,24 +210,23 @@ $(document).ready(function() {
 	
 //	func(model.isSpectator());
 //	model.isSpectator.subscribe(func);
-	
 	func(false);
 	
 	$(document).keydown(function (e) {
 		 if (e.which === 32 && !model.chatSelected()) {
 			 model.showsUberMap(!model.showsUberMap());
 		 } else if (e.which === 16) {
-			 api.panels.ubermap_panel.message("shiftState", true);
+			 pmUberMap("shiftState", true);
 		 } else if (e.which === 17) {
-			 api.panels.ubermap_panel.message("ctrlState", true);
+			 pmUberMap("ctrlState", true);
 		 }
 	});
 	
 	$(document).keyup(function(e) {
 		if (e.which === 16) {
-			api.panels.ubermap_panel.message("shiftState", false);
+			pmUberMap("shiftState", false);
 		} else if (e.which === 17) {
-			api.panels.ubermap_panel.message("ctrlState", false);
+			pmUberMap("ctrlState", false);
 		}
 	});
 	
@@ -194,7 +235,7 @@ $(document).ready(function() {
 			 return;
 		 
 		if (e.originalEvent.wheelDelta > 0 && model.showsUberMap()) {
-			api.panels.ubermap_panel.message("zoomIntoUberMap", [e.pageX - $panel.position().left, e.pageY - $panel.position().top]);
+			pmUberMap("zoomIntoUberMap", [e.pageX - $panel.position().left, e.pageY - $panel.position().top]);
 		}
 	});
 });

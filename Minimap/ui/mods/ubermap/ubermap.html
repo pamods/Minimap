@@ -49,7 +49,7 @@
 				<path data-bind="css: layer, d3b: [data, $parent.path()], attr: {'clip-path': 'url(#'+$parent.mappingObject().id+'-clip)'}"></path>
 				<!-- /ko -->
 			</svg>
-			<canvas class="receiveMouse" data-bind="rubberband: true, click: clickMinimap, event: {mousemove: mousemove, mouseenter: mouseenter, mouseleave: mouseleave, contextmenu: moveByMinimap},
+			<canvas class="receiveMouse" data-bind="rubberband: true, click: clickMinimap, event: {mousemove: mousemove, mouseenter: mouseenter, mouseleave: mouseleave, contextmenu: rightClick},
 													self: canvas, attr: {width: width, height: height}, style: {'z-index': 999, position: 'absolute'}"></canvas>
 		</div>
 		<!-- /ko -->
@@ -73,7 +73,7 @@
 					<path data-bind="css: layer, d3b: [data, $parent.path()], attr: {'clip-path': 'url(#'+$parent.mappingObject().id+'-um-clip)'}"></path>
 					<!-- /ko -->
 				</svg>
-				<canvas class="receiveMouse" data-bind="rubberband: true, event: {click: click, mousemove: mousemove, mouseenter: mouseenter, mouseleave: mouseleave, contextmenu: moveByMinimap},
+				<canvas class="receiveMouse" data-bind="rubberband: true, event: {click: click, mousemove: mousemove, mouseenter: mouseenter, mouseleave: mouseleave, contextmenu: rightClick},
 														self: canvas, attr: {width: width, height: height}, style: {'z-index': 999, position: 'absolute'}"></canvas>
 			</div>
 		</div>

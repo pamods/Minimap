@@ -694,7 +694,7 @@ $(document).ready(function() {
 					var clr;
 					if (cmdGrp.type === 0) { // Move
 						clr = "00FF26";
-					} else if (cmdGrp.type === 4) { // ATK
+					} else if (cmdGrp.type === 4 || cmdGrp.type === 3) { // ATK
 						clr = "FF0009";
 					} else if (cmdGrp.type === 9) { // ALT Fire
 						clr = "FF0009";
@@ -930,20 +930,45 @@ $(document).ready(function() {
 			api.Panel.message(api.Panel.parentId, 'unit_alert.hide_preview');
 		};
 		
-		var moveToByMiniMapXY = function(x, y, queue) {
+		var runUnitCommandByMapXY = function(cmd, x, y, queue) {
 			var ll = self.projection().invert([x, y]);
 			if (ll) {
 				var c = convertToCartesian(ll[1], ll[0]);
 				var payload = {
-					method: "moveSelected",
-					arguments: [c[0], c[1], c[2], self.planet().id, queue],
+					method: cmd,
+					arguments: [c[0], c[1], c[2], self.planet().id, !!queue],
 				};
 				api.Panel.message(api.Panel.parentId, 'runUnitCommand', payload);
 			}
 		};
 		
-		self.moveByMinimap = function(data, e) {
-			moveToByMiniMapXY(e.offsetX, e.offsetY, e.shiftKey);
+		var moveToByMiniMapXY = function(x, y, queue) {
+			runUnitCommandByMapXY("moveSelected", x, y, queue);
+		};
+		
+		self.rightClick = function(data, e) {
+			if (model.commandMode() === "default") {
+				moveToByMiniMapXY(e.offsetX, e.offsetY, e.shiftKey);
+			} else {
+				api.Panel.message(api.Panel.parentId, 'quitCommandMode');
+			}
+		};
+		
+		self.click = function(data, e) {
+			// default commandMode handled by the rubberband selection mechanism
+			if (model.commandMode() === "command_move") {
+				moveToByMiniMapXY(e.offsetX, e.offsetY, model.shiftState());
+			} else if (model.commandMode() === "command_patrol") {
+				runUnitCommandByMapXY("patrolSelected", e.offsetX, e.offsetY, model.shiftState());
+			} else if (model.commandMode() === "command_attack") {
+				runUnitCommandByMapXY("attackSelected", e.offsetX, e.offsetY, model.shiftState());
+			} else if (model.commandMode() === "command_ping") {
+				runUnitCommandByMapXY("ping", e.offsetX, e.offsetY, model.shiftState());
+			}
+			
+			if (model.commandMode() !== "default" && !model.shiftState()) {
+				api.Panel.message(api.Panel.parentId, 'quitCommandMode');
+			}
 		};
 		
 		self.mouseenter = function() {
@@ -1128,8 +1153,12 @@ $(document).ready(function() {
 		self.mouseleave = self.defMouseleave;
 		
 		self.clickMinimap = function(data, e) {
-			model.activePlanet(self.planet().id);
-			self.lookAtByMapXY(e.offsetX, e.offsetY);
+			if (model.commandMode() === "default") {
+				model.activePlanet(self.planet().id);
+				self.lookAtByMapXY(e.offsetX, e.offsetY);
+			} else {
+				self.click(data, e);
+			}
 		};
 		
 		console.log("created minimap: "+p.name);
@@ -1169,10 +1198,6 @@ $(document).ready(function() {
 		appendInputDefaults(self);
 		self.mousemove = self.defMousemove;
 		self.mouseleave = self.defMouseleave;
-		
-		self.click = function(data, e) {
-			
-		};
 		
 		console.log("created ubermap: "+p.name);
 	}
@@ -1270,6 +1295,8 @@ $(document).ready(function() {
 	
 	function SceneModel() {
 		var self = this;
+		
+		self.commandMode = ko.observable("default");
 		
 		self.mouseHoverMap = undefined;
 
@@ -1685,6 +1712,10 @@ $(document).ready(function() {
 		var lastSelectTime = 0;
 		
 		self.rubberbandSelector.addListener(function(x, y, w, h) {
+			if (self.commandMode() !== "default") {
+				return;
+			}
+			
 			var targets = {};
 			
 			var hitMap = undefined;
@@ -1815,6 +1846,10 @@ $(document).ready(function() {
 	
 	handlers.ctrlState = function(state) {
 		model.ctrlState(state);
+	};
+	
+	handlers.commandMode = function(mode) {
+		model.commandMode(mode);
 	};
 	
 	app.registerWithCoherent(model, handlers);
