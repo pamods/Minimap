@@ -107,6 +107,13 @@ var drawDot = function(ctx, x1, y1, radius, clr) {
 	ctx.fill();
 };
 
+var drawCircle = function(ctx, x1, y1, radius, clr) {
+	ctx.beginPath();
+	ctx.arc(x1, y1, radius, 0, 2 * Math.PI, false);
+	ctx.strokeStyle = clr;
+	ctx.stroke();	
+}
+
 var startTime = Date.now();
 
 var dottedLine = function(x1, y1, z1, x2, y2, z2, dotDistance, speedFactor, cb) {
@@ -735,6 +742,19 @@ $(document).ready(function() {
 			});
 		};
 		
+		var drawAlerts = function(ctx) {
+			_.forEach(model.importantAlerts, function(value) {
+				if (value.watch_type === 3 && value.planet_id === self.planet().id) {
+					var pp = makeProjected(value.location.x, value.location.y, value.location.z);
+					var toggle = Math.floor(Date.now() / 250) % 2 === 0;
+					for (var i = 0; i < 5; i++) {
+						drawCircle(ctx, pp[0], pp[1], (50-i*5) * self.unitScaleComputed(), toggle ? "rgba(255, 255, 0, 1)" : "rgba(255, 255, 0, 0.3)");
+					}
+					drawDot(ctx, pp[0], pp[1], 3 * self.unitScaleComputed(), toggle ? "rgba(255, 255, 0, 0.1)" : "rgba(255, 255, 0, 1)");
+				}
+			});
+		};
+		
 		self.drawStuff = function() {
 			now = Date.now();
 			delta = now - then;
@@ -780,6 +800,8 @@ $(document).ready(function() {
 					if (!model.showsUberMap()) {
 						drawCameraPosition(ctx);
 					}
+					
+					drawAlerts(ctx);
 				}
 			}
 			var dt = interval - delta;
@@ -1807,6 +1829,27 @@ $(document).ready(function() {
 			
 			selectUnitsById(ar);
 		});
+		
+		var alertsIdSrc = 1337;
+		self.importantAlerts = {};
+		
+		self.handleAlert = function(alert) {
+			if (alert.watch_type === 3) {
+				var key = alertsIdSrc++;
+				self.importantAlerts[key] = alert;
+				setTimeout(function() {
+					delete self.importantAlerts[key];
+				}, 7500);
+			}
+		};
+		
+		self.handleAlerts = function(payload) {
+			for (var i = 0; i < payload.list.length; i++) {
+				self.handleAlert(payload.list[i]);
+			}
+		};
+		
+		alertsManager.addListener(self.handleAlerts);
 	}
 	
 	model = new SceneModel();
