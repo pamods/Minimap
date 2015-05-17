@@ -46,6 +46,7 @@ public class B80684Accessor extends PaAccessor1 {
 				commandX = 0x3C;
 				commandY = 0x40;
 				commandZ = 0x44;
+				commandUnitSpec = 0x90;
 				commandsOffsetInUnit = 0x398;
 				commandClassInclude = "target positions for Multi";
 				commandClassExclude = null;

@@ -74,6 +74,7 @@ public class PaAccessor1 extends AbstractPaAccessor {
 		public long commandY;
 		public long commandZ;
 		public long commandPlanet;
+		public long commandUnitSpec;
 		public long commandType;
 		public long commandsOffsetInUnit;
 		public String commandClassInclude;
@@ -224,6 +225,11 @@ public class PaAccessor1 extends AbstractPaAccessor {
 		r.setX(pa.readFloat(base + c.commandX));
 		r.setY(pa.readFloat(base + c.commandY));
 		r.setZ(pa.readFloat(base + c.commandZ));
+		r.setUnitSpec(pa.readNullTerminatedString(pa.readLong(base + c.commandUnitSpec)));
+		
+		if (r.getUnitSpec() != null && !(r.getUnitSpec().contains("/pa/units/") && r.getUnitSpec().endsWith(".json"))) {
+			r.setUnitSpec(null);
+		}
 		
 		pa.endBatchRead();
 		

@@ -7,7 +7,14 @@ public class UnitCommand {
 	private float z;
 	private int planetId;
 	private byte type;
+	private String unitSpec;
 	
+	public void setUnitSpec(String unitSpec) {
+		this.unitSpec = unitSpec;
+	}
+	public String getUnitSpec() {
+		return unitSpec;
+	}
 	public byte getType() {
 		return type;
 	}
@@ -51,6 +58,8 @@ public class UnitCommand {
 		result = prime * result + id;
 		result = prime * result + planetId;
 		result = prime * result + type;
+		result = prime * result
+				+ ((unitSpec == null) ? 0 : unitSpec.hashCode());
 		result = prime * result + Float.floatToIntBits(x);
 		result = prime * result + Float.floatToIntBits(y);
 		result = prime * result + Float.floatToIntBits(z);
@@ -71,6 +80,11 @@ public class UnitCommand {
 			return false;
 		if (type != other.type)
 			return false;
+		if (unitSpec == null) {
+			if (other.unitSpec != null)
+				return false;
+		} else if (!unitSpec.equals(other.unitSpec))
+			return false;
 		if (Float.floatToIntBits(x) != Float.floatToIntBits(other.x))
 			return false;
 		if (Float.floatToIntBits(y) != Float.floatToIntBits(other.y))
@@ -82,9 +96,7 @@ public class UnitCommand {
 	@Override
 	public String toString() {
 		return "UnitCommand [id=" + id + ", x=" + x + ", y=" + y + ", z=" + z
-				+ ", planetId=" + planetId + ", type=" + type + "]";
+				+ ", planetId=" + planetId + ", type=" + type + ", unitSpec="
+				+ unitSpec + "]";
 	}
-	
-	
-	
 }

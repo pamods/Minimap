@@ -554,7 +554,7 @@ $(document).ready(function() {
 		self.unitScaleComputed = ko.computed(function() {
 			return Math.sqrt(Math.sqrt(self.widthSizeMod())) * Math.sqrt(Math.sqrt(self.planetSizeMod())) * 0.35;
 		});	
-
+		
 		self.unitMap = {};
 		self.units = ko.observableArray([]);
 		
@@ -565,7 +565,6 @@ $(document).ready(function() {
 		});
 		
 		var addUnitModel = function(unitm) {
-			model.checkSpecExists(unitm.spec());
 			unitm.translate = createTranslateComputed(unitm);
 			unitm.scale = self.unitScaleComputed;
 			self.units.push(unitm);
@@ -692,7 +691,12 @@ $(document).ready(function() {
 			_.forEach(memoryPA.getCommandGroups(), function(cmdGrp) {
 				if (cmdGrp.planetId === self.planet().id) {
 					var clr;
-					if (cmdGrp.type === 0) { // Move
+					
+					var isBuild = cmdGrp.unitSpec && strategicIconPaths[cmdGrp.unitSpec+"_fill"];
+					
+					if (isBuild) {
+						clr = "rgb(255,255,255)"; // build stuff
+					} else if (cmdGrp.type === 0) { // Move
 						clr = "00FF26";
 					} else if (cmdGrp.type === 4 || cmdGrp.type === 3) { // ATK
 						clr = "FF0009";
@@ -721,6 +725,11 @@ $(document).ready(function() {
 					var locByUnits = getLocationByUnits(cmdGrp.units);
 					if (locByUnits) {
 						drawCommandLine(ctx, locByUnits[0], locByUnits[1], locByUnits[2], cmdGrp.x, cmdGrp.y, cmdGrp.z, clr);
+					}
+					
+					if (isBuild) {
+						var pp = makeProjected(cmdGrp.x, cmdGrp.y, cmdGrp.z);
+						model.drawSpecGhost(ctx, cmdGrp.unitSpec, pp[0], pp[1], self.unitScaleComputed());
 					}
 				}
 			});
@@ -1334,6 +1343,7 @@ $(document).ready(function() {
 		// for massive performance gains
 		self.unitSpecsImageCache = {};
 		self.getUnitSpecImage = function(spec, fill, armycolor, selected) {
+			self.checkSpecExists(spec);
 			var fStr = fill ? ("fill" + armycolor) : ("border" + selected);
 			var key = spec + fStr;
 			var obj = self.unitSpecsImageCache[key]; 
@@ -1372,6 +1382,15 @@ $(document).ready(function() {
 		self.ubermaps = ko.observableArray([]);
 		
 		self.selection = ko.observable({});
+		
+		self.drawSpecGhost = function(ctx, spec, x, y, scale) {
+			var ghostImg = self.getUnitSpecImage(spec, true, "rgba(255,255,255,0.5)", undefined);
+			var size = assumedIconSize * scale;
+			x = hackRound(x + (-size/2));
+			y = hackRound(y + (-size/2));
+			size = hackRound(size);
+			ctx.drawImage(ghostImg, x, y, size, size);
+		};
 		
 		self.drawUnit = function(ctx, unit, map) {
 			var fillImg = self.getUnitSpecImage(unit.spec(), true, unit.armyColor(), undefined);
@@ -1704,10 +1723,15 @@ $(document).ready(function() {
 			self.rubberbandVisible(v);
 		});
 		self.rubberbandSelector.bindToElement("#selection_layer");
-		self.showsUberMap.subscribe(function(v) {
+		
+		self.enableRubberband = ko.computed(function() {
+			return self.showsUberMap() && self.commandMode() === "default";
+		});
+		
+		self.enableRubberband.subscribe(function(v) {
 			self.rubberbandSelector.setEnabled(v);
 		});
-		self.rubberbandSelector.setEnabled(self.showsUberMap());
+		self.rubberbandSelector.setEnabled(self.enableRubberband());
 		
 		var lastSelectTime = 0;
 		
