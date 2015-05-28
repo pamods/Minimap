@@ -111,8 +111,12 @@ public class MemoryApiWebservice extends Application {
 		}
 		
 		final ObservableMap<String, Object> configMap = new ObservableMap<>();
-		configMap.put(PaClientAccessor.PID_KEY, forcedPid);
-		configMap.put(PaClientAccessor.VERSION_KEY, forceVersion);
+		if (forcedPid != null) {
+			configMap.put(PaClientAccessor.PID_KEY, forcedPid);
+		}
+		if (forceVersion != null) {
+			configMap.put(PaClientAccessor.VERSION_KEY, forceVersion);
+		}
 		configMap.put(AUTODISCOVER, true);
 		
 		if (!headless) {
