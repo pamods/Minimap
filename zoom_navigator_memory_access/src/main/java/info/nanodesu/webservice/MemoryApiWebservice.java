@@ -171,7 +171,10 @@ public class MemoryApiWebservice extends Application {
 					versionInput.addItemListener(new ItemListener() {
 						@Override
 						public void itemStateChanged(ItemEvent e) {
-							configMap.put(PaClientAccessor.VERSION_KEY, (String) e.getItem());
+							if (e.getID() == ItemEvent.SELECTED) {
+								String v = (String) e.getItem();
+								configMap.put(PaClientAccessor.VERSION_KEY, v);
+							}
 						}
 					});
 					
@@ -186,7 +189,7 @@ public class MemoryApiWebservice extends Application {
 										pidInput.setText(v+"");
 										break;
 									case PaClientAccessor.VERSION_KEY:
-										versionInput.setSelectedItem(v+"");
+										versionInput.setSelectedItem(v);
 										break;
 									case AUTODISCOVER:
 										autoCheck.setSelected((boolean) v);
