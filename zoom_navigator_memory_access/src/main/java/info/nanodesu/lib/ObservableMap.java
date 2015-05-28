@@ -1,11 +1,11 @@
 package info.nanodesu.lib;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-public class ObservableMap<K, V> extends HashMap<K, V>{
+public class ObservableMap<K, V> extends ConcurrentHashMap<K, V>{
 	public static interface PutListener<K, V> {
 		void putEvent(K k, V v);
 	}
