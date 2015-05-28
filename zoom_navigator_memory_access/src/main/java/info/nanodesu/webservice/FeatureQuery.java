@@ -1,9 +1,11 @@
 package info.nanodesu.webservice;
 
 import java.util.List;
+import java.util.Map;
 
 import info.nanodesu.reader.FeatureLocation;
 import info.nanodesu.reader.PaClientMemoryAccessor;
+import info.nanodesu.reader.patches.PaClientAccessor;
 
 import org.restlet.Context;
 import org.restlet.Request;
@@ -20,22 +22,21 @@ public class FeatureQuery extends Restlet {
 	
 	private PaClientMemoryAccessor pa;
 	
-	public FeatureQuery(Context context, PaClientMemoryAccessor pa) {
+	public FeatureQuery(Context context, Map<String, Object> c) {
 		super(context);
-		this.pa = pa;
+		this.pa = new PaClientAccessor();
+		this.pa.setConfigMap(c);
 	}
 	
 	@Override
 	public void handle(Request request, Response response) {
 		String key = (String) request.getAttributes().get("features");
 		List<FeatureLocation> lst = null;
-		synchronized (pa) {
-			pa.attach();
-			try {
-				lst = pa.readFeatureLocations(key);
-			} finally {
-				pa.detach();
-			}
+		pa.attach();
+		try {
+			lst = pa.readFeatureLocations(key);
+		} finally {
+			pa.detach();
 		}
 		
 		try {

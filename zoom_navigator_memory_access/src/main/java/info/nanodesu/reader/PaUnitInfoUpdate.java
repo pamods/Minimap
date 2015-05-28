@@ -35,6 +35,16 @@ public class PaUnitInfoUpdate {
 		}
 	}
 	
+	public void printStats() {
+		System.out.println("Update stats");
+		System.out.println("Added units: " + addedUnits.size());
+		System.out.println("Added commands: " + addedCommands.size());
+		System.out.println("Updated commands: " + updatedCommands.size());
+		System.out.println("Updated units: " + updatedUnits.size());
+		System.out.println("Removed Units: " + removedUnits.size());
+		System.out.println("Removed Commands: " + removedCommands.size());
+	}
+	
 	public boolean isReset() {
 		return reset;
 	}

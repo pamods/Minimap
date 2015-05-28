@@ -285,7 +285,7 @@ public class Windows64MemoryAPI implements Memory64API {
 	         File versionFile = new File(exePath.getParentFile().getParentFile(), "version.txt");
 	         Reader reader = new BufferedReader(new FileReader(versionFile));
 	         try {
-	        	 return IoUtils.toString(reader);
+	        	 return IoUtils.toString(reader).trim();
 	         } finally {
 	        	 try {
 					reader.close();

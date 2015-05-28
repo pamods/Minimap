@@ -1,8 +1,10 @@
 package info.nanodesu.webservice;
 
-import info.nanodesu.reader.PaClientMemoryAccessor;
 import info.nanodesu.reader.PaUnitInfoUpdate;
 import info.nanodesu.reader.PaUnitsChangeDetector;
+import info.nanodesu.reader.patches.PaClientAccessor;
+
+import java.util.Map;
 
 import org.restlet.Context;
 import org.restlet.Request;
@@ -19,9 +21,10 @@ public class DeltaCompressedUnits extends Restlet {
 	
 	private PaUnitsChangeDetector changeDetector;
 	
-	public DeltaCompressedUnits(Context context, PaClientMemoryAccessor pa) {
+	public DeltaCompressedUnits(Context context, Map<String, Object> c) {
 		super(context);
-		changeDetector = new PaUnitsChangeDetector(pa);
+		changeDetector = new PaUnitsChangeDetector(new PaClientAccessor());
+		changeDetector.getAccessor().setConfigMap(c);
 	}
 	
 	@Override
@@ -31,10 +34,12 @@ public class DeltaCompressedUnits extends Restlet {
 		
 		PaUnitInfoUpdate update = changeDetector.generateUpdate(updateId, minPositionChange);
 		
+//		update.printStats();
+		
 		try {
 			resp.setEntity(mapper.writeValueAsString(update), MediaType.APPLICATION_JSON);
 		} catch (JsonProcessingException e) {
 			throw new RuntimeException(e);
 		}
 	}
-}	
+}

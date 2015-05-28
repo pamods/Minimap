@@ -1,17 +1,23 @@
 package info.nanodesu.reader;
 
+import java.util.Map;
+
 import info.nanodesu.lib.Memory64API;
 import info.nanodesu.lib.windows.Windows64MemoryAPI;
+import info.nanodesu.reader.patches.PaClientAccessorConstants;
 
 import com.sun.jna.Platform;
 
 public abstract class AbstractPaAccessor implements PaClientMemoryAccessor {
-	private boolean attached = false;
-	private volatile int pid;
-	protected Memory64API pa;
+	public static final String PID_KEY = "pid";
+	public static final String VERSION_KEY = "version";
 	
-	public AbstractPaAccessor(int pid) {
-		this.pid = pid;
+	private boolean attached = false;
+	protected Memory64API pa;
+	protected Map<String, Object> configMap;
+	protected PaClientAccessorConstants c;
+	
+	public AbstractPaAccessor() {
 		if (Platform.is64Bit()) {
 			if (Platform.isWindows()) {
 				pa = new Windows64MemoryAPI();
@@ -29,29 +35,15 @@ public abstract class AbstractPaAccessor implements PaClientMemoryAccessor {
 	}
 	
 	@Override
-	public void updatePid(int pid) {
-		boolean wasAttached = false;
-		if (isAttached()) {
-			wasAttached = true;
-			detach();
-		}
-		
-		this.pid = pid;
-		
-		if (wasAttached) {
-			attach();
-		}
-	}
-	
-	@Override
-	public int getPid() {
-		return pid;
+	public void setConfigMap(Map<String, Object> map) {
+		configMap = map;
 	}
 	
 	@Override
 	public void attach() {
 		if (!isAttached()) {
-			attached = pa.openProcessByPid(pid);
+			c = PaClientAccessorConstants.getConfigFor((String)configMap.get(VERSION_KEY));
+			attached = pa.openProcessByPid((int)configMap.get(PID_KEY));
 		}
 	}
 	

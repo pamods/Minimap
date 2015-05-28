@@ -17,6 +17,10 @@ public class PaUnitsChangeDetector {
 		this.commandsMap= new HashMap<>();
 	}
 	
+	public PaClientMemoryAccessor getAccessor() {
+		return pa;
+	}
+	
 	private boolean positionChangeIsRelevant(FullUnitInfo newUnit, float minPositionChange) {
 		FullUnitInfo oldUnit = unitsMap.get(newUnit.getId());
 		if (newUnit.getPlanetId() != oldUnit.getPlanetId()) {
@@ -48,15 +52,13 @@ public class PaUnitsChangeDetector {
 
 		List<FullUnitInfo> units = null;
 		List<UnitCommand> cmds = null;
-		synchronized (pa) {
-			pa.attach();
-			try {
-				UnitInfoReadResult r = pa.readUnitInfos();
-				units = r.unitInfos;
-				cmds = r.commands;
-			} finally {
-				pa.detach();
-			}
+		pa.attach();
+		try {
+			UnitInfoReadResult r = pa.readUnitInfos();
+			units = r.unitInfos;
+			cmds = r.commands;
+		} finally {
+			pa.detach();
 		}
 		
 		if (update.getUpdateId() - lastUpdateId > 1) {

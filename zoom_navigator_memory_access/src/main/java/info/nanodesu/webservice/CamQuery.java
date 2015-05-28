@@ -1,7 +1,10 @@
 package info.nanodesu.webservice;
 
+import java.util.Map;
+
 import info.nanodesu.reader.CamPosition;
 import info.nanodesu.reader.PaClientMemoryAccessor;
+import info.nanodesu.reader.patches.PaClientAccessor;
 
 import org.restlet.Context;
 import org.restlet.Request;
@@ -17,9 +20,10 @@ public class CamQuery extends Restlet {
 	
 	private PaClientMemoryAccessor pa;
 	
-	public CamQuery(Context context, PaClientMemoryAccessor pa) {
+	public CamQuery(Context context, Map<String, Object> config) {
 		super(context);
-		this.pa = pa;
+		this.pa = new PaClientAccessor();
+		pa.setConfigMap(config);
 	}
 	
 	@Override
@@ -27,13 +31,11 @@ public class CamQuery extends Restlet {
 		int hdeck = Integer.parseInt((String)request.getAttributes().get("hdeck"));
 		CamPosition position = null;
 		
-		synchronized(pa) {
-			pa.attach();
-			try {
-				position = pa.readCamPosition(hdeck);
-			} finally {
-				pa.detach();
-			}
+		pa.attach();
+		try {
+			position = pa.readCamPosition(hdeck);
+		} finally {
+			pa.detach();
 		}
 		
 		try {

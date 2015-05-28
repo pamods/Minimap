@@ -8,6 +8,15 @@ public class UnitCommand {
 	private int planetId;
 	private byte type;
 	private String unitSpec;
+	private String debugAddress;
+	
+	public void setDebugAddress(String debugAddress) {
+		this.debugAddress = debugAddress;
+	}
+	
+	public String getDebugAddress() {
+		return debugAddress;
+	}
 	
 	public void setUnitSpec(String unitSpec) {
 		this.unitSpec = unitSpec;

@@ -13,8 +13,17 @@ public class FullUnitInfo {
 	private int planetId;
 	private float currentHp;
 	private float maxHp;
+	private String debugAdress;
 	
 	private List<Integer> commands = Collections.emptyList();
+	
+	public void setDebugAdress(String debugAdress) {
+		this.debugAdress = debugAdress;
+	}
+	
+	public String getDebugAdress() {
+		return debugAdress;
+	}
 	
 	public List<Integer> getCommandIds() {
 		return commands;

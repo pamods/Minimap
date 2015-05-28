@@ -6,9 +6,18 @@ public class CamPosition {
 	private float z;
 	private int planet;
 	private boolean validPosition;
+	private String debugAddress;
 	
 	public CamPosition() {
 		validPosition = false;
+	}
+	
+	public void setDebugAddress(String debugAddress) {
+		this.debugAddress = debugAddress;
+	}
+	
+	public String getDebugAddress() {
+		return debugAddress;
 	}
 	
 	public void setValidPosition(boolean validPosition) {

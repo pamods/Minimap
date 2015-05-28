@@ -5,6 +5,17 @@ public class FeatureLocation {
 	private float y;
 	private float z;
 	private int planetId;
+	
+	private String debugAddress;
+	
+	public void setDebugAddress(String debugAddress) {
+		this.debugAddress = debugAddress;
+	}
+	
+	public String getDebugAddress() {
+		return debugAddress;
+	}
+	
 	public float getX() {
 		return x;
 	}
