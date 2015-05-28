@@ -154,8 +154,8 @@ var dottedLine = function(x1, y1, z1, x2, y2, z2, dotDistance, speedFactor, cb) 
 var model = undefined;
 var handlers = {};
 
-loadScript("coui://ui/mods/minimap/unitInfoParser.js");
-loadScript("coui://ui/mods/minimap/alertsManager.js");
+loadScript("coui://ui/mods/ubermap/unitInfoParser.js");
+loadScript("coui://ui/mods/ubermap/alertsManager.js");
 
 var unitSpecMapping = undefined;
 unitInfoParser.loadUnitTypeMapping(function(mapping) {
