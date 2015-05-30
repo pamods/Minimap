@@ -4,7 +4,6 @@ import java.util.Map;
 
 import info.nanodesu.lib.Memory64API;
 import info.nanodesu.lib.windows.Windows64MemoryAPI;
-import info.nanodesu.reader.patches.PaClientAccessorConstants;
 
 import com.sun.jna.Platform;
 

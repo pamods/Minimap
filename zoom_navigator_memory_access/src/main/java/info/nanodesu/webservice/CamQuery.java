@@ -3,8 +3,8 @@ package info.nanodesu.webservice;
 import java.util.Map;
 
 import info.nanodesu.reader.CamPosition;
+import info.nanodesu.reader.PaClientAccessor;
 import info.nanodesu.reader.PaClientMemoryAccessor;
-import info.nanodesu.reader.patches.PaClientAccessor;
 
 import org.restlet.Context;
 import org.restlet.Request;

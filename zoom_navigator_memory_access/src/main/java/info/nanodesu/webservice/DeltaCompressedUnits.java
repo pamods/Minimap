@@ -1,8 +1,8 @@
 package info.nanodesu.webservice;
 
+import info.nanodesu.reader.PaClientAccessor;
 import info.nanodesu.reader.PaUnitInfoUpdate;
 import info.nanodesu.reader.PaUnitsChangeDetector;
-import info.nanodesu.reader.patches.PaClientAccessor;
 
 import java.util.Map;
 

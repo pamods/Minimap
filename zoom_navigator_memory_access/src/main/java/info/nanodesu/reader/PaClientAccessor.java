@@ -1,11 +1,4 @@
-package info.nanodesu.reader.patches;
-
-import info.nanodesu.reader.AbstractPaAccessor;
-import info.nanodesu.reader.CamPosition;
-import info.nanodesu.reader.FeatureLocation;
-import info.nanodesu.reader.FullUnitInfo;
-import info.nanodesu.reader.UnitCommand;
-import info.nanodesu.reader.UnitInfoReadResult;
+package info.nanodesu.reader;
 
 import java.util.ArrayList;
 import java.util.Collections;

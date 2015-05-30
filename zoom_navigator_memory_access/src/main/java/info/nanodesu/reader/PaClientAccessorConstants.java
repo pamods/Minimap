@@ -1,4 +1,8 @@
-package info.nanodesu.reader.patches;
+package info.nanodesu.reader;
+
+import info.nanodesu.reader.patches.B79896Config;
+import info.nanodesu.reader.patches.B80684Config;
+import info.nanodesu.reader.patches.B82098Config;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -24,7 +28,7 @@ public class PaClientAccessorConstants {
 		}
 		
 		B82098Config b82098 = new B82098Config();
-		for (String v: Arrays.asList("82098-pte")) {
+		for (String v: Arrays.asList("82098-pte", "82293")) {
 			m.put(v, b82098);
 		}
 		

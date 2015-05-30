@@ -4,8 +4,8 @@ import java.util.List;
 import java.util.Map;
 
 import info.nanodesu.reader.FeatureLocation;
+import info.nanodesu.reader.PaClientAccessor;
 import info.nanodesu.reader.PaClientMemoryAccessor;
-import info.nanodesu.reader.patches.PaClientAccessor;
 
 import org.restlet.Context;
 import org.restlet.Request;

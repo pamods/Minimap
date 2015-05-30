@@ -229,7 +229,6 @@ $(document).ready(function() {
 //				console.log(id);
 				delete commandGroups[id];
 			}
-			
 		};
 		
 		var hasMoreElements = function(u) {
@@ -247,7 +246,9 @@ $(document).ready(function() {
 					q.origins[cmd.id] = undefined;
 					mayCleanCommands(q);
 				});
-				removeCommand(cmd.id);
+				if (cmd.unitSpec === undefined) {
+					removeCommand(cmd.id);
+				}
 			}
 		};
 		
@@ -366,11 +367,13 @@ $(document).ready(function() {
 				
 				_.forEach(data.updatedCommands, function(cmd) {
 					var old = commandGroups[cmd.id];
-					old.x = cmd.x;
-					old.y = cmd.y;
-					old.z = cmd.z;
-					old.planetId = cmd.planetId;
-					old.type = cmd.type;
+					if (old) {
+						old.x = cmd.x;
+						old.y = cmd.y;
+						old.z = cmd.z;
+						old.planetId = cmd.planetId;
+						old.type = cmd.type;
+					}
 				});
 				
 				_.forEach(data.removedCommands, function(id) {
@@ -703,7 +706,7 @@ $(document).ready(function() {
 					
 					if (isBuild) {
 						clr = "rgb(255,255,255)"; // build stuff
-					} else if (cmdGrp.type === 0) { // Move
+					} else if (cmdGrp.type === 0 || cmdGrp.type === 1) { // Move || Drop(?)
 						clr = "00FF26";
 					} else if (cmdGrp.type === 4 || cmdGrp.type === 3) { // ATK
 						clr = "FF0009";
@@ -719,7 +722,7 @@ $(document).ready(function() {
 						clr = "00FF26";
 					} else { // Whatever else I forgot
 						clr = "#FFFFFF";
-						console.log(cmdGrp.type);
+						console.log(cmdGrp);
 					}
 					
 					var tP = makeProjected(cmdGrp.x, cmdGrp.y, cmdGrp.z);

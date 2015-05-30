@@ -1,5 +1,7 @@
 package info.nanodesu.reader.patches;
 
+import info.nanodesu.reader.PaClientAccessorConstants;
+
 
 public class B82098Config extends PaClientAccessorConstants {
 
