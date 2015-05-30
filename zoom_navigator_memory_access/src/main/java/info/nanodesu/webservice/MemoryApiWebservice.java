@@ -90,7 +90,7 @@ public class MemoryApiWebservice extends Application {
 		Integer forcedPid = null;
 		String forceVersion = null;
 		boolean headless = false;
-		int port = 8185;
+		int port = 8184;
 		
 		for (int i = 0; i < args.length; i++) {
 			if (args[i] == "-version" && args.length > i+1) {
