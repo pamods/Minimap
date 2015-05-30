@@ -46,6 +46,8 @@ import com.sun.jna.Platform;
 
 public class MemoryApiWebservice extends Application {
 	
+	public static final int VERSION = 1;
+	
 	private static final String AUTODISCOVER = "autodiscover";
 
 	public static Memory64API initNativeApi() {
@@ -230,6 +232,8 @@ public class MemoryApiWebservice extends Application {
 				}
 			});
 		}
+		
+		System.out.println("Version "+VERSION);
 		
 		Engine.setLogLevel(Level.WARNING);
 		Component component = new Component();
