@@ -28,7 +28,7 @@ public class PaClientAccessorConstants {
 		}
 		
 		B82098Config b82098 = new B82098Config();
-		for (String v: Arrays.asList("82098-pte", "82293")) {
+		for (String v: Arrays.asList("82098-pte", "82293", "82369")) {
 			m.put(v, b82098);
 		}
 		
@@ -36,15 +36,19 @@ public class PaClientAccessorConstants {
 	}
 	
 	private static Map<String, PaClientAccessorConstants> map = initMapping();
+	private static List<String> supportedVersions = null;
 	
 	public static PaClientAccessorConstants getConfigFor(String version) {
 		return map.get(version);
 	}
 	
 	public static List<String> getSupportedVersions() {
-		List<String> strs = new ArrayList<>(map.keySet());
-		Collections.sort(strs);
-		return strs;
+		if (supportedVersions == null) {
+			List<String> strs = new ArrayList<>(map.keySet());
+			Collections.sort(strs);
+			supportedVersions = Collections.unmodifiableList(strs);
+		}
+		return supportedVersions;
 	}
 	
 	public static String getVersionOf(PaClientAccessorConstants config) {

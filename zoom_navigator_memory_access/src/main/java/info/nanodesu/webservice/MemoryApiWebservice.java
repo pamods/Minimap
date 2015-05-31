@@ -46,7 +46,7 @@ import com.sun.jna.Platform;
 
 public class MemoryApiWebservice extends Application {
 	
-	public static final int VERSION = 1;
+	public static final int VERSION = 2;
 	
 	private static final String AUTODISCOVER = "autodiscover";
 
@@ -116,8 +116,13 @@ public class MemoryApiWebservice extends Application {
 		if (forcedPid != null) {
 			configMap.put(PaClientAccessor.PID_KEY, forcedPid);
 		}
+		configMap.put(PaClientAccessor.VERSION_KEY, PaClientAccessorConstants.getSupportedVersions().get(PaClientAccessorConstants.getSupportedVersions().size() - 1));
 		if (forceVersion != null) {
-			configMap.put(PaClientAccessor.VERSION_KEY, forceVersion);
+			if (PaClientAccessorConstants.getSupportedVersions().contains(forceVersion)) {
+				configMap.put(PaClientAccessor.VERSION_KEY, forceVersion);
+			} else {
+				System.out.println("cannot use version " + forceVersion + " it is not supported. Supported versions are: " + PaClientAccessorConstants.getSupportedVersions());
+			}
 		}
 		configMap.put(AUTODISCOVER, true);
 		
@@ -168,12 +173,11 @@ public class MemoryApiWebservice extends Application {
 					});
 					
 					final JComboBox<String> versionInput = new JComboBox<>(PaClientAccessorConstants.getSupportedVersions().toArray(new String[]{}));
-					versionInput.setSelectedIndex(versionInput.getItemCount()-1);
 					versionInput.setToolTipText("The version of PA you are trying to access. When your PA version is not listed you are likely out of luck, but you may try the available versions.");
 					versionInput.addItemListener(new ItemListener() {
 						@Override
 						public void itemStateChanged(ItemEvent e) {
-							if (e.getID() == ItemEvent.SELECTED) {
+							if (e.getStateChange() == ItemEvent.SELECTED) {
 								String v = (String) e.getItem();
 								configMap.put(PaClientAccessor.VERSION_KEY, v);
 							}
@@ -201,6 +205,7 @@ public class MemoryApiWebservice extends Application {
 							});
 						}
 					});
+					versionInput.setSelectedItem(configMap.get(PaClientAccessor.VERSION_KEY));
 					
 					JPanel head = new JPanel(new BorderLayout());
 					head.add(autoCheck, BorderLayout.WEST);
@@ -262,7 +267,7 @@ public class MemoryApiWebservice extends Application {
 					if (!pidSuccess) {
 						System.out.println("found PA process with pid " + configMap.get(PaClientAccessor.PID_KEY));
 						if (!attemptToFillInVersion(configMap)) {
-							System.out.println("could not automatically determine version. Maybe there is a rights problem with your version.txt file. This process needs to be allowed to read it. Try to select the version by hand if this persists");
+							System.out.println("could not automatically determine supported version. Try to select the version by hand if this persists");
 						} else {
 							System.out.println("automatically determined PA version to be " + configMap.get(PaClientAccessor.VERSION_KEY));
 						}
