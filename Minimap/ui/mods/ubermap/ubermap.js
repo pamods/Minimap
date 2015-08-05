@@ -1114,24 +1114,18 @@ $(document).ready(function() {
 			var w = self.width();
 			var h = self.height();
 			// TODO this currently is fixed onto one projection. I am not yet sure if I want the option for more back.
-			return d3.geo.winkel3().scale(38*(w/200)).translate([w/2, h/2-10]).precision(.1).rotate(self.rotation());
+			return d3.geo.winkel3().scale(38*(w/200)).translate([w/2, h/2]).precision(.1).rotate(self.rotation());
+		});
+		
+		// calling rotate mutates the projection I think...
+		self.unRotatedProjection = ko.computed(function() {
+			var w = self.width();
+			var h = self.height();
+			// TODO this currently is fixed onto one projection. I am not yet sure if I want the option for more back.
+			return d3.geo.winkel3().scale(38*(w/200)).translate([w/2, h/2]).precision(.1);
 		});
 		
 		self.mapPointCloud = ko.observable(undefined);
-		
-		var drawConfig = {
-			"land": [[255, 191, 0], [112,92,33]],
-			"mex": [[0, 255, 0], [0, 120, 0]],
-			"sea": [[71,118,255], [71,215,255]],
-			"blocked": [[0,0,0], [120,120,120]]
-		};
-		
-		var getHeightScaledColor = function(heightFactor, clrA, clrB) {
-			var dr = clrB[0]-clrA[0];
-			var dg = clrB[1]-clrA[1];
-			var db = clrB[2]-clrA[2];
-			return [clrA[0] + dr * heightFactor, clrA[1] + dg * heightFactor, clrA[2] + db * heightFactor];
-		};
 		
 		var getPixelColor = function(config, points, pixelPoint) {
 			if (points.length === 0) {
@@ -1139,7 +1133,7 @@ $(document).ready(function() {
 			}
 			var sumDist = 0;
 			for (var i = 0; i < points.length; i++) {
-				points[i].dist = vecDist(pixelPoint, points[i].normalPosition);
+				points[i].dist = vecDistSq(pixelPoint, points[i].normalPosition);
 				sumDist += points[i].dist;
 			}
 			
@@ -1157,18 +1151,29 @@ $(document).ready(function() {
 			
 			var cloud = self.mapPointCloud();
 			
-			var result = _.foldl(points, function(layerAcc, point) {
+			var result = [0, 0, 0];
+			
+			for (var i = 0; i < points.length; i++) {
+				var point = points[i];
 				var heights = cloud.extremeHeights[point.type];
 				var isSea = point.type === "sea";
 				var minH = isSea ? cloud.extremeHeights.overallMin : heights.min;
 				var maxH = isSea ? cloud.extremeHeights.overallMax : heights.max;
 				var heightScale = (point.height-minH)/(maxH-minH);
-				var pc = getHeightScaledColor(heightScale, config[point.type][0], config[point.type][1]);
-				pc[0] = layerAcc[0] + pc[0] * point.rating;
-				pc[1] = layerAcc[1] + pc[1] * point.rating;
-				pc[2] = layerAcc[2] + pc[2] * point.rating;
-				return pc;
-			}, [0, 0, 0]);
+				
+				var clrA = config[point.type][0];
+				var clrB = config[point.type][1];
+				var dr = clrB[0]-clrA[0];
+				var dg = clrB[1]-clrA[1];
+				var db = clrB[2]-clrA[2];
+				var hR = clrA[0] + dr * heightScale;
+				var hG = clrA[1] + dg * heightScale;
+				var hB = clrA[2] + db * heightScale;
+				
+				result[0] += hR * point.rating;
+				result[1] += hG * point.rating;
+				result[2] += hB * point.rating;
+			}
 			
 			result[0] = Math.round(result[0]);
 			result[1] = Math.round(result[1]);
@@ -1188,31 +1193,85 @@ $(document).ready(function() {
 			}
 		});
 		
+		var drawConfig = {
+			"lava": {
+				"land": [[121,86,77], [93,66,58]],
+				"mex": [[0, 255, 0], [0, 200, 0]],
+				"sea": [[71,118,255], [71,215,255]],
+				"blocked": [[223,105,33], [0,0,0]]
+			},
+			"metal": {
+				"land": [[198,197,186], [49,63,78]],
+				"mex": [[0, 255, 0], [0, 200, 0]],
+				"sea": [[71,118,255], [71,215,255]],
+				"blocked": [[10,10,10], [180,180,180]]
+			},
+			"gas": [109,160,147],
+			"earth": {
+				"land": [[255, 191, 0], [112,92,33]],
+				"mex": [[0, 255, 0], [0, 200, 0]],
+				"sea": [[71,118,255], [71,215,255]],
+				"blocked": [[0,0,0], [120,120,120]]
+			},
+			"moon": {
+				"land": [[163, 163, 153], [55,70,90]],
+				"mex": [[0, 255, 0], [0, 200, 0]],
+				"sea": [[71,118,255], [71,215,255]],
+				"blocked": [[20,20,20], [170,170,170]]
+			},
+			"ice": {
+				"land": [[133, 161, 221], [97,95,87]],
+				"mex": [[0, 255, 0], [0, 200, 0]],
+				"sea": [[71,118,255], [71,215,255]],
+				"blocked": [[23,51,54], [21,23,40]]
+			},
+			"def": {
+				"land": [[255, 191, 0], [112,92,33]],
+				"mex": [[0, 255, 0], [0, 200, 0]],
+				"sea": [[71,118,255], [71,215,255]],
+				"blocked": [[0,0,0], [120,120,120]]
+			}
+		};
+		
 		var renderImage = function(cloud, w, h, projection, planet, ctx, quality) { // quality 1 is pixel perfect, 2 is 2x2 pixels, etc...
 			var timeKey = "render image planet "+planet.name;
 			console.time(timeKey);
-			var qRange = cloud.findQueryRange([planet.radius, 0, 0], 5, 50);
+			var isGas = cloud === "gas";
+			var biome = planet.biome;
+			if (biome === "earth" && planet.temp < 0) {
+				biome = "ice";
+			}
+			var qRange = isGas ? 1 : cloud.findQueryRange([planet.radius, 0, 0], 3, 50);
 			var imgDat = ctx.createImageData(w, h);
 			var uQ = Math.ceil(quality/2);
 			var lQ = -Math.floor(quality/2);
 			for (var x = 0; x < w; x+=quality) {
 				for (var y = 0; y < h; y+=quality) {
-					var ll = projection.invert([x, y]);
-					if (ll) {
-						var pos = convertToCartesian(ll[1], ll[0], planet.radius);
-						var points = cloud.queryPoints(pos, qRange);
-						var pixelColor = getPixelColor(drawConfig, points, pos);
+					var points = undefined;
+					var pos = undefined;
+					var pixelColor = undefined;
+					var conf = undefined;
+					var ll = undefined;
 						for (var xi = lQ; xi < uQ; xi++) {
 							for (var yi = lQ; yi < uQ; yi++) {
-								var mx = (x+xi);
-								var my = (y+yi);
-								if (mx < imgDat.width && my < imgDat.height && mx >= 0 && my >= 0 && self.checkPixelOnSphere(mx, my)) {
-									var index = (mx + my * imgDat.width) * 4;
-									imgDat.data[index] = pixelColor[0];
-									imgDat.data[index+1] = pixelColor[1];
-									imgDat.data[index+2] = pixelColor[2];
-									imgDat.data[index+3] = 255;
+							var mx = (x+xi);
+							var my = (y+yi);
+							if (self.checkPixelOnSphere(mx, my) && mx < imgDat.width && my < imgDat.height && mx >= 0 && my >= 0) {
+								if (!isGas) {
+									ll = ll || projection.invert([x, y]);
+									pos = pos || convertToCartesian(ll[1], ll[0], planet.radius);
+									points = points || cloud.queryPoints(pos, qRange);
+									conf = conf || drawConfig[biome] || drawConfig["def"];
+									pixelColor = pixelColor || getPixelColor(conf, points, pos);
+								} else {
+									pixelColor = drawConfig["gas"];
 								}
+								
+								var index = (mx + my * imgDat.width) * 4;
+								imgDat.data[index] = pixelColor[0];
+								imgDat.data[index+1] = pixelColor[1];
+								imgDat.data[index+2] = pixelColor[2];
+								imgDat.data[index+3] = 255;
 							}
 						}
 					}
@@ -1222,7 +1281,6 @@ $(document).ready(function() {
 			console.timeEnd(timeKey);
 		};
 		
-		// @ any person who reads this who is good at dealing with projection math: Yes this probably is a horrible hack. Please teach me how to do this better ...
 		self.projectionCutOffData = ko.computed(function() {
 			var maxY = 0;
 			var minY = 9999;
@@ -1230,36 +1288,45 @@ $(document).ready(function() {
 			var rowBaseData = {};
 			var w = self.width();
 			var h = self.height();
-			var projection = self.projection();
+			var projection = self.unRotatedProjection();
 			
 			if (w < 0 || h < 0) {
 				return undefined;
 			}
 			
-			for (var lat = -90; lat < 90; lat+=0.25) {
-				for (var long = -180; long < 180; long+=0.25) {
-					var projected = projection([long, lat]);
-					var x = Math.round(projected[0]);
-					var y = Math.round(projected[1]);
-					if (minY > y) {
-						minY = y;
-					}
-					if (maxY < y) {
-						maxY = y;
-					}
-					if (rowBaseData[y] === undefined) {
-						rowBaseData[y] = {minX: 9999999, maxX: 0};
-					}
-					var rowMinX = rowBaseData[y].minX;
-					var rowMaxX = rowBaseData[y].maxX;
-					if (rowMinX > x) {
-						rowBaseData[y].minX = x;
-					}
-					if (rowMaxX < x) {
-						rowBaseData[y].maxX = x;
-					}
+			var addPoint = function(lo, la) {
+				var projected = projection([lo, la]);
+				var x = Math.round(projected[0]);
+				var y = Math.round(projected[1]);
+				if (minY > y) {
+					minY = y;
 				}
+				if (maxY < y) {
+					maxY = y;
+				}
+				if (rowBaseData[y] === undefined) {
+					rowBaseData[y] = {minX: 9999999, maxX: 0};
+				}
+				var rowMinX = rowBaseData[y].minX;
+				var rowMaxX = rowBaseData[y].maxX;
+				if (rowMinX > x) {
+					rowBaseData[y].minX = x;
+				}
+				if (rowMaxX < x) {
+					rowBaseData[y].maxX = x;
+				}
+			};
+			
+			for (var long = -180; long <= 180; long += 0.01) {
+				addPoint(long, -90);
+				addPoint(long, 90);
 			}
+			
+			for (var lat = -90; lat <= 90; lat += 0.01) {
+				addPoint(-180, lat);
+				addPoint(180, lat);
+			}
+			
 			for (var i = minY; i <= maxY; i++) {
 				for (var offset = 1; offset < 1000; offset++) {
 					var key = Math.floor(offset / 2);
@@ -1273,23 +1340,20 @@ $(document).ready(function() {
 					}
 				}
 			}
-			
 			var result = {
 				maxY : maxY,
 				minY: minY,
 				rows: rows
-			};
+			}; 
 			return result;
 		});
+		self.projectionCutOffData.extend({rateLimit:  { method: "notifyWhenChangesStop", timeout: 1000 } });
 		
 		self.checkPixelOnSphere = function(x, y) {
 			var cutOff = self.projectionCutOffData();
 			return cutOff !== undefined && cutOff.maxY >= y && cutOff.minY <= y 
 			&& (cutOff.rows[y] === undefined 
-					|| (cutOff.rows[y].minX < x && cutOff.rows[y].maxX > x)
-					// fix errors that come up in single lines somewhere sometimes.... HACKS
-					|| (cutOff.rows[y+1] !== undefined && cutOff.rows[y+1].minX < x && cutOff.rows[y+1].maxX > x)
-					|| (cutOff.rows[y-1] !== undefined && cutOff.rows[y-1].minX < x && cutOff.rows[y-1].maxX > x));
+					|| (cutOff.rows[y].minX < x && cutOff.rows[y].maxX > x));
 		};
 		
 		var imgComputeCheck = 0;
@@ -1303,16 +1367,21 @@ $(document).ready(function() {
 			var planet = self.planet();
 			var ctx = self.mapContext();
 			if (cloud) {
-				renderImage(cloud, w, h, projection, planet, ctx, 5);
+				renderImage(cloud, w, h, projection, planet, ctx, self.isUberMap ? 15 : 3);
 				setTimeout(function() {
 					if (test === imgComputeCheck) {
-						renderImage(cloud, w, h, projection, planet, ctx, 1);
+						renderImage(cloud, w, h, projection, planet, ctx, self.isUberMap ? 2 : 1);
 					}
-				}, 3000);
+				}, 2000);
 			}
 		});
 		
 		self.collectPointCloud = function() {
+			if (self.planet().biome === "gas") {
+				self.mapPointCloud("gas");
+				return;
+			}
+			
 			var addPreviewAtLoc = function(loc, spec) {
 				world.puppet({
 					model:{
@@ -1356,7 +1425,7 @@ $(document).ready(function() {
 			var measureLocation = function(point, cb) {
 				world.puppet({
 					location: {
-						planet: self.planet().id,
+						planet: self.planet().index,
 						pos: point.pos,
 						snap: 0
 					}
@@ -1379,7 +1448,6 @@ $(document).ready(function() {
 				buildTestLocs.push(o);
 				tmpLocs.push(o);
 			}
-			console.log(buildTestLocs);
 			
 			var stackedTestLocs = [];
 			while(tmpLocs.length > 0) {
@@ -1414,7 +1482,7 @@ $(document).ready(function() {
 			};
 			
 			var checkPlacement = function(spec, testLocs, callback) {
-				world.fixupBuildLocations(spec, self.planet().id, testLocs).then(function(result) {
+				world.fixupBuildLocations(spec, self.planet().index, testLocs).then(function(result) {
 					try {
 						var hit = [];
 						var noHit = [];

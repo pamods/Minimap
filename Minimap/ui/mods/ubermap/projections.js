@@ -12,12 +12,17 @@ var convertToCartesian = function(lat, long, r) {
 	var r = r === undefined ? 500 : r;
 	lat *= Math.PI / 180;
 	long *= Math.PI / 180;
+	
+	var lasin = Math.sin(lat);
+	var lacos = Math.cos(lat);
+	var losin = Math.sin(long);
+	var locos = Math.cos(long);
 
 	// "PA" Cartesian coordinates
-	var x = r * Math.cos(lat) * Math.sin(long);
-	var y = -r * Math.cos(lat) * Math.cos(long);
-	var z = r * Math.sin(lat);
-
+	var x = r * lacos * losin;
+	var y = -r * lacos * locos;
+	var z = r * lasin;
+	
 	return [ x, y, z ];
 };
 
