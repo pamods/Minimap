@@ -370,6 +370,7 @@ console.log("loaded geomapper");
 		api.camera.lookAt(target);
 		var testSea = function() {
 			testFab("/pa/units/sea/torpedo_launcher/torpedo_launcher.json", function() {
+				
 				getOrCreatePlanet(cameraId).sea.push(loc);
 			}, complete);
 		};

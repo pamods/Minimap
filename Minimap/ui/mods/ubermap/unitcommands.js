@@ -1,3 +1,4 @@
+/*
 var unitCommands =
 	(typeof unitCommands === 'undefined') ?
 (function() {
@@ -157,3 +158,4 @@ var unitCommands =
 }()) : unitCommands;
 
 console.log("loaded unitcommands.js");
+*/

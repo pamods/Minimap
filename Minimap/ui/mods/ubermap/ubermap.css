@@ -15,15 +15,20 @@
 	fill: none;
 	stroke: #777;
 	stroke-width: .5px;
-	stroke-opacity: .5;
+	stroke-opacity: .55;
 	z-index: 200;
 }
 
 .background {
-	stroke: #000;
-	stroke-width: 3px;
 	fill: #eee;
 	z-index: 100;
+}
+
+.mapborder {
+	fill: none;
+	stroke: #000;
+	stroke-width: 3px;
+	z-index: 105;
 }
 
 .mapname {

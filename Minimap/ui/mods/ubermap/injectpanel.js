@@ -45,28 +45,6 @@ var pmUberMap = function(handler, arguments) {
 	
 	handlers.quitCommandMode = model.endCommandMode;
 	
-	var unoptimizeStarted = false;
-	var startUnoptimizeForPlanet = function(id, delay) {
-		var flip = 1;
-		setTimeout(function() {
-			setInterval(function() {
-				unitCommands.noopcam(0, 0, flip, id);
-				flip *= -1;
-			}, 250);
-		}, delay);
-	};
-	
-	var oldCelestialData = handlers.celestial_data;
-	handlers.celestial_data = function(payload) {
-		oldCelestialData(payload);
-		if (!unoptimizeStarted) {
-			unoptimizeStarted = true;
-			for (var i = 0; i < payload.planets.length; i++) {
-				startUnoptimizeForPlanet(payload.planets[i].id, 5000);
-			}
-		}
-	};
-	
 	handlers.setTopRightPreview = function(s) {
 		var h = $("holodeck.preview");
 		if (!s) {
@@ -94,7 +72,12 @@ var pmUberMap = function(handler, arguments) {
 	};
 	
 	handlers.runUnitCommand = function(payload) {
-		unitCommands[payload.method].apply(null, payload.arguments);
+		// TODO wire up new API for this
+		
+		console.log("missing commands handler");
+		console.log(payload);
+		
+	//	unitCommands[payload.method].apply(null, payload.arguments);
 	};
 	
 	var oldShowAlertPreview = model.showAlertPreview;
@@ -112,6 +95,8 @@ var pmUberMap = function(handler, arguments) {
 	var colorByArmyId = {};
 	var oldServerState = handlers.server_state;
 	var selfArmyId = undefined;
+	var selfArmyIndex = undefined;
+	var armyIndexIdMap = {};
 	handlers.server_state = function(msg) {
 		console.log("server state");
 		console.log(msg);
@@ -119,6 +104,7 @@ var pmUberMap = function(handler, arguments) {
 		if (msg.data.armies) {
 			for (var i = 0; i < msg.data.armies.length; i++) {
 				colorByArmyId[msg.data.armies[i].id] = msg.data.armies[i].color;
+				armyIndexIdMap[i] = msg.data.armies[i].id;
 			}
 		}
 		
@@ -126,12 +112,23 @@ var pmUberMap = function(handler, arguments) {
 			selfArmyId = msg.data.client.army_id;
 		}
 		
+		if (msg.data.armies && msg.data.client) {
+			var idToIndexMap = {};
+			var armies = msg.data.armies;
+			for (var i = 0; i < armies.length; i++) {
+				idToIndexMap[armies[i].id] = i;
+			}
+			selfArmyIndex = idToIndexMap[msg.data.client.army_id];
+		}
+		
 		handlers.queryArmyInfo();
 	};
 	
 	handlers.queryArmyInfo = function() {
-		console.log("query army colors called...");
-		pmUberMap("setArmyInfo", [colorByArmyId, selfArmyId]);
+		console.log("query army info called...");
+		var info = [colorByArmyId, selfArmyId, selfArmyIndex, armyIndexIdMap];
+		console.log(info);
+		pmUberMap("setArmyInfo", info);
 	};
 	
 	model.showsUberMap = ko.observable(false);

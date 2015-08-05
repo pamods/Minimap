@@ -5,7 +5,6 @@
 <title>UberMap</title>
 </noloc>
 
-<!-- <link href="coui://ui/main/shared/css/global.css" rel="stylesheet" type="text/css" /> -->
 <link href="bundle://boot/boot.css" rel="stylesheet" type="text/css" />
 
 <link href="coui://ui/main/shared/js/thirdparty/jquery-ui-1.10.3.custom/css/alpha_theme/jquery-ui-1.10.3.custom.css" rel="stylesheet"
@@ -21,10 +20,7 @@
 <script src="d3.geo.projection.v0.min.js" type="text/javascript"></script>
 <script src="d3.geo.polyhedron.v0.min.js" type="text/javascript"></script>
 
-<!-- depending on the version of PA one of these should work out -->
 <script src="bundle://boot/boot.js" type="text/javascript"></script>
-
-<script src="knockout-deferred-updates.3.3.1.js" type="text/javascript"></script>
 
 <script src="systems.js" type="text/javascript"></script>
 <script src="projections.js" type="text/javascript"></script>
@@ -40,6 +36,7 @@
 		<!-- ko foreach: minimaps -->
 		<div class="minimap hwaccelerate" style="position: relative" data-bind="id: 'mm-' + name(), visible: !dead(), style: {width: width()+'px', height: height()+'px'}">
 			<div data-bind="text: name" style="position: absolute;" class="ignoreMouse"></div>
+			
 			<svg class="ignoreMouse" data-bind="style: {position: 'absolute', width: width()+'px', height: height()+'px'}">
 				<defs>
 					<path data-bind="id: mappingObject().id+'-sphere', datum: {type: 'Sphere'}, d: path"></path>
@@ -48,11 +45,15 @@
 					</clipPath>
 				</defs>
 				<use class="background" data-bind="svguse: mappingObject().id+'-sphere'"></use>
-				<path class="graticule" data-bind="attr: {'clip-path': 'url(#'+mappingObject().id+'-clip)'}, d3b: d3b"></path>
-				<!-- ko foreach: layers -->
-				<path data-bind="css: layer, d3b: [data, $parent.path()], attr: {'clip-path': 'url(#'+$parent.mappingObject().id+'-clip)'}"></path>
-				<!-- /ko -->
 			</svg>
+			
+			<canvas data-bind="self: mapCanvas, attr: {width: width, height: height}, style: {'z-index': 20, position: 'absolute'}"></canvas>
+
+			<svg class="ignoreMouse" data-bind="style: {position: 'absolute', width: width()+'px', height: height()+'px', 'z-index': 100}">
+				<use class="mapborder" data-bind="svguse: mappingObject().id+'-sphere'"></use>
+				<path class="graticule" data-bind="attr: {'clip-path': 'url(#'+mappingObject().id+'-clip)'}, d3b: d3b"></path>
+			</svg>
+			
 			<canvas class="receiveMouse" data-bind="rubberband: true, click: clickMinimap, event: {mousemove: mousemove, mouseenter: mouseenter, mouseleave: mouseleave, contextmenu: rightClick},
 													self: canvas, attr: {width: width, height: height}, style: {'z-index': 999, position: 'absolute'}"></canvas>
 		</div>

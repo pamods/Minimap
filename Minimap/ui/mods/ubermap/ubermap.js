@@ -14,6 +14,129 @@ window.onscroll = function() {
 };
 $(document).mousedown(function(e){if(e.which==2)return false});
 
+var vecLength = function(pos) {
+	return Math.sqrt(pos[0]*pos[0] + pos[1]*pos[1] + pos[2]*pos[2]);
+};
+
+var normalizeVec = function(pos) {
+	var l = vecLength(pos);
+	return [(pos[0]/l), (pos[1]/l), (pos[2]/l)];
+};
+
+var vecDistSq = function(a, b) {
+	var d0 = a[0]-b[0];
+	var d1 = a[1]-b[1];
+	var d2 = a[2]-b[2];
+	return d0*d0 + d1*d1 + d2*d2;
+};
+
+var vecDist = function(a, b) {
+	return Math.sqrt(vecDistSq(a, b));
+};
+
+function SpatialCloud(cellSize, store) {
+	var self = this;
+	
+	store = store || {};
+	cellSize = store.cellSize || cellSize;
+	
+	self.extremeHeights = store.extremeHeights || {overallMax: 0, overallMin: 9999};
+	
+	self.data = store.data || {};
+	self.getCellSize = function() {
+		return cellSize;
+	};
+	self.getStore = function() {
+		return {
+			data: self.data,
+			cellSize: cellSize,
+			extremeHeights: self.extremeHeights
+		};
+	};
+	
+	var calcKey = function(x, y, z) {
+		return (x & 0x3FF) | ((y & 0x3FF) << 10) | ((z & 0x3FF) << 20);
+	};
+	
+	var getKey = function(pos) {
+		var x = Math.floor(pos[0] / cellSize);
+		var y = Math.floor(pos[1] / cellSize);
+		var z = Math.floor(pos[2] / cellSize);
+		return calcKey(x, y, z);
+	};
+	
+	self.addToCloud = function(point) {
+		var extremes = self.extremeHeights[point.type] || {min: 9999, max: 0};
+		if (point.height > extremes.max) {
+			extremes.max = point.height;
+			if (self.extremeHeights.overallMax < extremes.max) {
+				self.extremeHeights.overallMax = extremes.max;
+			}
+		}
+		if (point.height < extremes.min) {
+			extremes.min = point.height;
+			if (self.extremeHeights.overallMin > extremes.min) {
+				self.extremeHeights.overallMin = extremes.min;
+			}
+		}
+		
+		self.extremeHeights[point.type] = extremes;
+		var key = getKey(point.normalPosition);
+		var d = self.data[key];
+		if (d === undefined) {
+			d = [];
+		}
+		d.push(point);
+		self.data[key] = d;
+	};
+	
+	self.avgCellSize = function() {
+		var cells = 0;
+		var elements = 0;
+		_.forEach(self.data, function(elem) {
+			cells++;
+			elements += elem.length;
+		});
+		return elements / cells;
+	};
+	
+	self.findQueryRange = function(testPoint, n, cancelAt) {
+		var result = 0;
+		do {
+			result+=1;
+		} while(self.queryPoints(testPoint, result).length < n && result < cancelAt);
+		return result;
+	};
+	
+	self.queryPoints = function(pos, radius) {
+		var sqR = radius*radius;
+		var f = [];
+		var range = Math.ceil(radius / cellSize);
+		var x = Math.floor(pos[0] / cellSize);
+		var y = Math.floor(pos[1] / cellSize);
+		var z = Math.floor(pos[2] / cellSize);
+		for (var xo = -range; xo <= range; xo++) {
+			for (var yo = -range; yo <= range; yo++) {
+				for (var zo = -range; zo <= range; zo++) {
+					var xk = x + xo;
+					var yk = y + yo;
+					var zk = z + zo;
+					var k = calcKey(xk, yk, zk);
+					var cell = self.data[k];
+					if (cell) {
+						for (var i = 0; i < cell.length; i++) {
+							if (vecDistSq(cell[i].normalPosition, pos) < sqR) {
+								f.push(cell[i]);
+							}
+						}
+					}
+				}
+			}
+		}
+		return f;
+	};
+}
+
 ko.bindingHandlers.datum = {
 	update : function(element, valueAccessor, allBindings, viewModel, bindingContext) {
 		value = ko.unwrap(valueAccessor());
@@ -169,6 +292,62 @@ $(document).ready(function() {
 		return (0.5 + n) << 0;
 	};
 	
+	var isStructure = function(spec) {
+		return contains(unitSpecMapping[spec], "Structure");
+	};
+	
+	var isNavy = function(spec) {
+		return contains(unitSpecMapping[spec], "Naval");
+	};
+	
+	var isLand = function(spec) {
+		return contains(unitSpecMapping[spec], "Land");
+	};
+	
+	var isAir = function(spec) {
+		return contains(unitSpecMapping[spec], "Air");
+	};
+	
+	var isOrbital = function(spec) {
+		return contains(unitSpecMapping[spec], "Orbital");
+	};
+	
+	var isWorker = function(spec) {
+		return contains(unitSpecMapping[spec], "Fabber"); 
+	};
+	
+	var isPrio = function(spec) {
+		if (!isStructure(spec)) {
+			if (isWorker(spec)) {
+				if (isNavy(spec)) {
+					return model.selectsNavyWorkers();
+				} else if (isLand(spec)) {
+					return model.selectsLandWorkers();
+				} else if (isAir(spec)) {
+					return model.selectsAirWorkers();
+				} else if (isOrbital(spec)) {
+					return model.selectsOrbitalWorkers();
+				} else {
+					return false;
+				}
+			} else {
+				if (isNavy(spec)) {
+					return model.selectsNavyFighters();
+				} else if (isLand(spec)) {
+					return model.selectsLandFighters();
+				} else if (isAir(spec)) {
+					return model.selectsAirFighters();
+				} else if (isOrbital(spec)) {
+					return model.selectsOrbitalFighters();
+				} else {
+					return false;
+				}
+			}
+		} else {
+			return false;
+		}
+	};
+	
 	var selectUnitsById = function(ids) {
 		engine.call("select.byIds", ids).then(function() {
 			if (ids.length) {
@@ -184,6 +363,7 @@ $(document).ready(function() {
 	var cameraLocation = ko.observable();
 	
 	var queryCameraLocation = function() {
+		// TODO this would be best with the hopefully upcoming "get focused planet" call stuff...
 		// assumes that the main holodeck has the ID 0. Afaik that is always correct
 		$.getJSON(paMemoryWebservice+"/pa/query/holodeck/cam/0", function(data) {
 			cameraLocation(data);
@@ -192,7 +372,90 @@ $(document).ready(function() {
 			setTimeout(queryCameraLocation, noMemoryReaderPollTime);
 		});
 	};
-	setTimeout(queryCameraLocation, 3000);
+//	setTimeout(queryCameraLocation, 3000);
+	
+	function UnitAPIAdapter() {
+		var self = this;
+		var world = api.getWorldView(0);
+		
+		world.setServerCulling(false); // TODO experiment with flipping this on/off on regular basis
+		
+		var findUnitZ = function(spec) {
+			var unitTypes = unitSpecMapping[spec];
+			var specPoints = 0;
+			if (contains(unitTypes, "Commander")) {
+				specPoints = 10;
+			} else if (contains(unitTypes, "Important")) {
+				specPoints = 7;
+			} else if (contains(unitTypes, "Mobile")) {
+				specPoints = 5;
+			} else {
+				specPoints = 1;
+			}
+			
+			return specPoints + (isPrio(spec) ? 20 : 0);
+		};
+		
+		self.queryAllInfo = function(callback, planetIndex) {
+			var spawnedCalls = 0;
+			var finishedCalls = 0;
+			var unitsMap = {};
+			var unitIds = [];
+			spawnedCalls++;
+			// TODO handle other armies... that may include reimplementing fog of war for mobile units :/
+			var armyIndex = model.armyIndex();
+			world.getArmyUnits(armyIndex, planetIndex).then(function(data) {
+				try {
+					_.forEach(data, function(elem, key) {
+						_.forEach(elem, function(unitId) {
+							unitsMap[unitId] = {
+								id: unitId,
+								army: model.armyIndexIdMap()[armyIndex],
+								spec: key,
+								z: findUnitZ(key)
+							};
+							unitIds.push(unitId);
+						});
+					});
+				} catch (e) {
+					console.log(e.stack);
+				} finally {
+					finishedCalls++;
+				}
+			});
+			
+			var fillUnitInfo = function(unitsMap, unitIds, callback) {
+				world.getUnitState(unitIds).then(function(states) {
+					try {
+						var ordersMap = {};
+						var ordersIdSource = 0;
+						
+						for (var i = 0; i < states.length; i++) {
+							var unitId = unitIds[i];
+							var ud = unitsMap[unitId];
+							states[i] = _.merge(states[i], ud);
+							unitsMap[unitId] = states[i];
+						}
+						
+						callback(_.sortBy(states, function(u) {return u.z}), unitsMap);
+					} catch (e) {
+						console.log(e.stack);
+					}
+				});
+			};
+			
+			var waitFunc = function() {
+				if (spawnedCalls === finishedCalls) {
+					fillUnitInfo(unitsMap, unitIds, callback);
+				} else {
+					setTimeout(waitFunc, 10);
+				}
+			};
+			waitFunc();
+		};
+	}
+	
+	var unitAPI = new UnitAPIAdapter();
 	
 	function MemoryDataReceiver(pollTime) {
 		var self = this;
@@ -426,66 +689,10 @@ $(document).ready(function() {
 			});
 		}
 		
-		setTimeout(refreshData, 1000);
+//		setTimeout(refreshData, 1000);
 	}
 	
 	memoryPA = new MemoryDataReceiver(unitPollTime);
-	
-	var isStructure = function(spec) {
-		return contains(unitSpecMapping[spec], "Structure");
-	};
-	
-	var isNavy = function(spec) {
-		return contains(unitSpecMapping[spec], "Naval");
-	};
-	
-	var isLand = function(spec) {
-		return contains(unitSpecMapping[spec], "Land");
-	};
-	
-	var isAir = function(spec) {
-		return contains(unitSpecMapping[spec], "Air");
-	};
-	
-	var isOrbital = function(spec) {
-		return contains(unitSpecMapping[spec], "Orbital");
-	};
-	
-	var isWorker = function(spec) {
-		return contains(unitSpecMapping[spec], "Fabber"); 
-	};
-	
-	var isPrio = function(spec) {
-		if (!isStructure(spec)) {
-			if (isWorker(spec)) {
-				if (isNavy(spec)) {
-					return model.selectsNavyWorkers();
-				} else if (isLand(spec)) {
-					return model.selectsLandWorkers();
-				} else if (isAir(spec)) {
-					return model.selectsAirWorkers();
-				} else if (isOrbital(spec)) {
-					return model.selectsOrbitalWorkers();
-				} else {
-					return false;
-				}
-			} else {
-				if (isNavy(spec)) {
-					return model.selectsNavyFighters();
-				} else if (isLand(spec)) {
-					return model.selectsLandFighters();
-				} else if (isAir(spec)) {
-					return model.selectsAirFighters();
-				} else if (isOrbital(spec)) {
-					return model.selectsOrbitalFighters();
-				} else {
-					return false;
-				}
-			}
-		} else {
-			return false;
-		}
-	};
 	
 	function UnitModel(unit) {
 		var self = this;
@@ -560,11 +767,44 @@ $(document).ready(function() {
 			});			
 		};
 		
-		// the same for all units
-		self.unitScaleComputed = ko.computed(function() {
-			return Math.sqrt(Math.sqrt(self.widthSizeMod())) * Math.sqrt(Math.sqrt(self.planetSizeMod())) * 0.35;
-		});	
+		var makeUnitScale = function() {
+			return Math.sqrt(Math.sqrt(self.widthSizeMod())) * Math.sqrt(Math.sqrt(self.planetSizeMod())) * 0.35; 
+		};
 		
+		self.unitScaleComputed = ko.computed(makeUnitScale);	
+		
+		self.unitMapX = {};
+		self.zSortedUnitsX = [];
+		
+		var updateData = function() {
+			unitAPI.queryAllInfo(function(array, map) {
+				self.zSortedUnitsX = array;
+				self.unitMapX = map;
+				var scl = makeUnitScale();
+				for (var i = 0; i < array.length; i++) {
+					var aunit = array[i];
+					var ll = convertToLonLan(aunit.pos[0], aunit.pos[1], aunit.pos[2]);
+					var projected = self.projection()(ll);
+					var x = projected[0];
+					var y = projected[1];
+					aunit.translate = [x, y];
+					aunit.scale = scl;
+					aunit.health = aunit.health === undefined ? 1 : aunit.health;
+					aunit.built_frac = aunit.built_frac === undefined ? 1 : aunit.built_frac;
+					
+					if (contains(unitSpecMapping[aunit.spec], "Commander")) {
+						aunit.spec = "commander";
+					}
+				}
+				
+				setTimeout(function() {
+					updateData();
+				}, unitPollTime);
+			}, self.planet().index);
+		};
+		
+		setTimeout(updateData, 2000);
+		/**
 		self.unitMap = {};
 		self.units = ko.observableArray([]);
 		
@@ -628,7 +868,7 @@ $(document).ready(function() {
 				return r;
 			});
 		});
-		
+		*/
 		var now;
 		var then = Date.now();
 		var delta;
@@ -658,16 +898,16 @@ $(document).ready(function() {
 			var num = 0;
 			_.forEach(units, function(value, key) {
 				if (value) {
-					value = self.unitMap[value.id];
+					value = self.unitMapX[value.id];
 				}
 				if (value) {
 					value = value.unit;
 				}
 				if (value) {
-					x += value.x;
-					y += value.y;
-					z += value.z;
-					planet = value.planetId; // TODO this might look a little buggy in case a command is issued to a group of units that is spread over multiple planets...
+					x += value.pos[0];
+					y += value.pos[1];
+					z += value.pos[2];
+					planet = value.planet; // TODO this might look a little buggy in case a command is issued to a group of units that is spread over multiple planets...
 					num++;
 				}
 			});
@@ -782,8 +1022,8 @@ $(document).ready(function() {
 					var selectedUnits = [];
 					var unselectedUnits = [];
 					var selection = model.selection();
-					_.forEach(self.zSortedUnits(), function(unit) {
-						if (selection[unit.id()]) {
+					_.forEach(self.zSortedUnitsX, function(unit) {
+						if (selection[unit.id]) {
 							selectedUnits.push(unit);
 						} else {
 							unselectedUnits.push(unit);
@@ -873,9 +1113,376 @@ $(document).ready(function() {
 		self.projection = ko.computed(function() {
 			var w = self.width();
 			var h = self.height();
-			// TODO this currently is fixed onto one projection. I am not yet sure if I want the options for more back.
-			return d3.geo.winkel3().scale(39*(w/200)).translate([w/2, h/2]).precision(.1).rotate(self.rotation());
+			// TODO this currently is fixed onto one projection. I am not yet sure if I want the option for more back.
+			return d3.geo.winkel3().scale(38*(w/200)).translate([w/2, h/2-10]).precision(.1).rotate(self.rotation());
 		});
+		
+		self.mapPointCloud = ko.observable(undefined);
+		
+		var drawConfig = {
+			"land": [[255, 191, 0], [112,92,33]],
+			"mex": [[0, 255, 0], [0, 120, 0]],
+			"sea": [[71,118,255], [71,215,255]],
+			"blocked": [[255,0,0], [214,144,144]]
+		};
+		
+		var getHeightScaledColor = function(heightFactor, clrA, clrB) {
+			var dr = clrB[0]-clrA[0];
+			var dg = clrB[1]-clrA[1];
+			var db = clrB[2]-clrA[2];
+			return [clrA[0] + dr * heightFactor, clrA[1] + dg * heightFactor, clrA[2] + db * heightFactor];
+		};
+		
+		var getPixelColor = function(config, points, pixelPoint) {
+			if (points.length === 0) {
+				return [0, 0, 0];
+			}
+			var sumDist = 0;
+			for (var i = 0; i < points.length; i++) {
+				points[i].dist = vecDist(pixelPoint, points[i].normalPosition);
+				sumDist += points[i].dist;
+			}
+			
+			var pointRatings = [];
+			var prs = 0;
+			for (var i = 0; i < points.length; i++) {
+				var v = 1 / (points[i].dist / sumDist);
+				pointRatings.push(v);
+				prs += v;
+			}
+			
+			for (var i = 0; i < points.length; i++) {
+				points[i].rating = pointRatings[i] / prs;
+			}
+			
+			var cloud = self.mapPointCloud();
+			
+			var result = _.foldl(points, function(layerAcc, point) {
+				var heights = cloud.extremeHeights[point.type];
+				var isSea = point.type === "sea";
+				var minH = isSea ? cloud.extremeHeights.overallMin : heights.min;
+				var maxH = isSea ? cloud.extremeHeights.overallMax : heights.max;
+				var heightScale = (point.height-minH)/(maxH-minH);
+				var pc = getHeightScaledColor(heightScale, config[point.type][0], config[point.type][1]);
+				pc[0] = layerAcc[0] + pc[0] * point.rating;
+				pc[1] = layerAcc[1] + pc[1] * point.rating;
+				pc[2] = layerAcc[2] + pc[2] * point.rating;
+				return pc;
+			}, [0, 0, 0]);
+			
+			result[0] = Math.round(result[0]);
+			result[1] = Math.round(result[1]);
+			result[2] = Math.round(result[2]);
+			
+			return result;
+		};
+		
+		self.mapCanvas = ko.observable(undefined);
+		self.mapContext = ko.computed(function() {
+			self.width();
+			self.height();
+			if (self.mapCanvas()) {
+				return self.mapCanvas().getContext("2d");
+			} else {
+				return undefined;
+			}
+		});
+		
+		var renderImage = function(cloud, w, h, projection, planet, ctx, quality) { // quality 1 is pixel perfect, 2 is 2x2 pixels, etc...
+			var timeKey = "render image planet "+planet.name;
+			console.time(timeKey);
+			var qRange = cloud.findQueryRange([planet.radius, 0, 0], 5, 50);
+			var imgDat = ctx.createImageData(w, h);
+			var uQ = Math.ceil(quality/2);
+			var lQ = -Math.floor(quality/2);
+			for (var x = 0; x < w; x+=quality) {
+				for (var y = 0; y < h; y+=quality) {
+					var ll = projection.invert([x, y]);
+					if (ll) {
+						var pos = convertToCartesian(ll[1], ll[0], planet.radius);
+						var points = cloud.queryPoints(pos, qRange);
+						var pixelColor = getPixelColor(drawConfig, points, pos);
+						for (var xi = lQ; xi < uQ; xi++) {
+							for (var yi = lQ; yi < uQ; yi++) {
+								var mx = (x+xi);
+								var my = (y+yi);
+								if (mx < imgDat.width && my < imgDat.height && mx >= 0 && my >= 0 && self.checkPixelOnSphere(mx, my)) {
+									var index = (mx + my * imgDat.width) * 4;
+									imgDat.data[index] = pixelColor[0];
+									imgDat.data[index+1] = pixelColor[1];
+									imgDat.data[index+2] = pixelColor[2];
+									imgDat.data[index+3] = 255;
+								}
+							}
+						}
+					}
+				}
+			}
+			ctx.putImageData(imgDat, 0, 0);
+			console.timeEnd(timeKey);
+		};
+		
+		// @ any person who reads this who is good at dealing with projection math: Yes this probably is a horrible hack. Please teach me how to do this better ...
+		self.projectionCutOffData = ko.computed(function() {
+			var maxY = 0;
+			var minY = 9999;
+			var rows = [];
+			var rowBaseData = {};
+			var w = self.width();
+			var h = self.height();
+			var projection = self.projection();
+			
+			if (w < 0 || h < 0) {
+				return undefined;
+			}
+			
+			for (var lat = -90; lat < 90; lat++) {
+				for (var long = -180; long < 180; long++) {
+					var projected = projection([long, lat]);
+					var x = Math.round(projected[0]);
+					var y = Math.round(projected[1]);
+					if (minY > y) {
+						minY = y;
+					}
+					if (maxY < y) {
+						maxY = y;
+					}
+					if (rowBaseData[y] === undefined) {
+						rowBaseData[y] = {minX: 9999999, maxX: 0};
+					}
+					var rowMinX = rowBaseData[y].minX;
+					var rowMaxX = rowBaseData[y].maxX;
+					if (rowMinX > x) {
+						rowBaseData[y].minX = x;
+					}
+					if (rowMaxX < x) {
+						rowBaseData[y].maxX = x;
+					}
+				}
+			}
+			for (var i = minY; i <= maxY; i++) {
+				for (var offset = 1; offset < 1000; offset++) {
+					var key = Math.floor(offset / 2);
+					if (offset % 2 === 0) {
+						key = -key;
+					}
+					var base = rowBaseData[i+key];
+					if (base) {
+						rows[i] = base; 
+						break;
+					}
+				}
+			}
+			
+			var result = {
+				maxY : maxY,
+				minY: minY,
+				rows: rows
+			};
+			return result;
+		});
+		
+		self.checkPixelOnSphere = function(x, y) {
+			var cutOff = self.projectionCutOffData();
+			return cutOff !== undefined && cutOff.maxY >= y && cutOff.minY <= y 
+			&& (cutOff.rows[y] === undefined 
+					|| (cutOff.rows[y].minX < x && cutOff.rows[y].maxX > x)
+					// fix errors that come up in single lines somewhere sometimes.... HACKS
+					|| (cutOff.rows[y+1] !== undefined && cutOff.rows[y+1].minX < x && cutOff.rows[y+1].maxX > x)
+					|| (cutOff.rows[y-1] !== undefined && cutOff.rows[y-1].minX < x && cutOff.rows[y-1].maxX > x));
+		};
+		
+		var imgComputeCheck = 0;
+		self.imageCompute = ko.computed(function() {
+			imgComputeCheck++;
+			var test = imgComputeCheck;
+			var cloud = self.mapPointCloud();
+			var w = self.width();
+			var h = self.height();
+			var projection = self.projection();
+			var planet = self.planet();
+			var ctx = self.mapContext();
+			if (cloud) {
+				renderImage(cloud, w, h, projection, planet, ctx, 5);
+				setTimeout(function() {
+					if (test === imgComputeCheck) {
+						renderImage(cloud, w, h, projection, planet, ctx, 1);
+					}
+				}, 3000);
+			}
+		});
+		
+		self.collectPointCloud = function() {
+			var addPreviewAtLoc = function(loc, spec) {
+				world.puppet({
+					model:{
+						"filename": spec
+					},
+					location: {
+						planet: 0,
+						pos: loc,
+						orient_rel: true,
+						snap: 0
+					}
+				});
+			};
+			
+			var testCountForRadius = function(radius, testsPerSqKm) {
+				var sqkm = (4 * Math.PI * radius * radius) / 10E5;
+				var testCount = (sqkm * testsPerSqKm);
+				return Math.floor(testCount);
+			};
+			
+			var fibonacciSpiral = function(n, radius) {
+				var results = [];
+				var dlong = Math.PI*(3-Math.sqrt(5));
+				var dz = 2/n;
+				var long = 0;
+				var z = 1 - dz/2;
+				for (var k = 0; k < n; k++) {
+					r = Math.sqrt(1 - z*z);
+					results.push([Math.cos(long) * r * radius, Math.sin(long) * r * radius, z * radius]);
+					z = z - dz;
+					long = long + dlong;
+				}
+				return results;
+			};
+			
+			var lr = Math.min(700, self.planet().radius);
+			var testLocs = fibonacciSpiral(testCountForRadius(lr, 2500), self.planet().radius);
+			console.log(testLocs.length+" locations for radius "+self.planet().radius);
+			
+			var world = api.getWorldView(0);
+			var measureLocation = function(point, cb) {
+				world.puppet({
+					location: {
+						planet: self.planet().id,
+						pos: point.pos,
+						snap: 0
+					}
+				}, true).then(function(resp) {
+					try {
+						setTimeout(function() {world.unPuppet(resp.id)}, Math.random() * 10000);
+						cb(point, resp);
+					} catch (e) {
+						console.log(e.stack);
+					}
+				});
+			};
+			
+			var buildTestLocs = [];
+			var tmpLocs = [];
+			for (var i = 0; i < testLocs.length; i++) {
+				var o = {
+					pos: testLocs[i]
+				};
+				buildTestLocs.push(o);
+				tmpLocs.push(o);
+			}
+			console.log(buildTestLocs);
+			
+			var stackedTestLocs = [];
+			while(tmpLocs.length > 0) {
+				stackedTestLocs.push(tmpLocs.splice(0, 5150));
+			}
+
+			var queryHeights = function(cb) {
+				if (stackedTestLocs.length > 0) {
+					var targets = stackedTestLocs.pop();
+					var finished = 0;
+					
+					var finishInc = function() {
+						finished++;
+						if (finished === targets.length) {
+							queryHeights(cb);
+						}
+					};
+					
+					for (var i = 0; i < targets.length; i++) {
+						measureLocation(targets[i], function(point, result) {
+							if (result.location && result.location.pos) {
+								point.height = vecLength(result.location.pos);
+								point.normalPosition = point.pos;
+								point.pos = result.location.pos;
+							}
+							finishInc();
+						});
+					}
+				} else {
+					cb();
+				}
+			};
+			
+			var checkPlacement = function(spec, testLocs, callback) {
+				world.fixupBuildLocations(spec, self.planet().id, testLocs).then(function(result) {
+					try {
+						var hit = [];
+						var noHit = [];
+						for (var i = 0; i < result.length; i++) {
+							if (result[i].ok) {
+								hit.push(testLocs[i]);
+							} else {
+								noHit.push(testLocs[i]);
+							}
+						}
+						callback(hit, noHit);
+					} catch (e) {
+						console.log(e.stack);
+					}
+				});
+			};
+			
+			var groupByPlacements = function(specs, testLocs, callback, groupResults) {
+				var gr = groupResults || [];
+				if (specs.length > 0) {
+					checkPlacement(specs.shift(), testLocs, function(hit, nohit) {
+						gr.push(hit);
+						groupByPlacements(specs, nohit, callback, gr);
+					});
+				} else {
+					gr.push(testLocs);
+					callback(gr);
+				}
+			};
+			
+			console.time("query heights");
+			queryHeights(function() {
+				console.timeEnd("query heights");
+				console.time("query placement");
+				groupByPlacements(["/pa/units/land/metal_extractor/metal_extractor.json",
+				                   "/pa/units/land/landtest/land_barrier.json",
+				                   "/pa/units/land/seatest/land_barrier.json"], buildTestLocs, function(grouped) {
+					console.timeEnd("query placement");
+					console.time("cloud construction");
+					var mex = grouped[0];
+					var land = grouped[1];
+					var sea = grouped[2];
+					var blocked = grouped[3];
+					
+					var cloud = new SpatialCloud(42);
+					
+					_.forEach(mex, function(m) {
+						m.type = "mex";
+						cloud.addToCloud(m);
+					});
+					_.forEach(land, function(l) {
+						l.type = "land";
+						cloud.addToCloud(l);
+					});
+					_.forEach(sea, function(s) {
+						s.type = "sea";
+						cloud.addToCloud(s);
+					});
+					_.forEach(blocked, function(b) {
+						b.type = "blocked";
+						cloud.addToCloud(b);
+					});
+					
+					self.mapPointCloud(cloud);
+					console.timeEnd("cloud construction");
+				});
+			});
+		};
 		
 		var thePath = d3.geo.path();
 		thePath.pointRadius(function(o) {
@@ -911,12 +1518,14 @@ $(document).ready(function() {
 		});
 		
 		self.lookAtByMapXY = function(x, y, zoom) {
-			var ll = self.projection().invert([x, y]);
-			if (ll) {
-				var c = convertToCartesian(ll[1], ll[0]);
-				zoom = zoom === undefined ? "orbital" : zoom;
-				api.Panel.message(api.Panel.parentId, "setMainCamera", 
-						{planet_id: self.planet().id, location: {x: c[0], y: c[1], z: c[2]}, zoom: zoom});
+			if (self.checkPixelOnSphere(x, y)) {
+				var ll = self.projection().invert([x, y]);
+				if (ll) {
+					var c = convertToCartesian(ll[1], ll[0]);
+					zoom = zoom === undefined ? "orbital" : zoom;
+					api.Panel.message(api.Panel.parentId, "setMainCamera", 
+							{planet_id: self.planet().id, location: {x: c[0], y: c[1], z: c[2]}, zoom: zoom});
+				}
 			}
 		};
 		
@@ -944,35 +1553,45 @@ $(document).ready(function() {
 			self.showPreviewByMapXY(e.offsetX, e.offsetY);
 		};
 		
-		self.showPreviewByMapXY = function(x, y) {
-			var ll = self.projection().invert([x, y]);
-			if (ll) {
-				var c = convertToCartesian(ll[1], ll[0]);
-				api.Panel.message(api.Panel.parentId, 'unit_alert.show_preview', {
-					location: {
-						x: c[0],
-						y: c[1],
-						z: c[2]
-					}, 
-					planet_id: self.planet().id,
-					zoom: 'orbital'
-				});
-			};
-		};
-		
-		self.defMouseleave = function(data, e) {
+		var hidePreview = function() {
 			api.Panel.message(api.Panel.parentId, 'unit_alert.hide_preview');
 		};
 		
-		var runUnitCommandByMapXY = function(cmd, x, y, queue) {
-			var ll = self.projection().invert([x, y]);
-			if (ll) {
-				var c = convertToCartesian(ll[1], ll[0]);
-				var payload = {
-					method: cmd,
-					arguments: [c[0], c[1], c[2], self.planet().id, !!queue],
+		self.showPreviewByMapXY = function(x, y) {
+			if (self.checkPixelOnSphere(x, y)) {
+				var ll = self.projection().invert([x, y]);
+				if (ll) {
+					var c = convertToCartesian(ll[1], ll[0]);
+					api.Panel.message(api.Panel.parentId, 'unit_alert.show_preview', {
+						location: {
+							x: c[0],
+							y: c[1],
+							z: c[2]
+						}, 
+						planet_id: self.planet().id,
+						zoom: 'orbital'
+					});
 				};
-				api.Panel.message(api.Panel.parentId, 'runUnitCommand', payload);
+			} else {
+				hidePreview();
+			}
+		};
+		
+		self.defMouseleave = function(data, e) {
+			hidePreview();
+		};
+		
+		var runUnitCommandByMapXY = function(cmd, x, y, queue) {
+			if (self.checkPixelOnSphere(x, y)) {
+				var ll = self.projection().invert([x, y]);
+				if (ll) {
+					var c = convertToCartesian(ll[1], ll[0]);
+					var payload = {
+						method: cmd,
+						arguments: [c[0], c[1], c[2], self.planet().id, !!queue],
+					};
+					api.Panel.message(api.Panel.parentId, 'runUnitCommand', payload);
+				}
 			}
 		};
 		
@@ -1071,9 +1690,9 @@ $(document).ready(function() {
 		self.findControllableUnitsBySpec = function(spec) {
 			var units = [];
 			
-			_.forEach(self.units(), function(unit) {
-				if (unit.army() === model.armyId() && unit.spec() === spec) {
-					units.push(unit.id());
+			_.forEach(self.units, function(unit) {
+				if (unit.army === model.armyId() && unit.spec === spec) {
+					units.push(unit.id);
 				}
 			});
 			
@@ -1110,15 +1729,15 @@ $(document).ready(function() {
 				var xm = x + hw;
 				var ym = y + hh;
 				
-				var zUnits = self.zSortedUnits();
+				var zUnits = self.zSortedUnitsX;
 				for (var u = zUnits.length - 1; u >= 0; u--) {
 					var unit = zUnits[u];
 
-					if (unit.army() !== model.armyId()) {
+					if (unit.army !== model.armyId()) {
 						continue;
 					}
 					
-					var translate = unit.translate();
+					var translate = unit.translate;
 					// this is the center of the unit-icon
 					var ux = translate[0];
 					var uy = translate[1];
@@ -1126,12 +1745,12 @@ $(document).ready(function() {
 					// hitting the middle pixel of an icon is a quick way out of these tests
 					// dont do it for direct clicks
 					if (!directclick && ux >= x && ux <= x + w && uy >= y && uy <= y + h) {
-						if (isPrio(unit.spec())) {
+						if (isPrio(unit.spec)) {
 							foundPrioUnits = true;
-							unitsFound[unit.id()] = true;
+							unitsFound[unit.id] = true;
 							unitsFound.found = true;
 						} else {
-							nonPrioUnits[unit.id()] = true;
+							nonPrioUnits[unit.id] = true;
 							nonPrioUnits.found = true;
 						}
 					} else {
@@ -1141,13 +1760,13 @@ $(document).ready(function() {
 							intersection[1] = hackRound((intersection[1] - ux + uw) / scale);
 							intersection[2] = hackRound((intersection[2] - uy + uh) / scale);
 							intersection[3] = hackRound((intersection[3] - uy + uh) / scale);
-							if (checkSpecPixelHit(unit.spec(), intersection)) {
-								if (isPrio(unit.spec())) {
+							if (checkSpecPixelHit(unit.spec, intersection)) {
+								if (isPrio(unit.spec)) {
 									foundPrioUnits = true;
-									unitsFound[unit.id()] = true;
+									unitsFound[unit.id] = true;
 									unitsFound.found = true;
 								} else {
-									nonPrioUnits[unit.id()] = true;
+									nonPrioUnits[unit.id] = true;
 									nonPrioUnits.found = true;
 								}
 								
@@ -1271,7 +1890,7 @@ $(document).ready(function() {
 			var maxHeight = self.parentHeight() - self.minimapsBottomMargin();
 			return Math.floor(maxHeight / self.minimapHeightMedium()) * (self.minimapAreaWidth() / self.minimapWidthMedium());
 		});
-
+		
 		self.minimapWidth = ko.computed(function() {
 			if (self.planetCount() <= self.maxPlanetsForBig()) {
 				return self.minimapWidthBig();
@@ -1291,7 +1910,7 @@ $(document).ready(function() {
 				return self.minimapHeightSmall();
 			}
 		});
-		
+
 		self.optimalUberMapWidth = ko.computed(function() {
 			return self.parentWidth() - self.minimapAreaWidth() - self.minimapUbermapGap();
 		});
@@ -1312,7 +1931,6 @@ $(document).ready(function() {
 		self.uberMapHeight = ko.computed(function() {
 			return Math.floor(self.uberMapWidthDedicatesHeight() ? self.optimalUberMapWidth() / self.mapSidesRatio() : self.optimalUberMapHeight());
 		});
-		
 		
 		// it turns out that resizing it only on demand when the ubermap is shown delays the moment until the ubermap shows up, so
 		// better accept that the page always has the full size for faster ubermap switch on/off
@@ -1418,35 +2036,36 @@ $(document).ready(function() {
 		};
 		
 		self.drawUnit = function(ctx, unit, map) {
-			var fillImg = self.getUnitSpecImage(unit.spec(), true, unit.armyColor(), undefined);
-			var borderImg = self.getUnitSpecImage(unit.spec(), false, undefined, self.selection()[unit.id()]);
+			var fClr = model.armyColors()[unit.army];
+			var fillImg = self.getUnitSpecImage(unit.spec, true, fClr, undefined);
+			var borderImg = self.getUnitSpecImage(unit.spec, false, undefined, self.selection()[unit.id]);
 
-			var t = unit.translate();
-			var s = unit.scale();
+			var t = unit.translate;
+			var s = unit.scale;
 			var size = assumedIconSize * s;
 
 			// integer numbers are faster for the canvas
 			var x = hackRound(t[0] + (-size/2));
 			var y = hackRound(t[1] + (-size/2));
 			size = hackRound(size);
-			
-			if (x === 0 && y === 0 && isOrbital(unit.spec())) { // do not draw orbital units while they are being build, their position is buggy while that happens and is always 0/0
+
+			if (x === 0 && y === 0 && isOrbital(unit.spec)) { // do not draw orbital units while they are being build, their position is buggy while that happens and is always 0/0
 				return;
 			}
 			ctx.drawImage(fillImg, x, y, size, size);
 			ctx.drawImage(borderImg, x, y, size, size);
 			
-			if (map.isUberMap && unit.hpFactor() < 0.99) {
-				var clrP = Math.ceil(255 * unit.hpFactor());
+			if (map.isUberMap && unit.health < 0.99) {
+				var clrP = Math.ceil(255 * unit.health);
 				var hpColor;
-				if (unit.hpFactor() > 0.7) {
+				if (unit.health > 0.7) {
 					hpColor = "rgb(0,255,0)";
-				} else if (unit.hpFactor() > 0.3) {
+				} else if (unit.health > 0.3) {
 					hpColor = "rgb(255,255,0)";
 				} else {
 					hpColor = "rgb(255,0,0)";
 				}
-				var hpLength = size * unit.hpFactor();
+				var hpLength = size * unit.health;
 				drawLine(ctx, x, t[1] + size / 3, x + hpLength, t[1] + size / 3, hpColor);
 			}
 		};
@@ -1454,6 +2073,8 @@ $(document).ready(function() {
 		self.armyColors = ko.observable({});
 		
 		self.armyId = ko.observable(undefined);
+		self.armyIndex = ko.observable(undefined);
+		self.armyIndexIdMap = ko.observable(undefined);
 		
 		self.mappingData = ko.observable();
 		
@@ -1801,7 +2422,7 @@ $(document).ready(function() {
 				var isDoubleSelect = (new Date().getTime() - lastSelectTime) < 350;
 				lastSelectTime = new Date().getTime();
 				if (isDoubleSelect && hitMap) {
-					ar = hitMap.findControllableUnitsBySpec(hitMap.unitMap[ar[0]].spec());
+					ar = hitMap.findControllableUnitsBySpec(hitMap.unitMapX[ar[0]].spec);
 				}
 			}
 			
@@ -1888,6 +2509,8 @@ $(document).ready(function() {
 		console.log(args);
 		model.armyColors(args[0]);
 		model.armyId(args[1]);
+		model.armyIndex(args[2]);
+		model.armyIndexIdMap(args[3]);
 	};
 	
 	handlers.setUberMapVisible = function(show) {
