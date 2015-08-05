@@ -1123,7 +1123,7 @@ $(document).ready(function() {
 			"land": [[255, 191, 0], [112,92,33]],
 			"mex": [[0, 255, 0], [0, 120, 0]],
 			"sea": [[71,118,255], [71,215,255]],
-			"blocked": [[255,0,0], [214,144,144]]
+			"blocked": [[0,0,0], [120,120,120]]
 		};
 		
 		var getHeightScaledColor = function(heightFactor, clrA, clrB) {
@@ -1236,8 +1236,8 @@ $(document).ready(function() {
 				return undefined;
 			}
 			
-			for (var lat = -90; lat < 90; lat++) {
-				for (var long = -180; long < 180; long++) {
+			for (var lat = -90; lat < 90; lat+=0.25) {
+				for (var long = -180; long < 180; long+=0.25) {
 					var projected = projection([long, lat]);
 					var x = Math.round(projected[0]);
 					var y = Math.round(projected[1]);
@@ -1910,7 +1910,7 @@ $(document).ready(function() {
 				return self.minimapHeightSmall();
 			}
 		});
-
+		
 		self.optimalUberMapWidth = ko.computed(function() {
 			return self.parentWidth() - self.minimapAreaWidth() - self.minimapUbermapGap();
 		});
