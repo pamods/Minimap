@@ -45,15 +45,19 @@ var pmUberMap = function(handler, arguments) {
 	
 	handlers.quitCommandMode = model.endCommandMode;
 	
-	handlers.setTopRightPreview = function(s) {
-		var h = $("holodeck.preview");
-		if (!s) {
-			h.css({"position": "relative", "top": "0px", "right": "0px"});
-		} else {
-			h.css({"position": "fixed", "top": "35px", "right": "-316px"});
-		}
+	var oldShowAlertPreview = model.showAlertPreview;
+
+	model.showAlertPreview = function(request) {
+		var oldLookAt = api.camera.lookAt;
+		api.camera.lookAt = function(target) {
+			oldLookAt(target);
+			// locks the poles for the alerts preview pip
+			api.camera.alignToPole();
+		};
+		oldShowAlertPreview(request);
+		api.camera.lookAt = oldLookAt;
 	};
-	
+	 
 	handlers.queryViewportSize = function() {
 		pmUberMap('setSize', [window.screen.width, window.screen.height]);
 	};
@@ -78,18 +82,6 @@ var pmUberMap = function(handler, arguments) {
 		console.log(payload);
 		
 	//	unitCommands[payload.method].apply(null, payload.arguments);
-	};
-	
-	var oldShowAlertPreview = model.showAlertPreview;
-	model.showAlertPreview = function(target) {
-		var oldLookAt = api.camera.lookAt;
-		api.camera.lookAt = function(target) {
-			oldLookAt(target);
-			// locks the poles for the alerts preview pip
-			api.camera.alignToPole();
-		};
-		oldShowAlertPreview(target);
-		api.camera.lookAt = oldLookAt;
 	};
 	
 	var colorByArmyId = {};
@@ -155,11 +147,41 @@ var pmUberMap = function(handler, arguments) {
 		pmUberMap("setUberMapVisible", v);
 	});
 	
+	setTimeout(function() {
+		model.mainCameraLocation = api.camera.getFocus(model.holodeck.id).location;
+		model.mainCameraPlanet = api.camera.getFocus(model.holodeck.id).planet;
+		model.mainCameraPosition = ko.computed(function() {
+			var l = model.mainCameraLocation();
+			return {planet: model.mainCameraPlanet(),
+					x: l.x,
+					y: l.y,
+					z: l.z};
+		});
+		model.mainCameraPosition.extend({rateLimit: 50});
+		model.mainCameraPosition.subscribe(function(v) {
+			pmUberMap("camLoc", v);
+		});
+		var oldLookAt = api.camera.lookAt;
+		api.camera.lookAt = function(t, s) {
+			oldLookAt(t, s);
+			if (model.holodeck.id === api.Holodeck.focused.id) {
+				var catchPosition = function() {
+					model.mainCameraLocation(t.location);
+					model.mainCameraPlanet(t.planet_id);
+				};
+				catchPosition();
+				setTimeout(function() {
+					catchPosition();
+				}, 100);
+			}
+		};
+	}, 3000);
+	
 	handlers.setMainCamera = function(target) {
 		var focusBefore = api.Holodeck.focused;
-		api.holodecks[0].focus();
+		model.holodeck.focus();
 		
-		api.camera.lookAt(target);
+		api.camera.lookAt(target, false);
 		api.camera.alignToPole();
 		
 		if (focusBefore) {

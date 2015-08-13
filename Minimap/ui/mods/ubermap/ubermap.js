@@ -362,18 +362,6 @@ $(document).ready(function() {
 	
 	var cameraLocation = ko.observable();
 	
-	var queryCameraLocation = function() {
-		// TODO this would be best with the hopefully upcoming "get focused planet" call stuff...
-		// assumes that the main holodeck has the ID 0. Afaik that is always correct
-		$.getJSON(paMemoryWebservice+"/pa/query/holodeck/cam/0", function(data) {
-			cameraLocation(data);
-			setTimeout(queryCameraLocation, camQueryTime);
-		}).fail(function() {
-			setTimeout(queryCameraLocation, noMemoryReaderPollTime);
-		});
-	};
-//	setTimeout(queryCameraLocation, 3000);
-	
 	function UnitAPIAdapter() {
 		var self = this;
 		var world = api.getWorldView(0);
@@ -1622,7 +1610,7 @@ $(document).ready(function() {
 		};
 		
 		var hidePreview = function() {
-			api.Panel.message(api.Panel.parentId, 'unit_alert.hide_preview');
+			api.Panel.message(api.Panel.parentId, 'preview.hide');
 		};
 		
 		self.showPreviewByMapXY = function(x, y) {
@@ -1630,14 +1618,21 @@ $(document).ready(function() {
 				var ll = self.projection().invert([x, y]);
 				if (ll) {
 					var c = convertToCartesian(ll[1], ll[0]);
-					api.Panel.message(api.Panel.parentId, 'unit_alert.show_preview', {
-						location: {
-							x: c[0],
-							y: c[1],
-							z: c[2]
-						}, 
-						planet_id: self.planet().id,
-						zoom: 'orbital'
+					api.Panel.message(api.Panel.parentId, 'preview.show', {
+						target: {
+							location: {
+								x: c[0],
+								y: c[1],
+								z: c[2]
+							}, 
+							planet_id: self.planet().id,
+							zoom: 'orbital'
+						},
+						placement: {
+							panelName: "ubermap_panel",
+							offset: [$(document).width() - 316, 35],
+							alignDeck: [0, 0]
+						}
 					});
 				};
 			} else {
@@ -2150,7 +2145,6 @@ $(document).ready(function() {
 		self.activePlanet = ko.observable(0);
 		
 		self.showsUberMap.subscribe(function(v) {
-			api.Panel.message(api.Panel.parentId, 'setTopRightPreview', v);
 			api.Panel.message(api.Panel.parentId, 'setUberMapState', v);
 		});
 		
@@ -2615,6 +2609,11 @@ $(document).ready(function() {
 	
 	handlers.toggleByName = function(name) {
 		model[name](!model[name]());
+	};
+	
+	handlers.camLoc = function(loc) {
+		cameraLocation(loc);
+		model.activePlanet(cameraLocation().planet);
 	};
 	
 	app.registerWithCoherent(model, handlers);
