@@ -1408,38 +1408,43 @@ $(document).ready(function() {
 			if (e.altKey) {
 				self.setRotationByPixels(e.offsetX);
 			}
-			self.showPreviewByMapXY(e.offsetX, e.offsetY);
+			if (self.checkPixelOnSphere(e.offsetX, e.offsetY)) {
+				self.showPreviewByMapXY(e.offsetX, e.offsetY);
+				var top = self.top ? self.top() : 0;
+				var left = self.left ? self.left() : 0;
+				model.cursorPosition({x: e.offsetX-24 + left, y: e.offsetY-24+top});
+				model.cursorVisible(true);
+			} else {
+				hidePreview();
+			}
 		};
 		
 		var hidePreview = function() {
 			api.Panel.message(api.Panel.parentId, 'preview.hide');
+			model.cursorVisible(false);
 		};
 		
 		self.showPreviewByMapXY = function(x, y) {
-			if (self.checkPixelOnSphere(x, y)) {
-				var ll = self.projection().invert([x, y]);
-				if (ll) {
-					var c = convertToCartesian(ll[1], ll[0]);
-					api.Panel.message(api.Panel.parentId, 'preview.show', {
-						target: {
-							location: {
-								x: c[0],
-								y: c[1],
-								z: c[2]
-							}, 
-							planet_id: self.planet().id,
-							zoom: 'orbital'
-						},
-						placement: {
-							panelName: "ubermap_panel",
-							offset: [$(document).width() - 316, 35],
-							alignDeck: [0, 0]
-						}
-					});
-				};
-			} else {
-				hidePreview();
-			}
+			var ll = self.projection().invert([x, y]);
+			if (ll) {
+				var c = convertToCartesian(ll[1], ll[0]);
+				api.Panel.message(api.Panel.parentId, 'preview.show', {
+					target: {
+						location: {
+							x: c[0],
+							y: c[1],
+							z: c[2]
+						}, 
+						planet_id: self.planet().id,
+						zoom: 'orbital'
+					},
+					placement: {
+						panelName: "ubermap_panel",
+						offset: [$(document).width() - 316, 35],
+						alignDeck: [0, 0]
+					}
+				});
+			};
 		};
 		
 		self.defMouseleave = function(data, e) {
@@ -1451,9 +1456,11 @@ $(document).ready(function() {
 				var ll = self.projection().invert([x, y]);
 				if (ll) {
 					var c = convertToCartesian(ll[1], ll[0]);
+					var units = _.map(Object.keys(model.selection()), function(o) {return Number(o);});
 					var payload = {
 						method: cmd,
-						arguments: [c[0], c[1], c[2], self.planet().id, !!queue],
+						units: units,
+						arguments: [c[0], c[1], c[2], self.planet().id, !!queue, model.ctrlState()],
 					};
 					api.Panel.message(api.Panel.parentId, 'runUnitCommand', payload);
 				}
@@ -1815,6 +1822,17 @@ $(document).ready(function() {
 		
 		self.commandMode = ko.observable("default");
 		
+		self.cursorImg = ko.computed(function() {
+			var cm = self.commandMode();
+			if (cm === "default") {
+				return "coui://ui/main/shared/img/icons/icons_command_move.png";
+			} else {
+				return "coui://ui/main/shared/img/icons/icons_"+cm+".png";
+			}
+		});
+		
+		self.cursorVisible = ko.observable(false);
+		self.cursorPosition = ko.observable({x: 500, y: 500});
 		self.mouseHoverMap = undefined;
 
 		var hiddenCanvas = document.createElement("canvas");
@@ -1822,7 +1840,6 @@ $(document).ready(function() {
 		hiddenCanvas.height = assumedIconSize;
 		var hiddenCtx = hiddenCanvas.getContext('2d');
 		hiddenCtx.fillStyle = "black";
-//		hiddenCtx.translate(assumedIconSize / 2, assumedIconSize / 2);
 
 		var parseColor = function(clr) {
 			if (clr == '' || clr == undefined) {
@@ -1942,6 +1959,9 @@ $(document).ready(function() {
 		self.ubermaps = ko.observableArray([]);
 		
 		self.selection = ko.observable({});
+		self.hasSelection = ko.computed(function() {
+			return Object.keys(self.selection()).length > 0;
+		});
 		
 		self.drawSpecGhost = function(ctx, spec, x, y, scale) {
 			var ghostImg = self.getUnitSpecImage(spec, true, "rgba(255,255,255,0.5)", undefined);

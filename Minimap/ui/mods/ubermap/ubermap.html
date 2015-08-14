@@ -25,6 +25,9 @@
 </head>
 
 <body class="body_panel" data-bind="style: {width: bodyWidth()+'px', height: bodyHeight()+'px'}", style="position: relative">
+<!-- It kind of sucks how bad it lags behind the real cursor... -->
+<!-- 	<img width=48 height=48 data-bind="attr: {src: cursorImg}, style: {top: cursorPosition().y+'px', left: cursorPosition().x+'px'}, visible: cursorVisible() && hasSelection()" style="position: absolute; z-index: 999" class="ignoreMouse" /> -->
+	 
 	<div id='selection_layer' data-bind="css: {receiveMouse: showsUberMap, ignoreMouse: !showsUberMap()}, style: {width: parentWidth, height: parentHeight}" style='position: fixed; top: 0px; left: 0px; z-index: -999'></div>
 	<div class="minimaps" data-bind="style: {'max-width': minimapAreaWidth()+'px'}">
 		<!-- ko foreach: minimaps -->

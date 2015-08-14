@@ -76,12 +76,31 @@ var pmUberMap = function(handler, arguments) {
 	};
 	
 	handlers.runUnitCommand = function(payload) {
-		// TODO wire up new API for this
+		var order = {};
+		order.units = payload.units;
 		
-		console.log("missing commands handler");
-		console.log(payload);
+		if (payload.method === "moveSelected") {
+			order.command = "move";
+		} else if (payload.method === "patrolSelected") {
+			order.command = "patrol";
+		} else if (payload.method === "attackSelected") {
+			order.command = "attack";
+		} else if (payload.method === "ping") {
+			order.command = "ping";
+		} else {
+			console.log("dunno method for order?! " + payload.method);
+		}
 		
-	//	unitCommands[payload.method].apply(null, payload.arguments);
+		order.queue = payload.arguments[4];
+		order.location = {
+			planet: payload.arguments[3],
+			pos: [payload.arguments[0], payload.arguments[1], payload.arguments[2]]
+		};
+		order.group = !payload.arguments[5];
+		
+		api.getWorldView(0).sendOrder(order).then(function(resp) {
+//			console.log(resp);
+		});
 	};
 	
 	var colorByArmyId = {};
