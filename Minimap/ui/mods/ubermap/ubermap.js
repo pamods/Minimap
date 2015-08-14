@@ -756,7 +756,7 @@ $(document).ready(function() {
 		};
 		
 		var makeUnitScale = function() {
-			return Math.sqrt(Math.sqrt(self.widthSizeMod())) * Math.sqrt(Math.sqrt(self.planetSizeMod())) * 0.35; 
+			return Math.sqrt(Math.sqrt(self.widthSizeMod())) * Math.sqrt(Math.sqrt(self.planetSizeMod())) * 0.33; 
 		};
 		
 		self.unitScaleComputed = ko.computed(makeUnitScale);	
@@ -1531,7 +1531,7 @@ $(document).ready(function() {
 				for (var y = ix[2]; y <= ix[3]; y++) {
 					if (model.testHitPixelOfSpec(spec, x, y)) {
 						
-						/*
+/*						
 						// fun debugging code: show the exact pixel of the bitmask of the icon that triggered the hit
 						console.log("hit pixel "+x+"/"+y);
 						var a = model.unitSpecPathsMap[spec+'_bits'];
@@ -1543,7 +1543,7 @@ $(document).ready(function() {
 							str+="\n"
 						}
 						console.log(str);
-						*/
+*/
 						
 						return true;
 					}
@@ -1822,68 +1822,122 @@ $(document).ready(function() {
 		hiddenCanvas.height = assumedIconSize;
 		var hiddenCtx = hiddenCanvas.getContext('2d');
 		hiddenCtx.fillStyle = "black";
-		hiddenCtx.translate(assumedIconSize / 2, assumedIconSize / 2);
+//		hiddenCtx.translate(assumedIconSize / 2, assumedIconSize / 2);
+
+		var parseColor = function(clr) {
+			if (clr == '' || clr == undefined) {
+				return [0,0,0];
+			} else if (clr.indexOf("rgba") !== -1) {
+				var m = clr.match(/^rgba\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/i);
+				return [m[1]/255,m[2]/255,m[3]/255,m[4]/255];
+			} else {
+				var m = clr.match(/^rgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/i);
+				return [m[1]/255,m[2]/255,m[3]/255, 1];
+			}
+		};
+		var getIconForSpec = function(spec) {
+			return "coui://ui/main/atlas/icon_atlas/img/strategic_icons/icon_si_" + nameForSpec(spec) +".png";
+		};
+		var start = /[^\/]*$/;
+		var end = /[.]json$/;
+		var nameForSpec = function(spec) {
+			if (spec === "commander") {
+				return spec;
+			} else {
+				return spec.substring(spec.search(start), spec.search(end));
+			}
+		};
 		
 		self.unitSpecPathsMap = {};
-		self.checkSpecExists = function(spec) {
+		self.checkSpecExists = function(spec, img) {
 			if (self.unitSpecPathsMap[spec] === undefined) {
-				// create Path2D for the svg path string
-				var b = new Path2D(strategicIconPaths[spec + '_border'] || strategicIconPaths.fallback_border);
-				var f = new Path2D(strategicIconPaths[spec + '_fill'] || strategicIconPaths.fallback_fill);
-				self.unitSpecPathsMap[spec+"_b"] = b;
-				self.unitSpecPathsMap[spec+"_f"] = f;
-				
-				// create boolean arrays for quick hit detection for pixel perfect
 				hiddenCtx.clearRect(-assumedIconSize, -assumedIconSize, assumedIconSize*2, assumedIconSize*2);
-				hiddenCtx.fill(b);
-				hiddenCtx.fill(f);
+				hiddenCtx.drawImage(img, 0, 0, assumedIconSize, assumedIconSize);
+				
 				var imgData = hiddenCtx.getImageData(0, 0, assumedIconSize, assumedIconSize);
 				var bitMask = [];
 				for (var i = 0; i < imgData.data.length; i+=4) {
-					bitMask.push(imgData.data[i+3] !== 0)
+					bitMask.push(imgData.data[i+3] !== 0 && !(imgData.data[i+2] === imgData.data[i+1] && imgData.data[i+1] === imgData.data[i]));
 				}
+				
 				self.unitSpecPathsMap[spec+"_bits"] = bitMask;
 				self.unitSpecPathsMap[spec] = true;
 			}
 		};
 		
-		// icons are cached as an image in a fixed resolution that is copied onto the visible canvas
-		// for massive performance gains
-		self.unitSpecsImageCache = {};
-		self.getUnitSpecImage = function(spec, fill, armycolor, selected) {
-			self.checkSpecExists(spec);
-			var fStr = fill ? ("fill" + armycolor) : ("border" + selected);
-			var key = spec + fStr;
-			var obj = self.unitSpecsImageCache[key]; 
-			if (obj === undefined) {
-				var canvas = document.createElement("canvas");
-				canvas.width = assumedIconSize;
-				canvas.height = assumedIconSize;
-				var ctx = canvas.getContext("2d");
-				ctx.translate(assumedIconSize / 2, assumedIconSize / 2);
-				
-				var path = fill ? self.unitSpecPathsMap[spec+"_f"] : self.unitSpecPathsMap[spec+"_b"];
-				
-				if (fill) {
-					ctx.fillStyle = armycolor;
-				} else {
-					if (selected) {
-						ctx.fillStyle = "white";
-					} else {
-						ctx.fillStyle = "black";
-					}
+		var shadeCanvas = function(ctx, x, y, width, height, fragmentShader) {
+			var pixels = ctx.getImageData(x, y, width, height);
+			var pdata = pixels.data;
+			for (var px = 0; px < pixels.width; px++) {
+				for (var py = 0; py < pixels.height; py++) {
+					var index = (px + py * pixels.width) * 4;
+					fragmentShader(pdata, index);
 				}
-				ctx.fill(path);
-				
-				obj = canvas;
-								
-				self.unitSpecsImageCache[key] = obj;
 			}
-			return obj;
+			
+			ctx.putImageData(pixels, 0, 0, x, y, width, height);
 		};
 		
+		// icons are cached as an image in a fixed resolution that is copied onto the visible canvas
+		// for performance gains
+		self.unitSpecsImageCache = {};
+		
+		self.getUnitSpecImage = function(spec, armyColor, selected) {
+			var key = spec + armyColor + selected;
+			var obj = self.unitSpecsImageCache[key];
+			if (obj === undefined) {
+				obj = document.createElement("canvas");
+				obj.width = assumedIconSize;
+				obj.height = assumedIconSize;
+				var ctx = obj.getContext("2d");
+				
+				var img = new Image();
+				img.onload = function() {
+					ctx.drawImage(img, 0, 0, assumedIconSize, assumedIconSize);
+					self.checkSpecExists(spec, img);
+					
+					var pC = parseColor(armyColor);
+					
+					shadeCanvas(ctx, 0, 0, assumedIconSize, assumedIconSize, function(pix, index) {
+						// aims to provide behavior similar to particle_icon.fs shader
+						var r = pix[index];
+						var g = pix[index+1];
+						var b = pix[index+2];
+						var a = pix[index+3];
+						r /= 255;
+						g /= 255;
+						b /= 255;
+						a /= 255;
+						
+						if (r !== g || g !== b) {
+							var weight = Math.pow(g, 1/2.2) / (a + 0.00001);
+							var sC = selected ? 1 : 0;
+							r = (sC * (1 - weight) + pC[0] * weight);
+							g = (sC * (1 - weight) + pC[1] * weight);
+							b = (sC * (1 - weight) + pC[2] * weight);
+						}
+						a = a * pC[3];
+						
+						r = Math.round(r * 255);
+						g = Math.round(g * 255);
+						b = Math.round(b * 255);
+						a = Math.round(a * 255);
+						pix[index] = r;
+						pix[index+1] = g;
+						pix[index+2] = b;
+						pix[index+3] = a;
+					});
+				};
+				img.src = getIconForSpec(spec);
+				
+				self.unitSpecsImageCache[key] = obj;
+			}
+			
+			return obj;
+		};
+	
 		self.testHitPixelOfSpec = function(spec, x, y) {
-			return x >= 0 && x < assumedIconSize && y >= 0 && y < assumedIconSize && self.unitSpecPathsMap[spec+"_bits"][y * assumedIconSize + x];
+			return x >= 0 && x < assumedIconSize && y >= 0 && y < assumedIconSize && self.unitSpecPathsMap[spec+"_bits"] && self.unitSpecPathsMap[spec+"_bits"][y * assumedIconSize + x];
 		};
 		
 		self.minimaps = ko.observableArray([]);
@@ -1893,18 +1947,19 @@ $(document).ready(function() {
 		
 		self.drawSpecGhost = function(ctx, spec, x, y, scale) {
 			var ghostImg = self.getUnitSpecImage(spec, true, "rgba(255,255,255,0.5)", undefined);
-			var size = assumedIconSize * scale;
-			x = hackRound(x + (-size/2));
-			y = hackRound(y + (-size/2));
-			size = hackRound(size);
-			ctx.drawImage(ghostImg, x, y, size, size);
+			if (ghostImg) {
+				var size = assumedIconSize * scale;
+				x = hackRound(x + (-size/2));
+				y = hackRound(y + (-size/2));
+				size = hackRound(size);
+				ctx.drawImage(ghostImg, x, y, size, size);
+			}
 		};
 		
 		self.drawUnit = function(ctx, unit, map) {
 			var fClr = model.armyColors()[unit.army];
-			var fillImg = self.getUnitSpecImage(unit.spec, true, fClr, undefined);
-			var borderImg = self.getUnitSpecImage(unit.spec, false, undefined, self.selection()[unit.id]);
-
+			var fillImg = self.getUnitSpecImage(unit.spec, fClr, self.selection()[unit.id]);
+			
 			var t = unit.translate;
 			var s = unit.scale;
 			var size = assumedIconSize * s;
@@ -1918,7 +1973,6 @@ $(document).ready(function() {
 				return;
 			}
 			ctx.drawImage(fillImg, x, y, size, size);
-			ctx.drawImage(borderImg, x, y, size, size);
 			
 			if (map.isUberMap && unit.health < 0.99) {
 				var clrP = Math.ceil(255 * unit.health);
