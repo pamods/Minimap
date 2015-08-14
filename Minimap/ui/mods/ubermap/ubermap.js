@@ -34,14 +34,11 @@ var vecDist = function(a, b) {
 	return Math.sqrt(vecDistSq(a, b));
 };
 
-var cloudIdSrc = 42;
 function SpatialCloud(cellSize, store) {
 	var self = this;
 	
 	store = store || {};
 	cellSize = store.cellSize || cellSize;
-	
-	self.id = cloudIdSrc++;
 	
 	self.extremeHeights = store.extremeHeights || {overallMax: 0, overallMin: 9999};
 	
@@ -1214,8 +1211,8 @@ $(document).ready(function() {
 		};
 		
 		var renderImage = function(cloud, w, h, projection, planet, ctx, quality) { // quality 1 is pixel perfect, 2 is 2x2 pixels, etc...
-			var timeKey = "render image planet "+planet.name;
-			console.time(timeKey);
+//			var timeKey = "render image planet "+planet.name;
+//			console.time(timeKey);
 			var isGas = cloud === "gas";
 			var biome = planet.biome;
 			if (biome === "earth" && planet.temp < 0) {
@@ -1258,7 +1255,7 @@ $(document).ready(function() {
 				}
 			}
 			ctx.putImageData(imgDat, 0, 0);
-			console.timeEnd(timeKey);
+//			console.timeEnd(timeKey);
 		};
 		
 		self.projectionCutOffData = ko.computed(function() {
@@ -1760,9 +1757,9 @@ $(document).ready(function() {
 		});
 		
 		self.minimapWidth = ko.computed(function() {
-			if (self.planetCount() <= self.maxPlanetsForBig()) {
+			if (self.alivePlanetsCount() <= self.maxPlanetsForBig()) {
 				return self.minimapWidthBig();
-			} else if (self.planetCount() <= self.maxPlanetsForMedium()) {
+			} else if (self.alivePlanetsCount() <= self.maxPlanetsForMedium()) {
 				return self.minimapWidthMedium();
 			} else {
 				return self.minimapWidthSmall();
@@ -1770,9 +1767,9 @@ $(document).ready(function() {
 		});
 		
 		self.minimapHeight = ko.computed(function() {
-			if (self.planetCount() <= self.maxPlanetsForBig()) {
+			if (self.alivePlanetsCount() <= self.maxPlanetsForBig()) {
 				return self.minimapHeightBig();
-			} else if (self.planetCount() <= self.maxPlanetsForMedium()) {
+			} else if (self.alivePlanetsCount() <= self.maxPlanetsForMedium()) {
 				return self.minimapHeightMedium();
 			} else {
 				return self.minimapHeightSmall();
@@ -1963,8 +1960,16 @@ $(document).ready(function() {
 		};
 		
 		self.planets = ko.observable([]);
-		self.planetCount = ko.computed(function() {
-			return self.planets().length;
+		self.alivePlanetsCount = ko.computed(function() {
+			var n = 0;
+			
+			for (var i = 0; i < self.planets().length; i++) {
+				if (!self.planets()[i].dead) {
+					n++;
+				}
+			}
+			
+			return n;
 		});
 		
 //		var spaceUnits = {}; // spaaace. I am in space.
@@ -2008,7 +2013,7 @@ $(document).ready(function() {
 			var foundPlanets = [];
 			for (var i = 0; i < self.minimaps().length; i++) {
 				for (var j = 0; j < self.planets().length; j++) {
-					if (self.planets()[j].name === self.minimaps()[i].name()) {
+					if (self.planets()[j].name === self.minimaps()[i].name() && self.planets()[j].id === self.minimaps()[i].planet().id) {
 						foundPlanets.push(j);
 						self.minimaps()[i].planet(self.planets()[j]);
 						found = true;
@@ -2016,6 +2021,8 @@ $(document).ready(function() {
 					}
 				}
 			}
+			console.log("found planets are");
+			console.log(foundPlanets);
 			for (var i = 0; i < self.planets().length; i++) {
 				if (foundPlanets.indexOf(i) === -1) {
 					var mm = new MiniMapModel(self.planets()[i], self);
@@ -2235,42 +2242,6 @@ $(document).ready(function() {
 					self.queuePointCollection(planet);
 				}
 			}
-		};
-		
-		self.loadMappingData = function(payload) {
-//			var mapList = decode(localStorage["info.nanodesu.minimapkeys"]) || {};
-//			var mapData = minimapSystems[payload.name];
-//			var dbName = "info.nanodesu.info.minimaps";
-			
-			
-			
-//			if (mapList[payload.name]) {
-//				console.log("found minimap data in indexdb, will load key "+mapList[payload.name]);
-//				DataUtility.readObject(dbName, mapList[payload.name]).then(function(data) {
-//					self.queryAndAttachFeatures(data, "metal", "metal_splat_02.json", function(d) {
-//						self.queryAndAttachFeatures(d, "control", "control_point_01.json", function(d) {
-//							console.log(d);
-//							self.mappingData(d);
-//						});
-//					});
-//				});
-//			} else if (mapData) {
-//				console.log("systems.js seems to know this system");
-//				self.queryAndAttachFeatures(mapData, "metal", "metal_splat_02.json", function(d) {
-//					self.queryAndAttachFeatures(d, "control", "control_point_01.json", function(d) {
-//						console.log(d);
-//						self.mappingData(d);
-//					});
-//				});
-//			} else {
-//				console.log("No prepared minimap data available for map with name "+payload.name);
-//				self.queryAndAttachFeatures({planets: []}, "metal", "metal_splat_02.json", function(d) {
-//					self.queryAndAttachFeatures(d, "control", "control_point_01.json", function(d) {
-//						console.log(d);
-//						self.mappingData(d);
-//					});
-//				});
-//			}
 		};
 		
 		self.selectsNavyFighters = ko.observable(false);
