@@ -1066,16 +1066,6 @@ $(document).ready(function() {
 				name: self.name(),
 				cloud: self.cloud()
 			};
-			
-//			if (model.mappingData() !== undefined) {
-//				var ps = model.mappingData();
-//				for (var i = 0; i < ps.length; i++) {
-//					if (ps[i].name === self.name()) {
-//						result.cloud = ps[i].cloud; 
-//						break;
-//					}
-//				}
-//			}
 			return result;
 		});
 		
@@ -1117,15 +1107,6 @@ $(document).ready(function() {
 			return d3.geo.winkel3().scale(38*(w/200)).translate([w/2, h/2]).precision(.1);
 		});
 		
-		self.mappingObject.subscribe(function(m) {
-			if (m && !m.knownMark) { 
-				m.knownMark = true;
-				self.mapPointCloud(m.cloud);
-			}
-		});
-		
-		self.mapPointCloud = ko.observable(undefined);
-		
 		var getPixelColor = function(config, points, pixelPoint) {
 			if (points.length === 0) {
 				return [0, 0, 0];
@@ -1148,7 +1129,7 @@ $(document).ready(function() {
 				points[i].rating = pointRatings[i] / prs;
 			}
 			
-			var cloud = self.mapPointCloud();
+			var cloud = self.cloud();
 			
 			var result = [0, 0, 0];
 			
@@ -1359,7 +1340,7 @@ $(document).ready(function() {
 		self.imageCompute = ko.computed(function() {
 			imgComputeCheck++;
 			var test = imgComputeCheck;
-			var cloud = self.mapPointCloud();
+			var cloud = self.cloud();
 			var w = self.width();
 			var h = self.height();
 			var projection = self.projection();
@@ -2062,11 +2043,6 @@ $(document).ready(function() {
 		self.collectPointCloud = function(planet) {
 			collectingPoints = true;
 			var reportCloud = function(cloud) {
-//				var holder = {
-//					name: planet.name,
-//					cloud: cloud
-//				};
-				
 				for (var i = 0; i < self.minimaps().length; i++) {
 					if (self.minimaps()[i].name() === planet.name) {
 						self.minimaps()[i].cloud(cloud);
@@ -2075,10 +2051,7 @@ $(document).ready(function() {
 						self.ubermaps()[i].cloud(cloud);
 					}
 				}
-				
-//				var mappings = model.mappingData();
-//				mappings.push(holder);
-//				model.mappingData(mappings);
+
 				collectingPoints = false;
 				processCollectionQueue();
 			};
