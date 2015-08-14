@@ -62,6 +62,7 @@
 		<!-- ko foreach: ubermaps -->
 		<div style="position: absolute;" data-bind="id: 'um-' + name(), style: {width: width()+'px', height: height()+'px', top: top()+'px', left: left()+'px', 'margin-top': hideByMargin()}">
 			<div class="hwaccelerate" style="position: relative">
+				
 				<svg class="ignoreMouse" data-bind="style: {position: 'absolute', width: width()+'px', height: height()+'px'}">
 					<defs>
 						<path data-bind="id: mappingObject().id+'-um-sphere', datum: {type: 'Sphere'}, d: path"></path>
@@ -70,11 +71,15 @@
 						</clipPath>
 					</defs>
 					<use class="background" data-bind="svguse: mappingObject().id+'-um-sphere'"></use>
-					<path class="graticule" data-bind="attr: {'clip-path': 'url(#'+mappingObject().id+'-um-clip)'}, d3b: d3b"></path>
-					<!-- ko foreach: layers -->
-					<path data-bind="css: layer, d3b: [data, $parent.path()], attr: {'clip-path': 'url(#'+$parent.mappingObject().id+'-um-clip)'}"></path>
-					<!-- /ko -->
 				</svg>
+				
+				<canvas data-bind="self: mapCanvas, attr: {width: width, height: height}, style: {'z-index': 20, position: 'absolute'}"></canvas>
+				
+				<svg class="ignoreMouse" data-bind="style: {position: 'absolute', width: width()+'px', height: height()+'px', 'z-index': 100}">
+					<use class="mapborder" data-bind="svguse: mappingObject().id+'-um-sphere'"></use>
+					<path class="graticule" data-bind="attr: {'clip-path': 'url(#'+mappingObject().id+'-um-clip)'}, d3b: d3b"></path>
+				</svg>
+				
 				<canvas class="receiveMouse" data-bind="rubberband: true, event: {click: click, mousemove: mousemove, mouseenter: mouseenter, mouseleave: mouseleave, contextmenu: rightClick},
 														self: canvas, attr: {width: width, height: height}, style: {'z-index': 999, position: 'absolute'}"></canvas>
 			</div>

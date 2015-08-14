@@ -34,11 +34,14 @@ var vecDist = function(a, b) {
 	return Math.sqrt(vecDistSq(a, b));
 };
 
+var cloudIdSrc = 42;
 function SpatialCloud(cellSize, store) {
 	var self = this;
 	
 	store = store || {};
 	cellSize = store.cellSize || cellSize;
+	
+	self.id = cloudIdSrc++;
 	
 	self.extremeHeights = store.extremeHeights || {overallMax: 0, overallMin: 9999};
 	
@@ -1056,22 +1059,23 @@ $(document).ready(function() {
 		self.name = ko.computed(function() {
 			return self.planet().name;
 		});
+		self.cloud = ko.observable();
 		self.mappingObject = ko.computed(function() {
 			var result = {
 				id: "p-id-"+self.planet().id,
 				name: self.name(),
+				cloud: self.cloud()
 			};
-			if (model.mappingData() !== undefined) {
-				var ps = model.mappingData().planets;
-				for (var i = 0; i < ps.length; i++) {
-					// the case "name unset cameraId set" happens for planets which have only data directly from the memory reader
-					if (ps[i].name === self.name() || ps[i].cameraId === self.planet().id) {
-						ps[i].name = self.name();
-						result = ps[i];
-						break;
-					}
-				}
-			}
+			
+//			if (model.mappingData() !== undefined) {
+//				var ps = model.mappingData();
+//				for (var i = 0; i < ps.length; i++) {
+//					if (ps[i].name === self.name()) {
+//						result.cloud = ps[i].cloud; 
+//						break;
+//					}
+//				}
+//			}
 			return result;
 		});
 		
@@ -1111,6 +1115,13 @@ $(document).ready(function() {
 			var h = self.height();
 			// TODO this currently is fixed onto one projection. I am not yet sure if I want the option for more back.
 			return d3.geo.winkel3().scale(38*(w/200)).translate([w/2, h/2]).precision(.1);
+		});
+		
+		self.mappingObject.subscribe(function(m) {
+			if (m && !m.knownMark) { 
+				m.knownMark = true;
+				self.mapPointCloud(m.cloud);
+			}
 		});
 		
 		self.mapPointCloud = ko.observable(undefined);
@@ -1183,7 +1194,7 @@ $(document).ready(function() {
 		
 		var drawConfig = {
 			"lava": {
-				"land": [[121,86,77], [93,66,58]],
+				"land": [[141,96,87], [73,56, 48]],
 				"mex": [[0, 255, 0], [0, 200, 0]],
 				"sea": [[71,118,255], [71,215,255]],
 				"blocked": [[223,105,33], [0,0,0]]
@@ -1364,182 +1375,6 @@ $(document).ready(function() {
 			}
 		});
 		
-		self.collectPointCloud = function() {
-			if (self.planet().biome === "gas") {
-				self.mapPointCloud("gas");
-				return;
-			}
-			
-			var addPreviewAtLoc = function(loc, spec) {
-				world.puppet({
-					model:{
-						"filename": spec
-					},
-					location: {
-						planet: 0,
-						pos: loc,
-						orient_rel: true,
-						snap: 0
-					}
-				});
-			};
-			
-			var testCountForRadius = function(radius, testsPerSqKm) {
-				var sqkm = (4 * Math.PI * radius * radius) / 10E5;
-				var testCount = (sqkm * testsPerSqKm);
-				return Math.floor(testCount);
-			};
-			
-			var fibonacciSpiral = function(n, radius) {
-				var results = [];
-				var dlong = Math.PI*(3-Math.sqrt(5));
-				var dz = 2/n;
-				var long = 0;
-				var z = 1 - dz/2;
-				for (var k = 0; k < n; k++) {
-					r = Math.sqrt(1 - z*z);
-					results.push([Math.cos(long) * r * radius, Math.sin(long) * r * radius, z * radius]);
-					z = z - dz;
-					long = long + dlong;
-				}
-				return results;
-			};
-			
-			var lr = Math.min(700, self.planet().radius);
-			var testLocs = fibonacciSpiral(testCountForRadius(lr, 2500), self.planet().radius);
-			console.log(testLocs.length+" locations for radius "+self.planet().radius);
-			
-			var world = api.getWorldView(0);
-			var measureLocation = function(point, cb) {
-				world.puppet({
-					location: {
-						planet: self.planet().index,
-						pos: point.pos,
-						snap: 0
-					}
-				}, true).then(function(resp) {
-					try {
-						setTimeout(function() {world.unPuppet(resp.id)}, Math.random() * 10000);
-						cb(point, resp);
-					} catch (e) {
-						console.log(e.stack);
-					}
-				});
-			};
-			
-			var buildTestLocs = [];
-			var tmpLocs = [];
-			for (var i = 0; i < testLocs.length; i++) {
-				var o = {
-					pos: testLocs[i]
-				};
-				buildTestLocs.push(o);
-				tmpLocs.push(o);
-			}
-			
-			var stackedTestLocs = [];
-			while(tmpLocs.length > 0) {
-				stackedTestLocs.push(tmpLocs.splice(0, 5150));
-			}
-
-			var queryHeights = function(cb) {
-				if (stackedTestLocs.length > 0) {
-					var targets = stackedTestLocs.pop();
-					var finished = 0;
-					
-					var finishInc = function() {
-						finished++;
-						if (finished === targets.length) {
-							queryHeights(cb);
-						}
-					};
-					
-					for (var i = 0; i < targets.length; i++) {
-						measureLocation(targets[i], function(point, result) {
-							if (result.location && result.location.pos) {
-								point.height = vecLength(result.location.pos);
-								point.normalPosition = point.pos;
-								point.pos = result.location.pos;
-							}
-							finishInc();
-						});
-					}
-				} else {
-					cb();
-				}
-			};
-			
-			var checkPlacement = function(spec, testLocs, callback) {
-				world.fixupBuildLocations(spec, self.planet().index, testLocs).then(function(result) {
-					try {
-						var hit = [];
-						var noHit = [];
-						for (var i = 0; i < result.length; i++) {
-							if (result[i].ok) {
-								hit.push(testLocs[i]);
-							} else {
-								noHit.push(testLocs[i]);
-							}
-						}
-						callback(hit, noHit);
-					} catch (e) {
-						console.log(e.stack);
-					}
-				});
-			};
-			
-			var groupByPlacements = function(specs, testLocs, callback, groupResults) {
-				var gr = groupResults || [];
-				if (specs.length > 0) {
-					checkPlacement(specs.shift(), testLocs, function(hit, nohit) {
-						gr.push(hit);
-						groupByPlacements(specs, nohit, callback, gr);
-					});
-				} else {
-					gr.push(testLocs);
-					callback(gr);
-				}
-			};
-			
-			console.time("query heights");
-			queryHeights(function() {
-				console.timeEnd("query heights");
-				console.time("query placement");
-				groupByPlacements(["/pa/units/land/metal_extractor/metal_extractor.json",
-				                   "/pa/units/land/landtest/land_barrier.json",
-				                   "/pa/units/land/seatest/land_barrier.json"], buildTestLocs, function(grouped) {
-					console.timeEnd("query placement");
-					console.time("cloud construction");
-					var mex = grouped[0];
-					var land = grouped[1];
-					var sea = grouped[2];
-					var blocked = grouped[3];
-					
-					var cloud = new SpatialCloud(42);
-					
-					_.forEach(mex, function(m) {
-						m.type = "mex";
-						cloud.addToCloud(m);
-					});
-					_.forEach(land, function(l) {
-						l.type = "land";
-						cloud.addToCloud(l);
-					});
-					_.forEach(sea, function(s) {
-						s.type = "sea";
-						cloud.addToCloud(s);
-					});
-					_.forEach(blocked, function(b) {
-						b.type = "blocked";
-						cloud.addToCloud(b);
-					});
-					
-					self.mapPointCloud(cloud);
-					console.timeEnd("cloud construction");
-				});
-			});
-		};
-		
 		var thePath = d3.geo.path();
 		thePath.pointRadius(function(o) {
 			var dSizes = self.dotSizes();
@@ -1560,17 +1395,6 @@ $(document).ready(function() {
 		
 		self.d3b = ko.computed(function() {
 			return [self.graticule(), self.path()];
-		});
-		
-		self.layers = ko.computed(function() {
-			return _.map(_.filter(['land', 'sea', 'metal', 'spawns', 'control'], function(layer) {
-				return self.mappingObject()[layer] !== undefined;
-			}), function(layer) {
-				return {
-					layer: layer,
-					data: self.mappingObject()[layer]
-				};
-			});
 		});
 		
 		self.lookAtByMapXY = function(x, y, zoom) {
@@ -2139,7 +1963,7 @@ $(document).ready(function() {
 		self.armyIndex = ko.observable(undefined);
 		self.armyIndexIdMap = ko.observable(undefined);
 		
-		self.mappingData = ko.observable();
+		self.mappingData = ko.observable([]);
 		
 		self.showsUberMap = ko.observable(false);
 		self.activePlanet = ko.observable(0);
@@ -2162,40 +1986,40 @@ $(document).ready(function() {
 			return self.planets().length;
 		});
 		
-		var spaceUnits = {}; // spaaace. I am in space.
-		var tryPutUnitOnPlanet = function(m) {
-			var added = false;
-			_.forEach(self.minimaps(), function(mm) {
-				if (!added) {
-					added = mm.tryAddUnit(m) || added;
-				}
-			});
-			_.forEach(self.ubermaps(), function(um) {
-				if (!added) {
-					added = um.tryAddUnit(m) || added;
-				}
-			});
-			return added;
-		};
-		self.addPotentialSpaceUnit = function(m) {
-			if (!tryPutUnitOnPlanet(m)) {
-				spaceUnits[m.id] = m;
-			}
-		};
+//		var spaceUnits = {}; // spaaace. I am in space.
+//		var tryPutUnitOnPlanet = function(m) {
+//			var added = false;
+//			_.forEach(self.minimaps(), function(mm) {
+//				if (!added) {
+//					added = mm.tryAddUnit(m) || added;
+//				}
+//			});
+//			_.forEach(self.ubermaps(), function(um) {
+//				if (!added) {
+//					added = um.tryAddUnit(m) || added;
+//				}
+//			});
+//			return added;
+//		};
+//		self.addPotentialSpaceUnit = function(m) {
+//			if (!tryPutUnitOnPlanet(m)) {
+//				spaceUnits[m.id] = m;
+//			}
+//		};
 		
-		memoryPA.addUnitUpdatedListener(function(unit) {
-			var m = spaceUnits[unit.id];
-			if (m) {
-				m.x = unit.x;
-				m.y = unit.y;
-				m.z = unit.z;
-				m.planetId = unit.planetId;
-				m.currentHp = unit.currentHp;
-				if (tryPutUnitOnPlanet(m)) {
-					spaceUnits[unit.id] = undefined;
-				}
-			}
-		});
+//		memoryPA.addUnitUpdatedListener(function(unit) {
+//			var m = spaceUnits[unit.id];
+//			if (m) {
+//				m.x = unit.x;
+//				m.y = unit.y;
+//				m.z = unit.z;
+//				m.planetId = unit.planetId;
+//				m.currentHp = unit.currentHp;
+//				if (tryPutUnitOnPlanet(m)) {
+//					spaceUnits[unit.id] = undefined;
+//				}
+//			}
+//		});
 		
 		appendLayoutFields(self);
 		
@@ -2218,97 +2042,264 @@ $(document).ready(function() {
 					self.ubermaps.push(new UberMapModel(self.planets()[i], mm));
 				}
 			}
+			self.collectClouds();
 		};
 		self.planets.subscribe(self.updateMaps);
 		
-		self.loadMappingData = function(payload) {
-			var mapList = decode(localStorage["info.nanodesu.minimapkeys"]) || {};
-			var mapData = minimapSystems[payload.name];
-			var dbName = "info.nanodesu.info.minimaps";
-
-			
-			if (mapList[payload.name]) {
-				console.log("found minimap data in indexdb, will load key "+mapList[payload.name]);
-				DataUtility.readObject(dbName, mapList[payload.name]).then(function(data) {
-					self.queryAndAttachFeatures(data, "metal", "metal_splat_02.json", function(d) {
-						self.queryAndAttachFeatures(d, "control", "control_point_01.json", function(d) {
-							console.log(d);
-							self.mappingData(d);
-						});
-					});
-				});
-			} else if (mapData) {
-				console.log("systems.js seems to know this system");
-				self.queryAndAttachFeatures(mapData, "metal", "metal_splat_02.json", function(d) {
-					self.queryAndAttachFeatures(d, "control", "control_point_01.json", function(d) {
-						console.log(d);
-						self.mappingData(d);
-					});
-				});
-			} else {
-				console.log("No prepared minimap data available for map with name "+payload.name);
-				self.queryAndAttachFeatures({planets: []}, "metal", "metal_splat_02.json", function(d) {
-					self.queryAndAttachFeatures(d, "control", "control_point_01.json", function(d) {
-						console.log(d);
-						self.mappingData(d);
-					});
-				});
+		var cQueue = [];
+		var collectingPoints = false;
+		var processCollectionQueue = function() {
+			if (cQueue.length > 0 && !collectingPoints) {
+				self.collectPointCloud(cQueue.shift());
 			}
 		};
 		
-		self.queryAndAttachFeatures = function(data, attachKey, key, cb) {
-			$.getJSON(paMemoryWebservice+"/pa/query/features/"+key, function(result) {
-				var ars = {};
-				for (var i = 0; i < result.length; i++) {
-					var ar = ars[result[i].planetId];
-					if (ar === undefined) {
-						ar = [];
+		self.queuePointCollection = function(planet) {
+			cQueue.push(planet);
+			processCollectionQueue();
+		};
+		
+		self.collectPointCloud = function(planet) {
+			collectingPoints = true;
+			var reportCloud = function(cloud) {
+//				var holder = {
+//					name: planet.name,
+//					cloud: cloud
+//				};
+				
+				for (var i = 0; i < self.minimaps().length; i++) {
+					if (self.minimaps()[i].name() === planet.name) {
+						self.minimaps()[i].cloud(cloud);
 					}
-					ar.push(convertToLonLan(result[i].x, result[i].y, result[i].z));
-					ars[result[i].planetId] = ar;
+					if (self.ubermaps()[i].name() === planet.name) {
+						self.ubermaps()[i].cloud(cloud);
+					}
 				}
 				
-				_.forEach(ars, function(value, key) {
-					
-					var index = -1;
-					
-					for (var i = 0; i < data.planets.length; i++) {
-						if (data.planets[i].cameraId == key) {
-							index = i;
-							break;
-						}
+//				var mappings = model.mappingData();
+//				mappings.push(holder);
+//				model.mappingData(mappings);
+				collectingPoints = false;
+				processCollectionQueue();
+			};
+			
+			if (planet.biome === "gas") {
+				reportCloud("gas");
+				return;
+			}
+			
+			var testCountForRadius = function(radius, testsPerSqKm) {
+				var sqkm = (4 * Math.PI * radius * radius) / 10E5;
+				var testCount = (sqkm * testsPerSqKm);
+				return Math.floor(testCount);
+			};
+			
+			var fibonacciSpiral = function(n, radius) {
+				var results = [];
+				var dlong = Math.PI*(3-Math.sqrt(5));
+				var dz = 2/n;
+				var long = 0;
+				var z = 1 - dz/2;
+				for (var k = 0; k < n; k++) {
+					r = Math.sqrt(1 - z*z);
+					results.push([Math.cos(long) * r * radius, Math.sin(long) * r * radius, z * radius]);
+					z = z - dz;
+					long = long + dlong;
+				}
+				return results;
+			};
+			
+			var lr = Math.min(700, planet.radius);
+			var testLocs = fibonacciSpiral(testCountForRadius(lr, 2500), planet.radius);
+			
+			var world = api.getWorldView(0);
+			var measureLocation = function(point, cb) {
+				world.puppet({
+					location: {
+						planet: planet.index,
+						pos: point.pos,
+						snap: 0
 					}
-					
-					var planet = data.planets[index];
-					if (!planet) {
-						planet = {
-							cameraId: Number(key),
-							id: "p-id-" + key
-						};
-						data.planets.push(planet);
+				}, true).then(function(resp) {
+					try {
+						setTimeout(function() {world.unPuppet(resp.id)}, Math.random() * 10000);
+						cb(point, resp);
+					} catch (e) {
+						console.log(e.stack);
 					}
-					planet[attachKey] = {
-						"type" : "FeatureCollection",
-						"features" : [ {
-							"type" : "Feature",
-							"geometry" : {
-								"type" : "MultiPoint",
-								"coordinates" : value
-							}
-						}],
-						"source": "memory", // just a marker for me to be sure where this data came from when debugging
-						"properties": {
-							"type": attachKey
-						}
-					};
 				});
-				cb(data);
-			}).fail(function() {
-				console.log("failed to get feature data from webservice :(");
-				cb(data);
+			};
+			
+			var buildTestLocs = [];
+			var tmpLocs = [];
+			for (var i = 0; i < testLocs.length; i++) {
+				var o = {
+					pos: testLocs[i]
+				};
+				buildTestLocs.push(o);
+				tmpLocs.push(o);
+			}
+			
+			var stackedTestLocs = [];
+			while(tmpLocs.length > 0) {
+				stackedTestLocs.push(tmpLocs.splice(0, 15150));
+			}
+
+			var queryHeights = function(cb) {
+				if (stackedTestLocs.length > 0) {
+					var targets = stackedTestLocs.pop();
+					var confs = [];
+					for (var i = 0; i < targets.length; i++) {
+						confs.push({
+							location: {
+								planet: planet.index,
+								pos: targets[i].pos,
+								snap: 0
+							}
+						});
+					}
+					world.puppet(confs, true).then(function(resps) {
+						try {
+							var ids = [];
+							for (var i = 0; i < resps.length; i++) {
+								ids.push(resps[i].id);
+								var result = resps[i];
+								if (result.location && result.location.pos) {
+									targets[i].height = vecLength(result.location.pos);
+									targets[i].normalPosition = targets[i].pos;
+									targets[i].pos = result.location.pos;
+								}
+							}
+							world.unPuppet(ids);
+							queryHeights(cb);
+						} catch (e) {
+							console.log(e.stack);
+						}
+					});
+				} else {
+					cb();
+				}
+			};
+			
+			var checkPlacement = function(spec, testLocs, callback) {
+				world.fixupBuildLocations(spec, planet.index, testLocs).then(function(result) {
+					try {
+						var hit = [];
+						var noHit = [];
+						var radius = planet.radius;
+						for (var i = 0; i < result.length; i++) {
+							if (result[i].ok) {
+								// TODO this makes mex more like dots, but creates ugly black spots around them...
+//								var normalized = normalizeVec(result[i].pos);
+//								testLocs[i].normalPosition = [normalized[0]*radius,normalized[1]*radius,normalized[2]*radius];
+								hit.push(testLocs[i]);
+							} else {
+								noHit.push(testLocs[i]);
+							}
+						}
+						callback(hit, noHit);
+					} catch (e) {
+						console.log(e.stack);
+					}
+				});
+			};
+			
+			var groupByPlacements = function(specs, testLocs, callback, groupResults) {
+				var gr = groupResults || [];
+				if (specs.length > 0) {
+					checkPlacement(specs.shift(), testLocs, function(hit, nohit) {
+						gr.push(hit);
+						groupByPlacements(specs, nohit, callback, gr);
+					});
+				} else {
+					gr.push(testLocs);
+					callback(gr);
+				}
+			};
+			
+			console.time("query heights "+planet.name);
+			queryHeights(function() {
+				console.timeEnd("query heights "+planet.name);
+				console.time("query placement "+planet.name);
+				
+				groupByPlacements(["/pa/units/land/metal_extractor/metal_extractor.json", 
+				                   "/pa/units/land/landtest/land_barrier.json",
+				                   "/pa/units/land/seatest/land_barrier.json"], buildTestLocs, function(grouped) {
+					console.timeEnd("query placement "+planet.name);
+					var mex = grouped[0];
+					var land = grouped[1];
+					var sea = grouped[2];
+					var blocked = grouped[3];
+					
+					var cloud = new SpatialCloud(42);
+					
+					_.forEach(mex, function(m) {
+						m.type = "mex";
+						cloud.addToCloud(m);
+					});
+					_.forEach(land, function(l) {
+						l.type = "land";
+						cloud.addToCloud(l);
+					});
+					_.forEach(sea, function(s) {
+						s.type = "sea";
+						cloud.addToCloud(s);
+					});
+					_.forEach(blocked, function(b) {
+						b.type = "blocked";
+						cloud.addToCloud(b);
+					});
+					
+					reportCloud(cloud);
+				});
 			});
 		};
-
+		
+		self.collectClouds = function() {
+			for (var i = 0; i < self.minimaps().length; i++) {
+				var planet = self.minimaps()[i].planet();
+				if (!planet.dead && self.minimaps()[i].cloud() === undefined) {
+					self.queuePointCollection(planet);
+				}
+			}
+		};
+		
+		self.loadMappingData = function(payload) {
+//			var mapList = decode(localStorage["info.nanodesu.minimapkeys"]) || {};
+//			var mapData = minimapSystems[payload.name];
+//			var dbName = "info.nanodesu.info.minimaps";
+			
+			
+			
+//			if (mapList[payload.name]) {
+//				console.log("found minimap data in indexdb, will load key "+mapList[payload.name]);
+//				DataUtility.readObject(dbName, mapList[payload.name]).then(function(data) {
+//					self.queryAndAttachFeatures(data, "metal", "metal_splat_02.json", function(d) {
+//						self.queryAndAttachFeatures(d, "control", "control_point_01.json", function(d) {
+//							console.log(d);
+//							self.mappingData(d);
+//						});
+//					});
+//				});
+//			} else if (mapData) {
+//				console.log("systems.js seems to know this system");
+//				self.queryAndAttachFeatures(mapData, "metal", "metal_splat_02.json", function(d) {
+//					self.queryAndAttachFeatures(d, "control", "control_point_01.json", function(d) {
+//						console.log(d);
+//						self.mappingData(d);
+//					});
+//				});
+//			} else {
+//				console.log("No prepared minimap data available for map with name "+payload.name);
+//				self.queryAndAttachFeatures({planets: []}, "metal", "metal_splat_02.json", function(d) {
+//					self.queryAndAttachFeatures(d, "control", "control_point_01.json", function(d) {
+//						console.log(d);
+//						self.mappingData(d);
+//					});
+//				});
+//			}
+		};
+		
 		self.selectsNavyFighters = ko.observable(false);
 		self.selectsLandFighters = ko.observable(false);
 		self.selectsAirFighters = ko.observable(false);
@@ -2553,7 +2544,6 @@ $(document).ready(function() {
 	handlers.celestial_data = function(payload) {
 		console.log(payload);
 		model.planets(payload.planets);
-		model.loadMappingData(payload);
 	};
 	
 	handlers.setSize = function(size) {
