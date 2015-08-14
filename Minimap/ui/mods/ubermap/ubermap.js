@@ -1555,7 +1555,7 @@ $(document).ready(function() {
 		self.findControllableUnitsBySpec = function(spec) {
 			var units = [];
 			
-			_.forEach(self.units, function(unit) {
+			_.forEach(self.zSortedUnitsX, function(unit) {
 				if (unit.army === model.armyId() && unit.spec === spec) {
 					units.push(unit.id);
 				}
@@ -1870,11 +1870,9 @@ $(document).ready(function() {
 			var pdata = pixels.data;
 			for (var px = 0; px < pixels.width; px++) {
 				for (var py = 0; py < pixels.height; py++) {
-					var index = (px + py * pixels.width) * 4;
-					fragmentShader(pdata, index);
+					fragmentShader(pdata, (px + py * pixels.width) * 4);
 				}
 			}
-			
 			ctx.putImageData(pixels, 0, 0, x, y, width, height);
 		};
 		
