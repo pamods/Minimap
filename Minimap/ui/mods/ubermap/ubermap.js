@@ -1548,7 +1548,7 @@ $(document).ready(function() {
 		
 		self.switchCameraToPosition = function(x, y) {
 			model.activePlanet(self.planet().id);
-			self.lookAtByMapXY(x, y, "invalid");
+			self.lookAtByMapXY(x, y, "orbital"); // pass in "invalid" to keep current zoom level.... hmmm
 		};
 		
 		var findIntersection = function(r1x, r1xhw, r1y, r1yhh, r2x, r2xhw, r2y, r2yhh) {
@@ -1750,7 +1750,7 @@ $(document).ready(function() {
 		self.hideByMargin = ko.computed(function() {
 			return self.visible() ? "0px" : "-1000000px";
 		});
-		
+		  
 		self.width = model.uberMapWidth;
 		self.height = model.uberMapHeight;
 		
@@ -2004,6 +2004,21 @@ $(document).ready(function() {
 		self.minimaps = ko.observableArray([]);
 		self.ubermaps = ko.observableArray([]);
 		
+		self.showsAnyUberMap = ko.computed(function() {
+			for (var i = 0; i < self.ubermaps().length; i++) {
+				if (self.ubermaps()[i].visible()) {
+					return true;
+				}
+			}
+			return false;
+		});
+		
+		self.showsAnyUberMap.subscribe(function(v) {
+			if (!v) {
+				handlers.setUberMapVisible(false);
+			}
+		});
+		
 		self.minimapsByPlanetIndex = {};
 		self.ubermapsByPlanetIndex = {};
 		
@@ -2095,7 +2110,11 @@ $(document).ready(function() {
 		self.activePlanet = ko.observable(0);
 		
 		self.showsUberMap.subscribe(function(v) {
-			api.Panel.message(api.Panel.parentId, 'setUberMapState', v);
+			if (v) {
+				if (!self.showsAnyUberMap()) {
+					handlers.setUberMapVisible(false);
+				}
+			}
 		});
 		
 		self.findActiveUberMap = function() {
@@ -2106,6 +2125,10 @@ $(document).ready(function() {
 			}
 			return undefined;
 		};
+		
+		self.showsUberMap.subscribe(function(v) {
+			api.Panel.message(api.Panel.parentId, 'setUberMapState', v);
+		});
 		
 		self.planets = ko.observable([]);
 		self.alivePlanetsCount = ko.computed(function() {
@@ -2123,23 +2146,8 @@ $(document).ready(function() {
 		appendLayoutFields(self);
 		
 		self.updateMaps = function() {
-			
-//			var foundPlanets = [];
-//			for (var i = 0; i < self.minimaps().length; i++) {
-//				for (var j = 0; j < self.planets().length; j++) {
-//					if (self.planets()[j].name === self.minimaps()[i].name() && self.planets()[j].id === self.minimaps()[i].planet().id) {
-//						foundPlanets.push(j);
-//						self.minimaps()[i].planet(self.planets()[j]);
-//						found = true;
-//						break;
-//					}
-//				}
-//			}
-//			console.log("found planets are");
-//			console.log(foundPlanets);
 			for (var i = 0; i < self.planets().length; i++) {
 				var planet = self.planets()[i];
-//				if (foundPlanets.indexOf(i) === -1) {
 				if (self.minimapsByPlanetIndex[planet.index] === undefined) {
 					var mm = new MiniMapModel(planet, self);
 					self.minimaps.push(mm);
@@ -2557,7 +2565,7 @@ $(document).ready(function() {
 	handlers.celestial_data = function(payload) {
 		console.log(payload);
 		model.planets(payload.planets);
-	};
+	}; 
 	
 	handlers.setSize = function(size) {
 		ko.computed.deferUpdates = false;
@@ -2593,8 +2601,11 @@ $(document).ready(function() {
 			var offset = $(aum.canvas()).offset();
 			var x = pageX - offset.left;
 			var y = pageY - offset.top;
-			model.showsUberMap(false);
-			aum.switchCameraToPosition(x, y);
+			
+			if(aum.checkPixelOnSphere(x, y)) {
+				model.showsUberMap(false);
+				aum.switchCameraToPosition(x, y);
+			}
 		}
 	};
 	
