@@ -99,7 +99,7 @@ var testCountForRadius = function(radius, testsPerSqKm) {
 };
 
 var getTestLocsForRadius = function(radius) {
-	var lr = Math.min(700, radius);
+	var lr = Math.min(750, radius);
 	return fibonacciSpiral(testCountForRadius(lr, 2500), radius);
 };
 
@@ -2335,7 +2335,7 @@ $(document).ready(function() {
 			};
 			
 			var findMex = function(cb) {
-				var testLocs = getTestLocsForRadius(planet.radius * 0.85);
+				var testLocs = getTestLocsForRadius(planet.radius);
 				var tts = [];
 				for (var i = 0; i < testLocs.length; i++) {
 					tts.push({pos: testLocs[i], hadHit: false});
