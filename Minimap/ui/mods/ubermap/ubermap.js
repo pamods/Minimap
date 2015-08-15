@@ -5,7 +5,6 @@ var assumedIconSize = 52; // size of the svg icon raw data
 var noMemoryReaderPollTime = 10000;
 var unitPollTime = 500;
 var minPositionChange = 3;
-var camQueryTime = 90;
 var fps = 15;
 
 // do not scroll this scene please ?!
@@ -1390,14 +1389,15 @@ $(document).ready(function() {
 			var ctx = self.mapContext();
 			var ctx2 = self.mapContext2();
 			if (cloud) {
-				renderImage(cloud, w, h, projection, planet, ctx, self.isUberMap ? 15 : 3);
+				renderImage(cloud, w, h, projection, planet, ctx, self.isUberMap ? 15 : 4);
 				// I wanted to just render them on top of the terrain context, but that had very weird effects...
+				ctx2.clearRect(0, 0, w, h);
 				renderMex(cloud, ctx2, projection);
 				setTimeout(function() {
 					if (test === imgComputeCheck) {
-						renderImage(cloud, w, h, projection, planet, ctx, self.isUberMap ? 2 : 1);
+						renderImage(cloud, w, h, projection, planet, ctx, self.isUberMap ? 3 : 1);
 					}
-				}, 2000);
+				}, 2000 + (Math.round(Math.random() * 2000)));
 			}
 		});
 		
@@ -2150,8 +2150,8 @@ $(document).ready(function() {
 					self.minimapsByPlanetIndex[planet.index] = mm;
 					self.ubermapsByPlanetIndex[planet.index] = um;
 				} else {
-					self.minimapsByPlanetIndex[plant.index].planet(planet);
-					self.ubermapsByPlanetIndex[plant.index].planet(planet);
+					self.minimapsByPlanetIndex[planet.index].planet(planet);
+					self.ubermapsByPlanetIndex[planet.index].planet(planet);
 				}
 			}
 			self.collectClouds();
