@@ -75,6 +75,7 @@ var pmUberMap = function(handler, arguments) {
 		$('#ubermap_panel').css('z-index', payload.z);
 	};
 	
+	var commanderId = 0;
 	handlers.runUnitCommand = function(payload) {
 		var order = {};
 		order.units = payload.units;
@@ -87,6 +88,7 @@ var pmUberMap = function(handler, arguments) {
 			order.command = "attack";
 		} else if (payload.method === "ping") {
 			order.command = "ping";
+			order.units = [commanderId]; // PA verifies that the "ping" command has a unit given....
 		} else {
 			console.log("dunno method for order?! " + payload.method);
 		}
@@ -112,6 +114,11 @@ var pmUberMap = function(handler, arguments) {
 		console.log("server state");
 		console.log(msg);
 		oldServerState(msg);
+		
+		if (msg.data && msg.data.client && msg.data.client.commander) {
+			commanderId = msg.data.client.commander.id;
+		}
+		
 		if (msg.data.armies) {
 			for (var i = 0; i < msg.data.armies.length; i++) {
 				colorByArmyId[msg.data.armies[i].id] = msg.data.armies[i].color;

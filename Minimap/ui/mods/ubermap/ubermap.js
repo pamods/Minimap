@@ -58,8 +58,6 @@ var testCountForRadius = function(radius, testsPerSqKm) {
 	return Math.floor(testCount);
 };
 
-
-
 var getTestLocsForRadius = function(radius) {
 	var lr = Math.min(700, radius);
 	return fibonacciSpiral(testCountForRadius(lr, 2500), radius);
