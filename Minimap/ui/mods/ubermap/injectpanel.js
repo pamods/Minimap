@@ -173,9 +173,24 @@ var pmUberMap = function(handler, arguments) {
 		pmUberMap("setUberMapVisible", v);
 	});
 	
+	var oldCelestial = handlers.celestial_data;
+	var planetsIndexIdMap = {};
+	var planetsIdIndexMap = {};
+	handlers.celestial_data = function(payload) {
+		oldCelestial(payload);
+		_.forEach(payload.planets, function(planet) {
+			planetsIndexIdMap[planet.index] = planet.id;
+			planetsIdIndexMap[planet.id] = planet.index;
+		});
+	}; 
+	
 	setTimeout(function() {
 		model.mainCameraLocation = api.camera.getFocus(model.holodeck.id).location;
-		model.mainCameraPlanet = api.camera.getFocus(model.holodeck.id).planet;
+		model.mainCameraPlanetIndex = api.camera.getFocus(model.holodeck.id).planet;
+		model.mainCameraPlanet = ko.computed(function() {
+			var index = model.mainCameraPlanetIndex();
+			return planetsIndexIdMap[index];
+		});
 		model.mainCameraPosition = ko.computed(function() {
 			var l = model.mainCameraLocation();
 			return {planet: model.mainCameraPlanet(),
@@ -193,7 +208,7 @@ var pmUberMap = function(handler, arguments) {
 			if (model.holodeck.id === api.Holodeck.focused.id) {
 				var catchPosition = function() {
 					model.mainCameraLocation(t.location);
-					model.mainCameraPlanet(t.planet_id);
+					model.mainCameraPlanetIndex(planetsIdIndexMap[t.planet_id]);
 				};
 				catchPosition();
 				setTimeout(function() {

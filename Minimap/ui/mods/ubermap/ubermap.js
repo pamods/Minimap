@@ -1206,44 +1206,38 @@ $(document).ready(function() {
 		var drawConfig = {
 			"lava": {
 				"land": [[141,96,87], [73,56, 48]],
-				"mex": [[0, 255, 0], [0, 200, 0]],
 				"sea": [[71,118,255], [71,215,255]],
 				"blocked": [[223,105,33], [0,0,0]]
 			},
 			"metal": {
 				"land": [[198,197,186], [49,63,78]],
-				"mex": [[0, 255, 0], [0, 200, 0]],
 				"sea": [[71,118,255], [71,215,255]],
 				"blocked": [[10,10,10], [180,180,180]]
 			},
 			"gas": [109,160,147],
 			"earth": {
 				"land": [[255, 191, 0], [112,92,33]],
-				"mex": [[0, 255, 0], [0, 200, 0]],
 				"sea": [[71,118,255], [71,215,255]],
 				"blocked": [[0,0,0], [120,120,120]]
 			},
 			"moon": {
 				"land": [[163, 163, 153], [55,70,90]],
-				"mex": [[0, 255, 0], [0, 200, 0]],
 				"sea": [[71,118,255], [71,215,255]],
 				"blocked": [[20,20,20], [170,170,170]]
 			},
 			"ice": {
 				"land": [[133, 161, 221], [97,95,87]],
-				"mex": [[0, 255, 0], [0, 200, 0]],
 				"sea": [[71,118,255], [71,215,255]],
 				"blocked": [[23,51,54], [21,23,40]]
 			},
 			"def": {
 				"land": [[255, 191, 0], [112,92,33]],
-				"mex": [[0, 255, 0], [0, 200, 0]],
 				"sea": [[71,118,255], [71,215,255]],
 				"blocked": [[0,0,0], [120,120,120]]
 			}
 		};
 		
-		var renderImage = function(cloud, w, h, projection, planet, ctx, quality) { // quality 1 is pixel perfect, 2 is 2x2 pixels, etc...
+		var renderImage = function(cloud, w, h, projection, planet, ctx, quality, deferred) { // quality 1 is pixel perfect, 2 is 2x2 pixels, etc...
 			var isGas = cloud === "gas";
 			var biome = planet.biome;
 			if (biome === "earth" && planet.temp < 0) {
@@ -1253,39 +1247,61 @@ $(document).ready(function() {
 			var imgDat = ctx.createImageData(w, h);
 			var uQ = Math.ceil(quality/2);
 			var lQ = -Math.floor(quality/2);
-			for (var x = 0; x < w; x+=quality) {
-				for (var y = 0; y < h; y+=quality) {
-					var points = undefined;
-					var pos = undefined;
-					var pixelColor = undefined;
-					var conf = undefined;
-					var ll = undefined;
-						for (var xi = lQ; xi < uQ; xi++) {
-							for (var yi = lQ; yi < uQ; yi++) {
-							var mx = (x+xi);
-							var my = (y+yi);
-							if (self.checkPixelOnSphere(mx, my) && mx < imgDat.width && my < imgDat.height && mx >= 0 && my >= 0) {
-								if (!isGas) {
-									ll = ll || projection.invert([x, y]);
-									pos = pos || convertToCartesian(ll[1], ll[0], planet.radius);
-									points = points || cloud.queryPoints(pos, qRange);
-									conf = conf || drawConfig[biome] || drawConfig["def"];
-									pixelColor = pixelColor || getPixelColor(conf, points, pos);
-								} else {
-									pixelColor = drawConfig["gas"];
-								}
-								
-								var index = (mx + my * imgDat.width) * 4;
-								imgDat.data[index] = pixelColor[0];
-								imgDat.data[index+1] = pixelColor[1];
-								imgDat.data[index+2] = pixelColor[2];
-								imgDat.data[index+3] = 255;
+			
+			var renderPixel = function(x, y) {
+				var points = undefined;
+				var pos = undefined;
+				var pixelColor = undefined;
+				var conf = undefined;
+				var ll = undefined;
+				for (var xi = lQ; xi < uQ; xi++) {
+						for (var yi = lQ; yi < uQ; yi++) {
+						var mx = (x+xi);
+						var my = (y+yi);
+						if (self.checkPixelOnSphere(mx, my) && mx < imgDat.width && my < imgDat.height && mx >= 0 && my >= 0) {
+							if (!isGas) {
+								ll = ll || projection.invert([x, y]);
+								pos = pos || convertToCartesian(ll[1], ll[0], planet.radius);
+								points = points || cloud.queryPoints(pos, qRange);
+								conf = conf || drawConfig[biome] || drawConfig["def"];
+								pixelColor = pixelColor || getPixelColor(conf, points, pos);
+							} else {
+								pixelColor = drawConfig["gas"];
 							}
+							
+							var index = (mx + my * imgDat.width) * 4;
+							imgDat.data[index] = pixelColor[0];
+							imgDat.data[index+1] = pixelColor[1];
+							imgDat.data[index+2] = pixelColor[2];
+							imgDat.data[index+3] = 255;
 						}
 					}
 				}
+			};
+			
+			if (deferred) {
+				var deferRender = function(x, y) {
+					if (x < w) {
+						while (y < h) {
+							renderPixel(x, y);
+							y += quality;
+						}
+						setImmediate(function() {
+							deferRender(x + quality, 0);
+						});
+					} else {
+						ctx.putImageData(imgDat, 0, 0);
+					}
+				};
+				deferRender(0, 0);
+			} else {
+				for (var x = 0; x < w; x+=quality) {
+					for (var y = 0; y < h; y+=quality) {
+						renderPixel(x, y);
+					}
+				}
+				ctx.putImageData(imgDat, 0, 0);
 			}
-			ctx.putImageData(imgDat, 0, 0);
 		};
 		
 		var renderMex = function(cloud, ctx, projection) {
@@ -1387,13 +1403,13 @@ $(document).ready(function() {
 			var ctx = self.mapContext();
 			var ctx2 = self.mapContext2();
 			if (cloud) {
-				renderImage(cloud, w, h, projection, planet, ctx, self.isUberMap ? 15 : 4);
+				renderImage(cloud, w, h, projection, planet, ctx, self.isUberMap ? 15 : 4, false);
 				// I wanted to just render them on top of the terrain context, but that had very weird effects...
 				ctx2.clearRect(0, 0, w, h);
 				renderMex(cloud, ctx2, projection);
 				setTimeout(function() {
 					if (test === imgComputeCheck) {
-						renderImage(cloud, w, h, projection, planet, ctx, self.isUberMap ? 3 : 1);
+						renderImage(cloud, w, h, projection, planet, ctx, self.isUberMap ? 3 : 1, true);
 					}
 				}, 2000 + (Math.round(Math.random() * 2000)));
 			}
@@ -1740,13 +1756,12 @@ $(document).ready(function() {
 		
 		self.isUberMap = true;
 		
-		// the elements are hidden offscreen using  the margin-top value
-		// that turns out to be faster (well maybe that part is my imagination...) in some situations and has less issues with the svg rendering,
-		// which seems to fail to adjust to resize events while it is set to be really visibility: none
 		self.visible = ko.computed(function() {
 			return model.showsUberMap() && model.activePlanet() === self.planet().id;
 		});
 		
+		// the elements are hidden offscreen using  the margin-top value
+		// that turns out to be faster (well maybe that part is my imagination...) in some situations
 		self.hideByMargin = ko.computed(function() {
 			return self.visible() ? "0px" : "-1000000px";
 		});
@@ -2567,7 +2582,7 @@ $(document).ready(function() {
 		model.planets(payload.planets);
 	}; 
 	
-	handlers.setSize = function(size) {
+	handlers.setSize = function(size) { 
 		ko.computed.deferUpdates = false;
 		ko.processAllDeferredBindingUpdates();
 		model.parentWidth(size[0]);
