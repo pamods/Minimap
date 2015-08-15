@@ -11,6 +11,17 @@ var pmUberMap = function(handler, arguments) {
 };
 
 (function() {
+	var oldCelestial = handlers.celestial_data;
+	var planetsIndexIdMap = {};
+	var planetsIdIndexMap = {};
+	handlers.celestial_data = function(payload) {
+		oldCelestial(payload);
+		_.forEach(payload.planets, function(planet) {
+			planetsIndexIdMap[planet.index] = planet.id;
+			planetsIdIndexMap[planet.id] = planet.index;
+		});
+	}; 
+	
 	var cursorKey = "info.nanodesu.defaultIconKey";
 	var oldEngineCall = engine.call;
 	engine.call = function() {
@@ -95,7 +106,7 @@ var pmUberMap = function(handler, arguments) {
 		
 		order.queue = payload.arguments[4];
 		order.location = {
-			planet: payload.arguments[3],
+			planet: planetsIdIndexMap[payload.arguments[3]],
 			pos: [payload.arguments[0], payload.arguments[1], payload.arguments[2]]
 		};
 		order.group = !payload.arguments[5];
@@ -172,17 +183,6 @@ var pmUberMap = function(handler, arguments) {
 	model.showsUberMap.subscribe(function(v) {
 		pmUberMap("setUberMapVisible", v);
 	});
-	
-	var oldCelestial = handlers.celestial_data;
-	var planetsIndexIdMap = {};
-	var planetsIdIndexMap = {};
-	handlers.celestial_data = function(payload) {
-		oldCelestial(payload);
-		_.forEach(payload.planets, function(planet) {
-			planetsIndexIdMap[planet.index] = planet.id;
-			planetsIdIndexMap[planet.id] = planet.index;
-		});
-	}; 
 	
 	setTimeout(function() {
 		model.mainCameraLocation = api.camera.getFocus(model.holodeck.id).location;
