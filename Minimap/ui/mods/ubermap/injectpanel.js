@@ -86,6 +86,13 @@ var pmUberMap = function(handler, arguments) {
 		$('#ubermap_panel').css('z-index', payload.z);
 	};
 	
+	var oldClientState = handlers.client_state;
+	handlers.client_state = function(state) {
+		oldClientState(state);
+		
+		pmUberMap("client_state", state);
+	};
+	
 	var commanderId = 0;
 	handlers.runUnitCommand = function(payload) {
 		var order = {};

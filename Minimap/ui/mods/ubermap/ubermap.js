@@ -37,6 +37,46 @@ var vecDist = function(a, b) {
 	return Math.sqrt(vecDistSq(a, b));
 };
 
+var scaleVec = function(a, s) {
+	return [a[0] * s, a[1] * s, a[2] * s];
+};
+
+var cross = function(u, v) {
+	return [u[1]*v[2] - u[2]*v[1], u[2]*v[0] - u[0]*v[2], u[0]*v[1] - u[1]*v[0]];
+};
+
+var dot = function(u, v) {
+	return u[0]*v[0] + u[1]*v[1] + u[2]*v[2];
+};
+
+var addVec = function(a, b) {
+	return [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+};
+
+var rotatePosition = function(pos, offset, radius, rotationTime) {
+	var axis = normalizeVec(pos);
+	var perp = undefined;
+	if (axis[2] !== 0) {
+		perp = [1, 1, (-axis[0]-axis[1])/axis[2]];
+	} else if (axis[1] !== 0) {
+		perp = [1, (-axis[0]-axis[2])/axis[1], 1];
+	} else {
+		perp = [(-axis[1]-axis[2])/axis[0], 1, 1];
+	}
+	perp = scaleVec(normalizeVec(perp), radius);
+	pos = addVec(pos, perp);
+	var oneRotationTime = rotationTime || 10000;
+	return axisRotate(pos, axis, Date.now()*((2*Math.PI)/oneRotationTime) + offset);
+};
+
+//https://en.wikipedia.org/wiki/Rodrigues%27_rotation_formula
+var axisRotate = function(vec, axis, radian) {
+	var partA = scaleVec(vec, Math.cos(radian));
+	var partB = scaleVec(cross(axis, vec), Math.sin(radian));
+	var partC = scaleVec(axis, dot(axis, vec)*(1 - Math.cos(radian)));
+	return addVec(partA, addVec(partB, partC));
+};
+
 var fibonacciSpiral = function(n, radius) {
 	var results = [];
 	var dlong = Math.PI*(3-Math.sqrt(5));
@@ -266,6 +306,12 @@ var drawCircle = function(ctx, x1, y1, radius, clr) {
 	ctx.stroke();
 };
 
+var drawText = function(ctx, x1, y1, txt, clr) {
+	ctx.font = "30px Verdana";
+	ctx.fillStyle = clr;
+	ctx.fillText(txt, x1, y1);
+};
+
 var startTime = Date.now();
 
 var dottedLine = function(x1, y1, z1, x2, y2, z2, dotDistance, speedFactor, cb) {
@@ -293,13 +339,23 @@ var dottedLine = function(x1, y1, z1, x2, y2, z2, dotDistance, speedFactor, cb) 
 
 		incx = (incx + (time * dx1)) % dx;
 		incy = (incy + (time * dy1)) % dy;
-		incz = (incz + (time * dz1)) % dz;		
+		incz = (incz + (time * dz1)) % dz;
 		
 		var px = x1 + incx;
 		var py = y1 + incy;
 		var pz = z1 + incz;
 		
 		cb(px, py, pz);
+	}
+};
+
+var dottedCircle = function(x, y, z, radius, dots, rotationTime, cb) {
+	var offsetSteps = 2*Math.PI / dots;
+	var offset = 0;
+	for (var i = 0; i < dots; i++) {
+		var p = rotatePosition([x, y, z], offset, radius, rotationTime);
+		cb(p[0], p[1], p[2]);
+		offset += offsetSteps;
 	}
 };
 
@@ -1008,6 +1064,21 @@ $(document).ready(function() {
 			});
 		};
 		
+		var drawLandingZones = function(ctx) {
+			_.forEach(model.landingZones, function(zone, n) {
+				if (zone.planet_index === self.planet().index) {
+					for (var i = 1; i <= 10; i *= 2) {
+						dottedCircle(zone.position[0], zone.position[1], zone.position[2], (zone.radius/10) * i, 20, 120000, function(x, y, z) {
+							var pp = makeProjected(x, y, z);
+							drawDot(ctx, pp[0], pp[1], 3, "rgb(46, 173, 57)");
+						});
+					}
+					var pz = makeProjected(zone.position[0], zone.position[1], zone.position[2]);
+					drawText(ctx, pz[0], pz[1], (n+1)+"", "rgb(255,255,255)");
+				}
+			});
+		};
+		
 		self.drawStuff = function() {
 			now = Date.now();
 			delta = now - then;
@@ -1055,6 +1126,7 @@ $(document).ready(function() {
 					}
 					
 					drawAlerts(ctx);
+					drawLandingZones(ctx);
 				}
 			}
 			var dt = interval - delta;
@@ -2556,6 +2628,8 @@ $(document).ready(function() {
 			}
 		};
 		
+		self.landingZones = [];
+		
 		self.handleAlerts = function(payload) {
 			for (var i = 0; i < payload.list.length; i++) {
 				self.handleAlert(payload.list[i]);
@@ -2643,6 +2717,10 @@ $(document).ready(function() {
 	handlers.camLoc = function(loc) {
 		cameraLocation(loc);
 		model.activePlanet(cameraLocation().planet);
+	};
+	
+	handlers.client_state = function(state) {
+		model.landingZones = state.zones || [];
 	};
 	
 	app.registerWithCoherent(model, handlers);
