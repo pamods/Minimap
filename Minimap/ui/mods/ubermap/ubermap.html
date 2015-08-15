@@ -45,6 +45,7 @@
 			</svg>
 			
 			<canvas data-bind="self: mapCanvas, attr: {width: width, height: height}, style: {'z-index': 20, position: 'absolute'}"></canvas>
+			<canvas data-bind="self: mapCanvas2, attr: {width: width, height: height}, style: {'z-index': 20, position: 'absolute'}"></canvas>
 
 			<svg class="ignoreMouse" data-bind="style: {position: 'absolute', width: width()+'px', height: height()+'px', 'z-index': 100}">
 				<use class="mapborder" data-bind="svguse: mappingObject().id+'-sphere'"></use>
@@ -74,6 +75,7 @@
 				</svg>
 				
 				<canvas data-bind="self: mapCanvas, attr: {width: width, height: height}, style: {'z-index': 20, position: 'absolute'}"></canvas>
+				<canvas data-bind="self: mapCanvas2, attr: {width: width, height: height}, style: {'z-index': 20, position: 'absolute'}"></canvas>
 				
 				<svg class="ignoreMouse" data-bind="style: {position: 'absolute', width: width()+'px', height: height()+'px', 'z-index': 100}">
 					<use class="mapborder" data-bind="svguse: mappingObject().id+'-um-sphere'"></use>
