@@ -9,8 +9,6 @@
             options: ['ON','OFF']
         },
 	});
-	model.settingGroups().push("ubermap");
-	model.settingDefinitions().ubermap = {title:"UberMap",settings:{}};
 	
     $(".option-list.ui .form-group").append(
         $.ajax({
