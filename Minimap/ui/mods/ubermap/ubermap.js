@@ -1,9 +1,11 @@
 console.log("loaded ubermap.js");
 
+var useUberMaps = (api.settings.isSet("ui", "ubermap_enabled", true) || "ON") === "ON";
+
 var paMemoryWebservice = "http://127.0.0.1:8184";
 var assumedIconSize = 52;
 var noMemoryReaderPollTime = 10000;
-var unitPollTime = 500;
+var unitPollTime = useUberMaps ? 500 : 750;
 var minPositionChange = 3;
 var fps = 15;
 
@@ -12,6 +14,14 @@ window.onscroll = function() {
 	window.scrollTo(0, 0);
 };
 $(document).mousedown(function(e){if(e.which==2)return false});
+
+var clearSpec = function(spec) {
+	var strip = /.*\.json/.exec(spec);
+	if (strip) {
+		spec = strip.pop();
+	}
+	return spec;
+};
 
 var vecLengthSq = function(pos) {
 	return pos[0]*pos[0] + pos[1]*pos[1] + pos[2]*pos[2];
@@ -368,6 +378,12 @@ loadScript("coui://ui/mods/ubermap/alertsManager.js");
 var unitSpecMapping = undefined;
 unitInfoParser.loadUnitTypeMapping(function(mapping) {
 	unitSpecMapping = mapping;
+	_.forEach(unitSpecMapping, function(val, key) {
+		var ckey = clearSpec(key);
+		if (ckey !== key) {
+			unitSpecMapping[ckey] = val;
+		}
+	});
 });
 
 var memoryPA = undefined;
@@ -486,11 +502,7 @@ $(document).ready(function() {
 				world.getArmyUnits(armyIndex, planetIndex).then(function(data) {
 					try {
 						_.forEach(data, function(elem, key) {
-							var strip = /.*\.json/.exec(key);
-							if (strip) {
-								key = strip.pop();
-							}
-							
+							key = clearSpec(key);
 							_.forEach(elem, function(unitId) {
 								unitsMap[unitId] = {
 									id: unitId,
@@ -546,7 +558,7 @@ $(document).ready(function() {
 			};
 			
 			var checkLastUpdateTime = function(unit) {
-				if (unit.army !== model.armyId() && !isStructure(unit.spec)) {
+				if (!model.isArmyVisible(model.armyIdIndexMap()[unit.army]) && !isStructure(unit.spec)) {
 					var lastState = lastStateRegister[unit.id];
 					if (lastState) {
 						if (!unitsEqual(unit, lastState.data)) {
@@ -840,6 +852,7 @@ $(document).ready(function() {
 	
 	memoryPA = new MemoryDataReceiver(unitPollTime);
 	
+	/*
 	function UnitModel(unit) {
 		var self = this;
 		
@@ -901,6 +914,7 @@ $(document).ready(function() {
 			self.unit.currentHp = update.currentHp;
 		};
 	}
+	*/
 	
 	var appendIconsHandling = function(self) {
 		var createTranslateComputed = function(unit) {
@@ -928,15 +942,17 @@ $(document).ready(function() {
 			var scl = makeUnitScale();
 			for (var i = 0; i < array.length; i++) {
 				var aunit = array[i];
-				var ll = convertToLonLan(aunit.pos[0], aunit.pos[1], aunit.pos[2]);
-				var projected = self.projection()(ll);
-				var x = projected[0];
-				var y = projected[1];
-				aunit.translate = [x, y];
-				aunit.scale = scl;
-				
-				if (contains(unitSpecMapping[aunit.spec], "Commander")) {
-					aunit.spec = "commander";
+				if (aunit.pos && aunit.pos.length > 2) {
+					var ll = convertToLonLan(aunit.pos[0], aunit.pos[1], aunit.pos[2]);
+					var projected = self.projection()(ll);
+					var x = projected[0];
+					var y = projected[1];
+					aunit.translate = [x, y];
+					aunit.scale = scl;
+					
+					if (contains(unitSpecMapping[aunit.spec], "Commander")) {
+						aunit.spec = "commander";
+					}
 				}
 			};
 		};
@@ -2197,9 +2213,19 @@ $(document).ready(function() {
 		};
 		
 		self.drawUnit = function(ctx, unit, map) {
+			if (!unit.translate || !unit.scale) {
+				return;
+			}
+			
+			var hasVision = model.isArmyVisible(model.armyIdIndexMap()[unit.army]);
+			
+			if (model.isSpectator() && !hasVision) {
+				return;
+			}
+			
 			var fClr = model.armyColors()[unit.army];
 			
-			if (unit.lastUpdate) {
+			if (unit.lastUpdate && !hasVision) {
 				
 				var timePassed = Date.now() - unit.lastUpdate;
 				
@@ -2256,11 +2282,13 @@ $(document).ready(function() {
 							self.minimapsByPlanetIndex[index].provideUnitData(array, map);
 						}
 					});
-					setTimeout(function() {
-						if (self.ubermapsByPlanetIndex[index]) {
-							self.ubermapsByPlanetIndex[index].provideUnitData(JSON.parse(JSON.stringify(array)), JSON.parse(JSON.stringify(map)));
-						}
-					}, 25);
+					if (useUberMaps) {
+						setTimeout(function() {
+							if (self.ubermapsByPlanetIndex[index]) {
+								self.ubermapsByPlanetIndex[index].provideUnitData(JSON.parse(JSON.stringify(array)), JSON.parse(JSON.stringify(map)));
+							}
+						}, 25);
+					}
 				}, index);
 			}, i * 25);
 		};
@@ -2280,6 +2308,26 @@ $(document).ready(function() {
 		self.armyId = ko.observable(undefined);
 		self.armyIndex = ko.observable(undefined);
 		self.armyIndexIdMap = ko.observable(undefined);
+		self.armyIdIndexMap = ko.computed(function() {
+			var map = {};
+			_.forEach(self.armyIndexIdMap(), function(val, key) {
+				map[val] = key;
+			});
+			return map;
+		});
+		
+		self.playerVision = ko.observable(undefined);
+		
+		self.isSpectator = ko.observable(false);
+		
+		self.isArmyVisible = function(index) {
+			var flags = self.playerVision();
+			if (flags) {
+				return flags[index];
+			} else {
+				return self.armyIndex() === index;
+			}
+		};
 		
 		self.mappingData = ko.observable([]);
 		
@@ -2328,13 +2376,19 @@ $(document).ready(function() {
 				if (self.minimapsByPlanetIndex[planet.index] === undefined) {
 					var mm = new MiniMapModel(planet, self);
 					self.minimaps.push(mm);
-					var um = new UberMapModel(planet, mm);
-					self.ubermaps.push(um);
 					self.minimapsByPlanetIndex[planet.index] = mm;
-					self.ubermapsByPlanetIndex[planet.index] = um;
+					
+					if (useUberMaps) {
+						var um = new UberMapModel(planet, mm);
+						self.ubermaps.push(um);
+						self.ubermapsByPlanetIndex[planet.index] = um;
+					}
 				} else {
 					self.minimapsByPlanetIndex[planet.index].planet(planet);
-					self.ubermapsByPlanetIndex[planet.index].planet(planet);
+					
+					if (useUberMaps) {
+						self.ubermapsByPlanetIndex[planet.index].planet(planet);
+					}
 				}
 			}
 			self.collectClouds();
@@ -2361,7 +2415,7 @@ $(document).ready(function() {
 					if (self.minimaps()[i].name() === planet.name) {
 						self.minimaps()[i].cloud(cloud);
 					}
-					if (self.ubermaps()[i].name() === planet.name) {
+					if (useUberMaps && self.ubermaps()[i].name() === planet.name) {
 						self.ubermaps()[i].cloud(cloud);
 					}
 				}
@@ -2763,27 +2817,35 @@ $(document).ready(function() {
 		model.armyId(args[1]);
 		model.armyIndex(args[2]);
 		model.armyIndexIdMap(args[3]);
+		model.playerVision(args[4]);
+		model.isSpectator(args[5]);
 	};
 	
 	handlers.setUberMapVisible = function(show) {
-		if (show && cameraLocation() !== undefined) {
-			model.activePlanet(cameraLocation().planet);
+		if (useUberMaps) {
+			if (show && cameraLocation() !== undefined) {
+				model.activePlanet(cameraLocation().planet);
+			}
+			model.showsUberMap(show);
+		} else {
+			model.showsUberMap(false);
 		}
-		model.showsUberMap(show);
 	};
 
 	handlers.zoomIntoUberMap = function(args) {
-		var aum = model.mouseHoverMap;
-		if (aum) {
-			var pageX = args[0];
-			var pageY = args[1];
-			var offset = $(aum.canvas()).offset();
-			var x = pageX - offset.left;
-			var y = pageY - offset.top;
-			
-			if(aum.checkPixelOnSphere(x, y)) {
-				model.showsUberMap(false);
-				aum.switchCameraToPosition(x, y);
+		if (useUberMaps) {
+			var aum = model.mouseHoverMap;
+			if (aum) {
+				var pageX = args[0];
+				var pageY = args[1];
+				var offset = $(aum.canvas()).offset();
+				var x = pageX - offset.left;
+				var y = pageY - offset.top;
+				
+				if(aum.checkPixelOnSphere(x, y)) {
+					model.showsUberMap(false);
+					aum.switchCameraToPosition(x, y);
+				}
 			}
 		}
 	};

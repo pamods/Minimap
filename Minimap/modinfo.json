@@ -25,6 +25,9 @@
         ],
         "live_game_players": [
         	"coui://ui/mods/ubermap/playerlist.js"
+         ],
+         "settings": [
+         	"coui://ui/mods/ubermap/settings.js"
          ]
     },
 	

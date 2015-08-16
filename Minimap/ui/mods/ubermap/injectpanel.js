@@ -10,6 +10,8 @@ var pmUberMap = function(handler, arguments) {
 	}
 };
 
+var useUberMaps = (api.settings.isSet("ui", "ubermap_enabled", true) || "ON") === "ON";
+
 (function() {
 	var oldCelestial = handlers.celestial_data;
 	var planetsIndexIdMap = {};
@@ -138,10 +140,13 @@ var pmUberMap = function(handler, arguments) {
 	
 	handlers.queryArmyInfo = function() {
 		console.log("query army info called...");
-		var info = [colorByArmyId, selfArmyId, selfArmyIndex, armyIndexIdMap];
+		var info = [colorByArmyId, selfArmyId, selfArmyIndex, armyIndexIdMap, model.playerVisionFlags(), model.isSpectator()];
 		console.log(info);
 		pmUberMap("setArmyInfo", info);
 	};
+	
+	model.playerVisionFlags.subscribe(handlers.queryArmyInfo);
+	model.isSpectator.subscribe(handlers.queryArmyInfo);
 	
 	model.showsUberMap = ko.observable(false);
 	
@@ -257,7 +262,11 @@ $(document).ready(function() {
 	
 	model.uber_map_toggle_uber_map = function() {
 		if (!model.chatSelected()) {
-			model.showsUberMap(!model.showsUberMap());
+			if (useUberMaps) {
+				model.showsUberMap(!model.showsUberMap());
+			} else {
+				model.showsUberMap(false);
+			}
 		}
 	};
 	
