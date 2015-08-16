@@ -454,48 +454,118 @@ $(document).ready(function() {
 		world.setServerCulling(false); // TODO experiment with flipping this on/off on regular basis
 		
 		var findUnitZ = function(spec) {
-			var unitTypes = unitSpecMapping[spec];
-			var specPoints = 0;
-			if (contains(unitTypes, "Commander")) {
-				specPoints = 10;
-			} else if (contains(unitTypes, "Important")) {
-				specPoints = 7;
-			} else if (contains(unitTypes, "Mobile")) {
-				specPoints = 5;
+			if (unitSpecMapping) {
+				var unitTypes = unitSpecMapping[spec];
+				var specPoints = 0;
+				if (contains(unitTypes, "Commander")) {
+					specPoints = 10;
+				} else if (contains(unitTypes, "Important")) {
+					specPoints = 7;
+				} else if (contains(unitTypes, "Mobile")) {
+					specPoints = 5;
+				} else {
+					specPoints = 1;
+				}
+				
+				return specPoints + (isPrio(spec) ? 20 : 0);
 			} else {
-				specPoints = 1;
+				return 1;
 			}
-			
-			return specPoints + (isPrio(spec) ? 20 : 0);
 		};
+		
+		var lastStateRegister = {};
 		
 		self.queryAllInfo = function(callback, planetIndex) {
 			var spawnedCalls = 0;
 			var finishedCalls = 0;
 			var unitsMap = {};
 			var unitIds = [];
-			spawnedCalls++;
-			// TODO handle other armies... that may include reimplementing fog of war for mobile units :/
-			var armyIndex = model.armyIndex();
-			world.getArmyUnits(armyIndex, planetIndex).then(function(data) {
-				try {
-					_.forEach(data, function(elem, key) {
-						_.forEach(elem, function(unitId) {
-							unitsMap[unitId] = {
-								id: unitId,
-								army: model.armyIndexIdMap()[armyIndex],
-								spec: key,
-								z: findUnitZ(key)
-							};
-							unitIds.push(unitId);
+			_.forEach(model.armyIndexIdMap(), function(armyId, armyIndex) {
+				spawnedCalls++;
+				armyIndex = Number(armyIndex);
+				world.getArmyUnits(armyIndex, planetIndex).then(function(data) {
+					try {
+						_.forEach(data, function(elem, key) {
+							var strip = /.*\.json/.exec(key);
+							if (strip) {
+								key = strip.pop();
+							}
+							
+							_.forEach(elem, function(unitId) {
+								unitsMap[unitId] = {
+									id: unitId,
+									army: armyId,
+									spec: key,
+									z: findUnitZ(key)
+								};
+								unitIds.push(unitId);
+							});
 						});
-					});
-				} catch (e) {
-					console.log(e.stack);
-				} finally {
-					finishedCalls++;
-				}
+					} catch (e) {
+						console.log(e.stack);
+					} finally {
+						finishedCalls++;
+					}
+				});
 			});
+			
+			var unitsEqual = function(a, b) {
+				if (a.health !== b.health) {
+					return false;
+				}
+				
+				if (a.built_frac !== b.built_frac) {
+					return false;
+				}
+				
+				if (a.planet !== b.planet) {
+					return false;
+				}
+				
+				if (a.pos ^ b.pos) {
+					return false;
+				} else if (a.pos) {
+					for (var i = 0; i < a.pos.length; i++) {
+						if (a.pos[i] !== b.pos[i]) {
+							return false;
+						}
+					}
+				}
+				
+				if (a.orient ^ b.orient) {
+					return false;
+				} else if (a.orient) {
+					for (var i = 0; i < a.orient.length; i++) {
+						if (a.orient[i] !== b.orient[i]) {
+							return false;
+						}
+					}
+				}
+				
+				return true;
+			};
+			
+			var checkLastUpdateTime = function(unit) {
+				if (unit.army !== model.armyId() && !isStructure(unit.spec)) {
+					var lastState = lastStateRegister[unit.id];
+					if (lastState) {
+						if (!unitsEqual(unit, lastState.data)) {
+							lastState.time = Date.now();
+							lastState.data = unit;
+						}
+						return lastState.time;
+					} else {
+						var state = {
+							time: Date.now(),
+							data: unit
+						};
+						lastStateRegister[unit.id] = state;
+						return state.time;
+					}
+				} else {
+					return undefined;
+				}
+			};
 			
 			var fillUnitInfo = function(unitsMap, unitIds, callback) {
 				world.getUnitState(unitIds).then(function(states) {
@@ -508,6 +578,9 @@ $(document).ready(function() {
 							var ud = unitsMap[unitId];
 							states[i] = _.merge(states[i], ud);
 							unitsMap[unitId] = states[i];
+							states[i].health = states[i].health || 1;
+							states[i].built_frac = states[i].built_frac || 1;
+							states[i].lastUpdate = checkLastUpdateTime(states[i]);
 						}
 						
 						callback(_.sortBy(states, function(u) {return u.z}), unitsMap);
@@ -861,8 +934,6 @@ $(document).ready(function() {
 				var y = projected[1];
 				aunit.translate = [x, y];
 				aunit.scale = scl;
-				aunit.health = aunit.health === undefined ? 1 : aunit.health;
-				aunit.built_frac = aunit.built_frac === undefined ? 1 : aunit.built_frac;
 				
 				if (contains(unitSpecMapping[aunit.spec], "Commander")) {
 					aunit.spec = "commander";
@@ -1070,7 +1141,7 @@ $(document).ready(function() {
 					for (var i = 1; i <= 10; i *= 2) {
 						dottedCircle(zone.position[0], zone.position[1], zone.position[2], (zone.radius/10) * i, 20, 120000, function(x, y, z) {
 							var pp = makeProjected(x, y, z);
-							drawDot(ctx, pp[0], pp[1], 3, "rgb(46, 173, 57)");
+							drawDot(ctx, pp[0], pp[1], self.isUberMap ? 3 : 1, "rgb(46, 173, 57)");
 						});
 					}
 					var pz = makeProjected(zone.position[0], zone.position[1], zone.position[2]);
@@ -2115,7 +2186,7 @@ $(document).ready(function() {
 		});
 		
 		self.drawSpecGhost = function(ctx, spec, x, y, scale) {
-			var ghostImg = self.getUnitSpecImage(spec, true, "rgba(255,255,255,0.5)", undefined);
+			var ghostImg = self.getUnitSpecImage(spec, true, "rgba(255,255,255,125)", undefined);
 			if (ghostImg) {
 				var size = assumedIconSize * scale;
 				x = hackRound(x + (-size/2));
@@ -2127,6 +2198,25 @@ $(document).ready(function() {
 		
 		self.drawUnit = function(ctx, unit, map) {
 			var fClr = model.armyColors()[unit.army];
+			
+			if (unit.lastUpdate) {
+				
+				var timePassed = Date.now() - unit.lastUpdate;
+				
+				if (timePassed > 60000 && unit.spec !== "commander") {
+					return;
+				}
+				
+				var stepSize = 15;
+				var scale = 255-Math.max(Math.min(Math.round((((timePassed)/5000) * 255) / stepSize) * stepSize, 160), 0);
+				var fClrAr = parseColor(fClr);
+				for (var i = 0; i < 3; i++) {
+					fClrAr[i] = Math.round(fClrAr[i] * 255);
+				}
+				fClrAr[3] = scale;
+				fClr = "rgba("+fClrAr[0]+","+fClrAr[1]+","+fClrAr[2]+","+fClrAr[3]+")";
+			}
+			
 			var fillImg = self.getUnitSpecImage(unit.spec, fClr, self.selection()[unit.id]);
 			
 			var t = unit.translate;

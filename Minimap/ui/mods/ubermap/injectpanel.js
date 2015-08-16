@@ -22,30 +22,6 @@ var pmUberMap = function(handler, arguments) {
 		});
 	}; 
 	
-	var cursorKey = "info.nanodesu.defaultIconKey";
-	var oldEngineCall = engine.call;
-	engine.call = function() {
-		if (arguments && arguments.length && arguments.length > 0 && arguments[0] === "pop_mouse_constraint_flag") {
-			localStorage[cursorKey] = "coui://ui/main/game/live_game/img/cursors/cursor.png";
-		}
-		return oldEngineCall.apply(this, arguments);
-	};
-	
-	var cursorTypeComputed = ko.computed(function() {
-		var hasSelection = model.hasSelection();
-		if ((model.mode() === "default" || model.mode() === "command_move") && hasSelection) {
-			localStorage[cursorKey] ="coui://ui/main/game/live_game/img/cursors/icons_command_move.png";
-		} else if (hasSelection && model.mode() === "command_patrol") {
-			localStorage[cursorKey] ="coui://ui/main/game/live_game/img/cursors/icons_command_patrol.png";
-		} else if (hasSelection && model.mode() === "command_attack") {
-			localStorage[cursorKey] = "coui://ui/main/game/live_game/img/cursors/icons_command_attack.png";
-		} else if (model.mode() === "command_ping") {
-			localStorage[cursorKey] = "coui://ui/main/game/live_game/img/cursors/icons_command_ping.png";
-		} else {
-			localStorage[cursorKey] ="coui://ui/main/game/live_game/img/cursors/cursor.png";
-		}
-	});
-	
 	model.mode.subscribe(function(m) {
 		if (m === "command_move" || m === "command_patrol" || m === "command_attack" || m === "command_ping") {
 			pmUberMap('commandMode', m);
