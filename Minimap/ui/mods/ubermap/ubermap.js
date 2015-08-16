@@ -1,7 +1,7 @@
 console.log("loaded ubermap.js");
 
 var paMemoryWebservice = "http://127.0.0.1:8184";
-var assumedIconSize = 52; // size of the svg icon raw data
+var assumedIconSize = 52;
 var noMemoryReaderPollTime = 10000;
 var unitPollTime = 500;
 var minPositionChange = 3;
