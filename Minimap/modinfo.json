@@ -16,7 +16,6 @@
     		"coui://ui/mods/ubermap/ubermapActionSets.js"
     	],
         "live_game": [
-        	"coui://ui/mods/ubermap/unitCommands.js",
         	"coui://ui/mods/ubermap/injectpanel.js"
         ],
         "live_game_unit_alert": [
