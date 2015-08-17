@@ -1,4 +1,4 @@
-console.log("inject ubermap");
+console.log("inject ubermap!");
 
 var pmUberMap = function(handler, arguments) {
 	if (api.panels.ubermap_panel) {
@@ -340,4 +340,6 @@ $(document).ready(function() {
 			pmUberMap("zoomIntoUberMap", [e.pageX - $panel.position().left, e.pageY - $panel.position().top]);
 		}
 	});
+	
+	api.Panel.message('', 'inputmap.reload');
 });
