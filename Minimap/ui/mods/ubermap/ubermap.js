@@ -1,3 +1,6 @@
+// This is full of WIP and legacy stuff.... but TITANS... wanna play not clean up and enhance this....
+// works good enough for now...
+
 console.log("loaded ubermap.js");
 
 var useUberMaps = (api.settings.isSet("ui", "ubermap_enabled", true) || "ON") === "ON";
@@ -5,7 +8,7 @@ var useUberMaps = (api.settings.isSet("ui", "ubermap_enabled", true) || "ON") ==
 var paMemoryWebservice = "http://127.0.0.1:8184";
 var assumedIconSize = 52;
 var noMemoryReaderPollTime = 10000;
-var unitPollTime = useUberMaps ? 500 : 750;
+var unitPollTime = useUberMaps ? 500 : 750; // no ubermaps implies the user has a desire for less resource usage
 var minPositionChange = 3;
 var fps = 15;
 
@@ -579,11 +582,101 @@ $(document).ready(function() {
 				}
 			};
 			
+			/*
+			var hashOrderBase = function(stepSize, maxRotation, positions, units) {
+				var hash = 0;
+				var rotator = 0;
+				for (var i = 0; i < positions.length; i++) {
+					rotator += stepSize;
+					rotator = rotator % maxRotation;
+					hash = hash ^ (positions[i] << rotator);
+				}
+				
+				var l = Math.min(units.length, 100);
+				for (var i = 0; i < l; i++) {
+					rotator += stepSize;
+					rotator = rotator % maxRotation;
+					hash = hash ^ (units[i] << rotator);
+				}
+				
+//				console.log(positions + " and " + units + " produce " + hash);
+				return hash;
+			};
+			
+			var hashOrder = function(a, b, c, positions, units) {
+				var hashA = hashOrderBase(a, c, positions, units);
+				var hashB = hashOrderBase(b, c, positions, units);
+				return hashA ^ hashB;
+			};
+			
+			var testHashOrder = function() {
+				
+				var bestA = 1;
+				var bestB = 1;
+				var bestC = 1;
+				var best = 9999999;
+				
+				for (var a = 5; a < 20; a++) {
+					for (var b = 5; b < 20; b++) {
+						for (var c = 10; c < 30; c++) {
+							var cur = 0;
+							
+							var hashResults = {};
+							for (var i = 0; i < 100000; i++) {
+								var p = [];
+								for (var n = 0; n < 6; n++) {
+									p.push(Math.round(Math.random() * 10000))
+								}
+								var u = [];
+								var un = Math.round(Math.random() * 10) + 1;
+								var startU = Math.round(Math.random() * 5000); 
+								for (var n = 0; n < un; n++) {
+									startU += Math.round(Math.random() * 5);
+									u.push(startU);
+								}
+								var hash = hashOrder(a, b, c, p, u);
+								var val = {
+									positions: p,
+									units: u
+								};
+								if (!hashResults[hash]) {
+									hashResults[hash] = val; 
+								} else {
+									cur++;
+//									console.log("conflict?");
+//									console.log(val);
+//									console.log(hashResults[hash]);
+//									console.log("::::");
+								}
+							}
+							
+							if (cur < best) {
+								bestA = a;
+								bestB = b;
+								bestC = c;
+								best = cur;
+								
+								console.log(bestA);
+								console.log(bestB);
+								console.log(bestC);
+								console.log(best);
+								console.log(")))=");
+							}
+						}
+					}
+				}
+				
+				console.log(bestA);
+				console.log(bestB);
+				console.log(bestC);
+				console.log(best);
+			};
+			*/
+			
 			var fillUnitInfo = function(unitsMap, unitIds, callback) {
 				world.getUnitState(unitIds).then(function(states) {
 					try {
 						var ordersMap = {};
-						var ordersIdSource = 0;
 						
 						for (var i = 0; i < states.length; i++) {
 							var unitId = unitIds[i];
@@ -593,7 +686,39 @@ $(document).ready(function() {
 							states[i].health = states[i].health || 1;
 							states[i].built_frac = states[i].built_frac || 1;
 							states[i].lastUpdate = checkLastUpdateTime(states[i]);
+							
+//							if (useUberMaps && states[i].orders) {
+//								for (var j = 0; j < states[i].orders.length; j++) {
+//									var o = states[i].orders[j];
+////									console.log(o);
+//									var positions = o.target.position;
+//									var m = 10000;
+//									var ob = j === 0 ? states[i].pos : states[i].orders[j-1].target.position;
+////									console.log(ob);
+//									if (positions && ob) {
+//										positions = [Math.round(ob[0] * m), Math.round(ob[1] * m), Math.round(ob[2] * m), Math.round(positions[0] * m), Math.round(positions[1] * m), Math.round(positions[2] * m)];
+////										console.log(positions);
+//										var hash = hashOrder(positions, o.units);
+////										console.log(hash);
+//										if (!ordersMap[hash]) {
+////											console.log("hit");
+//											o.sourcePosition = ob;
+//											ordersMap[hash] = o;
+//										} else {
+////											console.log("miss");
+//										}
+////										console.log(ordersMap);
+////										console.log(":::::");
+//									} else {
+//										console.log(o);
+//									}
+//								}
+//							}
 						}
+						
+//						console.log(states);
+//						console.log("=>");
+//						console.log(ordersMap);
 						
 						callback(_.sortBy(states, function(u) {return u.z}), unitsMap);
 					} catch (e) {
