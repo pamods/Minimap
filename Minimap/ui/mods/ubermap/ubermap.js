@@ -584,29 +584,27 @@ $(document).ready(function() {
 			
 			/*
 			var hashOrderBase = function(stepSize, maxRotation, positions, units) {
+
+			};
+			
+			var hashOrder = function(positions, units) {
 				var hash = 0;
 				var rotator = 0;
 				for (var i = 0; i < positions.length; i++) {
-					rotator += stepSize;
-					rotator = rotator % maxRotation;
+					rotator += 3;
+					rotator = rotator % 24;
 					hash = hash ^ (positions[i] << rotator);
 				}
 				
 				var l = Math.min(units.length, 100);
 				for (var i = 0; i < l; i++) {
-					rotator += stepSize;
-					rotator = rotator % maxRotation;
+					rotator += 3;
+					rotator = rotator % 24;
 					hash = hash ^ (units[i] << rotator);
 				}
 				
 //				console.log(positions + " and " + units + " produce " + hash);
 				return hash;
-			};
-			
-			var hashOrder = function(a, b, c, positions, units) {
-				var hashA = hashOrderBase(a, c, positions, units);
-				var hashB = hashOrderBase(b, c, positions, units);
-				return hashA ^ hashB;
 			};
 			
 			var testHashOrder = function() {
