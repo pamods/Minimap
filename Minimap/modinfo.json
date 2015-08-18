@@ -11,6 +11,7 @@
     "id": "uimod-ubermap",
     "priority": 100,
     "forum": "https://forums.uberent.com/threads/rel-the-ubermap.68808/",
+	"icon": "http://nanodesu.info/static/img/icon.PNG",
     "scenes": {
     	"global_mod_list": [
     		"coui://ui/mods/ubermap/ubermapActionSets.js"
