@@ -106,6 +106,7 @@ var useUberMaps = (api.settings.isSet("ui", "ubermap_enabled", true) || "ON") ==
 	var selfArmyId = undefined;
 	var selfArmyIndex = undefined;
 	var armyIndexIdMap = {};
+	var armyIndexDefeatedMap = {};
 	handlers.server_state = function(msg) {
 		console.log("server state");
 		console.log(msg);
@@ -119,6 +120,9 @@ var useUberMaps = (api.settings.isSet("ui", "ubermap_enabled", true) || "ON") ==
 			for (var i = 0; i < msg.data.armies.length; i++) {
 				colorByArmyId[msg.data.armies[i].id] = msg.data.armies[i].color;
 				armyIndexIdMap[i] = msg.data.armies[i].id;
+				if (msg.data.armies[i].defeated) {
+					armyIndexDefeatedMap[i] = true;
+				}
 			}
 		}
 		
@@ -140,7 +144,9 @@ var useUberMaps = (api.settings.isSet("ui", "ubermap_enabled", true) || "ON") ==
 	
 	handlers.queryArmyInfo = function() {
 		console.log("query army info called...");
-		var info = [colorByArmyId, selfArmyId, selfArmyIndex, armyIndexIdMap, model.playerVisionFlags(), model.isSpectator()];
+		// this started out to share the colors. I SWEAR...
+		var info = [colorByArmyId, selfArmyId, selfArmyIndex, armyIndexIdMap, 
+		            model.playerVisionFlags(), model.isSpectator(), armyIndexDefeatedMap];
 		console.log(info);
 		pmUberMap("setArmyInfo", info);
 	};

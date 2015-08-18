@@ -494,6 +494,10 @@ $(document).ready(function() {
 		
 		var lastStateRegister = {};
 		
+		self.clearLastStateRegister = function() {
+			lastStateRegister = {};
+		};
+		
 		self.queryAllInfo = function(callback, planetIndex) {
 			var spawnedCalls = 0;
 			var finishedCalls = 0;
@@ -2340,9 +2344,11 @@ $(document).ready(function() {
 				return;
 			}
 			
-			var hasVision = model.isArmyVisible(model.armyIdIndexMap()[unit.army]);
+			var armyIndex = model.armyIdIndexMap()[unit.army];
+			var hasVision = model.isArmyVisible(armyIndex);
+			var defeated = model.armyIndexDefeated()[armyIndex];
 			
-			if (model.isSpectator() && !hasVision) {
+			if ((model.isSpectator() && !hasVision) || (!model.isSpectator() && defeated)) {
 				return;
 			}
 			
@@ -2416,10 +2422,23 @@ $(document).ready(function() {
 			}, i * 25);
 		};
 		
+		self.updateUnitsEnabled = ko.observable(true);
+		
 		var updateUnitData = function() {
 			var ps = self.planets();
 			for (var i = 0; i < ps.length; i++) {
-				updateUnitsForPlanet(ps[i].index);
+				var index = ps[i].index;
+				if (self.updateUnitsEnabled()) {
+					updateUnitsForPlanet(index);
+				} else {
+					if (self.minimapsByPlanetIndex[index]) {
+						self.minimapsByPlanetIndex[index].provideUnitData([], {});
+					}
+					if (useUberMaps && self.ubermapsByPlanetIndex[index]) {
+						self.ubermapsByPlanetIndex[index].provideUnitData([], {});
+					}
+					unitAPI.clearLastStateRegister();
+				}
 			}
 			setTimeout(updateUnitData, unitPollTime);
 		};
@@ -2431,6 +2450,7 @@ $(document).ready(function() {
 		self.armyId = ko.observable(undefined);
 		self.armyIndex = ko.observable(undefined);
 		self.armyIndexIdMap = ko.observable(undefined);
+		self.armyIndexDefeated = ko.observable({});
 		self.armyIdIndexMap = ko.computed(function() {
 			var map = {};
 			_.forEach(self.armyIndexIdMap(), function(val, key) {
@@ -2942,6 +2962,7 @@ $(document).ready(function() {
 		model.armyIndexIdMap(args[3]);
 		model.playerVision(args[4]);
 		model.isSpectator(args[5]);
+		model.armyIndexDefeated(args[6]);
 	};
 	
 	handlers.setUberMapVisible = function(show) {
@@ -2954,7 +2975,7 @@ $(document).ready(function() {
 			model.showsUberMap(false);
 		}
 	};
-
+	
 	handlers.zoomIntoUberMap = function(args) {
 		if (useUberMaps) {
 			var aum = model.mouseHoverMap;
@@ -2997,7 +3018,7 @@ $(document).ready(function() {
 	handlers.client_state = function(state) {
 		model.landingZones = state.zones || [];
 	};
-	
+
 	app.registerWithCoherent(model, handlers);
 	ko.applyBindings(model);
 	
