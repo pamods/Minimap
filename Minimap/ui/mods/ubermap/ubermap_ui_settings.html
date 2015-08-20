@@ -1,4 +1,12 @@
 <div class="sub-group">
 	<div class="sub-group-title">Ubermap</div>
 	<div class="option" data-bind="template: { name: 'setting-template', data: $root.settingsItemMap()['ui.ubermap_enabled'] }"></div>
+
+	<div class="option">
+		<div class="btn_std" id="clearubermapcache"
+			data-bind="click:$root.clearUberMapCache, click_sound:'default', rollover_sound:'default'">
+			<div class="btn_lbl" style="">Clear UberMap cache</div>
+		</div>
+	</div>
+
 </div>

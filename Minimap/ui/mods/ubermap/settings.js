@@ -1,6 +1,28 @@
 (function() {
 	console.log("modify settings for ubermap");
 	
+	var dbName = "info.nanodesu.ubermap";
+	
+	var getMapCache = function() {
+		return decode(localStorage[dbName]) || {};
+	};
+	
+	var setMapCache = function(cache) {
+		localStorage[dbName] = encode(cache);
+	};
+	
+	model.clearUberMapCache = function() {
+		var cache = getMapCache();
+		
+		_.forEach(cache, function(dbKey) {
+			DataUtility.deleteObject(dbName, dbKey).then(function() {
+				console.log("deleted", arguments);
+			});
+		});
+		
+		setMapCache({});
+	};
+	
 	_.extend(api.settings.definitions.ui.settings, {
         ubermap_enabled: {
             title: 'Ubermap Enabled',

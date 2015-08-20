@@ -11,6 +11,7 @@ var noMemoryReaderPollTime = 10000;
 var unitPollTime = useUberMaps ? 650 : 850; // no ubermaps implies the user has a desire for less resource usage
 var minPositionChange = 3;
 var fps = 8;
+var dbName = "info.nanodesu.ubermap";
 
 // do not scroll this scene please ?!
 window.onscroll = function() {
@@ -145,6 +146,8 @@ function SpatialCloud(cellSize, store) {
 	store = store || {};
 	cellSize = store.cellSize || cellSize;
 	
+	self.mex = store.mex;
+	
 	self.extremeHeights = store.extremeHeights || {overallMax: 0, overallMin: 9999};
 	
 	self.data = store.data || {};
@@ -155,6 +158,7 @@ function SpatialCloud(cellSize, store) {
 		return {
 			data: self.data,
 			cellSize: cellSize,
+			mex: self.mex,
 			extremeHeights: self.extremeHeights
 		};
 	};
@@ -1510,7 +1514,7 @@ $(document).ready(function() {
 		
 		var drawConfig = {
 			"lava": {
-				"land": [[141,96,87], [73,56, 48]],
+				"land": [[161,106,99], [73,60, 49]],
 				"sea": [[71,118,255], [71,215,255]],
 				"blocked": [[223,105,33], [0,0,0]]
 			},
@@ -2568,18 +2572,55 @@ $(document).ready(function() {
 			processCollectionQueue();
 		};
 		
+		var makePlanetKey = function(planet) {
+			return planet.biome+planet.index+planet.id+planet.name+planet.radius+planet.metal_spots;
+		};
+		
+		var getMapCache = function() {
+			return decode(localStorage[dbName]) || {};
+		};
+		
+		var setMapCache = function(cache) {
+			localStorage[dbName] = encode(cache);
+		};
+		
+		var attachCloudToMaps = function(cloud, pname, pindex) {
+			for (var i = 0; i < self.minimaps().length; i++) {
+				var mm = self.minimaps()[i]; 
+				if (mm.name() === pname && mm.planet().index === pindex) {
+					mm.cloud(cloud);
+				}
+				if (useUberMaps) {
+					var um = self.ubermaps()[i];
+					if (um.name() === pname && um.planet().index === pindex) {
+						um.cloud(cloud);
+					}
+				}
+			}
+		};
+		
 		self.collectPointCloud = function(planet) {
 			collectingPoints = true;
 			var reportCloud = function(cloud) {
-				for (var i = 0; i < self.minimaps().length; i++) {
-					if (self.minimaps()[i].name() === planet.name) {
-						self.minimaps()[i].cloud(cloud);
-					}
-					if (useUberMaps && self.ubermaps()[i].name() === planet.name) {
-						self.ubermaps()[i].cloud(cloud);
-					}
+				attachCloudToMaps(cloud, planet.name, planet.index);
+				
+				console.log("mapping planet complete", planet);
+				
+				var cache = getMapCache();
+				var key = makePlanetKey(planet);
+				if (cache[key]) {
+					DataUtility.updateObject(dbName, cache[key], cloud !== "gas" ? cloud.getStore() : cloud).then(function() {
+						console.log("updated cache data for planet", planet);
+					});
+				} else {
+					DataUtility.addObject(dbName, cloud !== "gas" ? cloud.getStore() : cloud).then(function(dbKey) {
+						var c = getMapCache(); 
+						c[key] = dbKey;
+						setMapCache(c);
+						console.log("added cache data for planet", planet);
+					});
 				}
-
+				
 				collectingPoints = false;
 				processCollectionQueue();
 			};
@@ -2704,10 +2745,25 @@ $(document).ready(function() {
 		};
 		
 		self.collectClouds = function() {
+			var mapList = getMapCache();
+			
 			for (var i = 0; i < self.minimaps().length; i++) {
 				var planet = self.minimaps()[i].planet();
 				if (!planet.dead && self.minimaps()[i].cloud() === undefined) {
-					self.queuePointCollection(planet);
+					var key = makePlanetKey(planet);
+					if (mapList[key]) {
+						(function() {
+							var pname = planet.name;
+							var pindex = planet.index;
+							var k = key;
+							DataUtility.readObject(dbName, mapList[k]).then(function(data) {
+								console.log("got cached map data for " + k);
+								attachCloudToMaps(data === "gas" ? data : new SpatialCloud(undefined, data), pname, pindex);
+							});
+						})();
+					} else {
+						self.queuePointCollection(planet);
+					}
 				}
 			}
 		};
