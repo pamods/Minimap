@@ -8,9 +8,9 @@ var useUberMaps = (api.settings.isSet("ui", "ubermap_enabled", true) || "ON") ==
 var paMemoryWebservice = "http://127.0.0.1:8184";
 var assumedIconSize = 52;
 var noMemoryReaderPollTime = 10000;
-var unitPollTime = useUberMaps ? 500 : 750; // no ubermaps implies the user has a desire for less resource usage
+var unitPollTime = useUberMaps ? 650 : 850; // no ubermaps implies the user has a desire for less resource usage
 var minPositionChange = 3;
-var fps = 15;
+var fps = 8;
 
 // do not scroll this scene please ?!
 window.onscroll = function() {
@@ -2285,6 +2285,18 @@ $(document).ready(function() {
 							r = (sC * (1 - weight) + pC[0] * weight);
 							g = (sC * (1 - weight) + pC[1] * weight);
 							b = (sC * (1 - weight) + pC[2] * weight);
+							if (selected) {
+								r *= 1.1;
+								g *= 1.1;
+								b *= 1.1;
+							} else {
+								r *= 1.6;
+								g *= 1.6;
+								b *= 1.6;
+							}
+							r = Math.min(Math.max(0, r), 1);
+							g = Math.min(Math.max(0, g), 1);
+							b = Math.min(Math.max(0, b), 1);
 						}
 						a = a * pC[3];
 						
@@ -2958,22 +2970,12 @@ $(document).ready(function() {
 		ko.processAllDeferredBindingUpdates();
 	};
 	
-	var lightenColors = function(map) {
-		var r = {};
-		_.forEach(map, function(val, key) {
-			var clr = parseColor(val);
-			for (var i = 0; i < 3; i++) {
-				clr[i] = Math.min(1, clr[i] * 1.6);
-			}
-			r[key] = stringifyColor(clr);
-		});
-		return r;
-	};
+
 	
 	handlers.setArmyInfo = function(args) {
 		console.log("got army info");
 		console.log(args);
-		model.armyColors(lightenColors(args[0]));
+		model.armyColors(args[0]);
 		model.armyId(args[1]);
 		model.armyIndex(args[2]);
 		model.armyIndexIdMap(args[3]);

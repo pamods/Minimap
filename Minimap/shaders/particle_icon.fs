@@ -29,7 +29,11 @@ void main()
         vec3 color = texel.r * mix(mixColor, v_ColorPrimary.rgb, pow(texel.g, 1.0 / 2.2) / (texel.a + 0.00001));
 		
 /////////////////////////// only modification start
-		color = clamp(color * 1.6, 0, 1);
+		if (v_SelectedState > 0.0) {
+			color = clamp(color * 1.1, 0, 1);
+		} else {
+			color = clamp(color * 1.6, 0, 1);
+		} 
 /////////////////////////// only modification end
 		
         float alpha = texel.a;
