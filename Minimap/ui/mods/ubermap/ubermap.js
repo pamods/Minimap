@@ -18,6 +18,25 @@ window.onscroll = function() {
 };
 $(document).mousedown(function(e){if(e.which==2)return false});
 
+var parseColor = function(clr) {
+	if (clr == '' || clr == undefined) {
+		return [0,0,0];
+	} else if (clr.indexOf("rgba") !== -1) {
+		var m = clr.match(/^rgba\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/i);
+		return [m[1]/255,m[2]/255,m[3]/255,m[4]/255];
+	} else {
+		var m = clr.match(/^rgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/i);
+		return [m[1]/255,m[2]/255,m[3]/255, 1];
+	}
+};
+
+var stringifyColor = function(clr) {
+	for (var i = 0; i < 4; i++) {
+		clr[i] = Math.round(clr[i] * 255);
+	}
+	return "rgba("+clr[0]+","+clr[1]+","+clr[2]+","+clr[3]+")";
+};
+
 var clearSpec = function(spec) {
 	var strip = /.*\.json/.exec(spec);
 	if (strip) {
@@ -2188,17 +2207,6 @@ $(document).ready(function() {
 		var hiddenCtx = hiddenCanvas.getContext('2d');
 		hiddenCtx.fillStyle = "black";
 
-		var parseColor = function(clr) {
-			if (clr == '' || clr == undefined) {
-				return [0,0,0];
-			} else if (clr.indexOf("rgba") !== -1) {
-				var m = clr.match(/^rgba\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/i);
-				return [m[1]/255,m[2]/255,m[3]/255,m[4]/255];
-			} else {
-				var m = clr.match(/^rgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/i);
-				return [m[1]/255,m[2]/255,m[3]/255, 1];
-			}
-		};
 		var getIconForSpec = function(spec) {
 			return "coui://ui/main/atlas/icon_atlas/img/strategic_icons/icon_si_" + nameForSpec(spec) +".png";
 		};
@@ -2363,13 +2371,10 @@ $(document).ready(function() {
 				}
 				
 				var stepSize = 15;
-				var scale = 255-Math.max(Math.min(Math.round((((timePassed)/5000) * 255) / stepSize) * stepSize, 160), 0);
+				var scale = (255-Math.max(Math.min(Math.round((((timePassed)/5000) * 255) / stepSize) * stepSize, 160), 0)) / 255;
 				var fClrAr = parseColor(fClr);
-				for (var i = 0; i < 3; i++) {
-					fClrAr[i] = Math.round(fClrAr[i] * 255);
-				}
 				fClrAr[3] = scale;
-				fClr = "rgba("+fClrAr[0]+","+fClrAr[1]+","+fClrAr[2]+","+fClrAr[3]+")";
+				fClr = stringifyColor(fClrAr);
 			}
 			
 			var fillImg = self.getUnitSpecImage(unit.spec, fClr, self.selection()[unit.id]);
@@ -2953,10 +2958,22 @@ $(document).ready(function() {
 		ko.processAllDeferredBindingUpdates();
 	};
 	
+	var lightenColors = function(map) {
+		var r = {};
+		_.forEach(map, function(val, key) {
+			var clr = parseColor(val);
+			for (var i = 0; i < 3; i++) {
+				clr[i] = Math.min(1, clr[i] * 1.6);
+			}
+			r[key] = stringifyColor(clr);
+		});
+		return r;
+	};
+	
 	handlers.setArmyInfo = function(args) {
 		console.log("got army info");
 		console.log(args);
-		model.armyColors(args[0]);
+		model.armyColors(lightenColors(args[0]));
 		model.armyId(args[1]);
 		model.armyIndex(args[2]);
 		model.armyIndexIdMap(args[3]);
