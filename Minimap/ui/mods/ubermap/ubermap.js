@@ -2364,7 +2364,6 @@ $(document).ready(function() {
 				completes--;
 				if (completes === 0) {
 					var workTime = Date.now() - startTime;
-					console.log(workTime);
 					setTimeout(updateUnitData, Math.max(0, unitPollTime - workTime));
 				}
 			};
