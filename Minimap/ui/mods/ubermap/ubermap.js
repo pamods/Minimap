@@ -526,6 +526,7 @@ $(document).ready(function() {
 			var finishedCalls = 0;
 			var unitsMap = {};
 			var unitIds = [];
+			
 			_.forEach(model.armyIndexIdMap(), function(armyId, armyIndex) {
 				spawnedCalls++;
 				armyIndex = Number(armyIndex);
@@ -609,147 +610,56 @@ $(document).ready(function() {
 				}
 			};
 			
-			/*
-			var hashOrderBase = function(stepSize, maxRotation, positions, units) {
-
-			};
-			
-			var hashOrder = function(positions, units) {
-				var hash = 0;
-				var rotator = 0;
-				for (var i = 0; i < positions.length; i++) {
-					rotator += 3;
-					rotator = rotator % 24;
-					hash = hash ^ (positions[i] << rotator);
-				}
-				
-				var l = Math.min(units.length, 100);
-				for (var i = 0; i < l; i++) {
-					rotator += 3;
-					rotator = rotator % 24;
-					hash = hash ^ (units[i] << rotator);
-				}
-				
-//				console.log(positions + " and " + units + " produce " + hash);
-				return hash;
-			};
-			
-			var testHashOrder = function() {
-				
-				var bestA = 1;
-				var bestB = 1;
-				var bestC = 1;
-				var best = 9999999;
-				
-				for (var a = 5; a < 20; a++) {
-					for (var b = 5; b < 20; b++) {
-						for (var c = 10; c < 30; c++) {
-							var cur = 0;
-							
-							var hashResults = {};
-							for (var i = 0; i < 100000; i++) {
-								var p = [];
-								for (var n = 0; n < 6; n++) {
-									p.push(Math.round(Math.random() * 10000))
-								}
-								var u = [];
-								var un = Math.round(Math.random() * 10) + 1;
-								var startU = Math.round(Math.random() * 5000); 
-								for (var n = 0; n < un; n++) {
-									startU += Math.round(Math.random() * 5);
-									u.push(startU);
-								}
-								var hash = hashOrder(a, b, c, p, u);
-								var val = {
-									positions: p,
-									units: u
-								};
-								if (!hashResults[hash]) {
-									hashResults[hash] = val; 
-								} else {
-									cur++;
-//									console.log("conflict?");
-//									console.log(val);
-//									console.log(hashResults[hash]);
-//									console.log("::::");
-								}
-							}
-							
-							if (cur < best) {
-								bestA = a;
-								bestB = b;
-								bestC = c;
-								best = cur;
-								
-								console.log(bestA);
-								console.log(bestB);
-								console.log(bestC);
-								console.log(best);
-								console.log(")))=");
-							}
-						}
-					}
-				}
-				
-				console.log(bestA);
-				console.log(bestB);
-				console.log(bestC);
-				console.log(best);
-			};
-			*/
-			
 			var fillUnitInfo = function(unitsMap, unitIds, callback) {
+				
+				var stacked = [];
+				
+				var packageSize = 42;
+				for (var i = 0; i < unitIds.length; i+=packageSize) {
+					var stack = [];
+					for (var j = i; j < i+packageSize && j < unitIds.length; j++) {
+						stack.push(unitIds[j]);
+					}
+					stacked.push(stack);
+				}
+				
+				var procStack = function(stack, results, callback) {
+					if (stack.length > 0) {
+						world.getUnitState(stack.shift()).then(function(states) {
+							setTimeout(function() {
+								procStack(stack, results.concat(states), callback);
+							}, 20);
+						});
+					} else {
+						callback(unitIds, results);
+					}
+				};
+				
+				var finalizeWork = function(ids, states) {
+					var ordersMap = {};
+					
+					for (var i = 0; i < states.length; i++) {
+						var unitId = ids[i];
+						var ud = unitsMap[unitId];
+						states[i] = _.merge(states[i], ud);
+						unitsMap[unitId] = states[i];
+						states[i].health = states[i].health || 1;
+						states[i].built_frac = states[i].built_frac || 1;
+						states[i].lastUpdate = checkLastUpdateTime(states[i]);
+					}
+					callback(_.sortBy(states, function(u) {return u.z}), unitsMap);
+				};
+				
+				procStack(stacked, [], finalizeWork);
+				
+				/*// us this once the order ID performance bug is fixed
 				world.getUnitState(unitIds).then(function(states) {
 					try {
-						var ordersMap = {};
-						
-						for (var i = 0; i < states.length; i++) {
-							var unitId = unitIds[i];
-							var ud = unitsMap[unitId];
-							states[i] = _.merge(states[i], ud);
-							unitsMap[unitId] = states[i];
-							states[i].health = states[i].health || 1;
-							states[i].built_frac = states[i].built_frac || 1;
-							states[i].lastUpdate = checkLastUpdateTime(states[i]);
-							
-//							if (useUberMaps && states[i].orders) {
-//								for (var j = 0; j < states[i].orders.length; j++) {
-//									var o = states[i].orders[j];
-////									console.log(o);
-//									var positions = o.target.position;
-//									var m = 10000;
-//									var ob = j === 0 ? states[i].pos : states[i].orders[j-1].target.position;
-////									console.log(ob);
-//									if (positions && ob) {
-//										positions = [Math.round(ob[0] * m), Math.round(ob[1] * m), Math.round(ob[2] * m), Math.round(positions[0] * m), Math.round(positions[1] * m), Math.round(positions[2] * m)];
-////										console.log(positions);
-//										var hash = hashOrder(positions, o.units);
-////										console.log(hash);
-//										if (!ordersMap[hash]) {
-////											console.log("hit");
-//											o.sourcePosition = ob;
-//											ordersMap[hash] = o;
-//										} else {
-////											console.log("miss");
-//										}
-////										console.log(ordersMap);
-////										console.log(":::::");
-//									} else {
-//										console.log(o);
-//									}
-//								}
-//							}
-						}
-						
-//						console.log(states);
-//						console.log("=>");
-//						console.log(ordersMap);
-						
-						callback(_.sortBy(states, function(u) {return u.z}), unitsMap);
+						finalizeWork(unitIds, states);
 					} catch (e) {
 						console.log(e.stack);
 					}
-				});
+				});*/
 			};
 			
 			var waitFunc = function() {
@@ -2424,9 +2334,10 @@ $(document).ready(function() {
 			}
 		};
 		
-		var updateUnitsForPlanet = function(index, i) {
+		var updateUnitsForPlanet = function(index, i, complete) {
 			setTimeout(function() {
 				unitAPI.queryAllInfo(function(array, map) {
+					complete();
 					setImmediate(function() {
 						if (self.minimapsByPlanetIndex[index]) {
 							self.minimapsByPlanetIndex[index].provideUnitData(array, map);
@@ -2447,11 +2358,22 @@ $(document).ready(function() {
 		
 		var updateUnitData = function() {
 			var ps = self.planets();
+			var completes = ps.length;
+			var startTime = Date.now();
+			var checkComplete = function() {
+				completes--;
+				if (completes === 0) {
+					var workTime = Date.now() - startTime;
+					console.log(workTime);
+					setTimeout(updateUnitData, Math.max(0, unitPollTime - workTime));
+				}
+			};
 			for (var i = 0; i < ps.length; i++) {
 				var index = ps[i].index;
 				if (self.updateUnitsEnabled()) {
-					updateUnitsForPlanet(index);
+					updateUnitsForPlanet(index, i, checkComplete);
 				} else {
+					checkComplete();
 					if (self.minimapsByPlanetIndex[index]) {
 						self.minimapsByPlanetIndex[index].provideUnitData([], {});
 					}
@@ -2461,7 +2383,6 @@ $(document).ready(function() {
 					unitAPI.clearLastStateRegister();
 				}
 			}
-			setTimeout(updateUnitData, unitPollTime);
 		};
 		
 		setTimeout(updateUnitData, 3500);
