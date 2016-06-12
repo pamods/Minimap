@@ -4,9 +4,9 @@
     "display_name": "UberMap",
     "description": "Offers a projected map with full icon support. Read the forumslink!, powerful successor of AlertsMinimap",
     "author": "Cola_Colin",
-    "version": "1.6",
-    "build": "86422",
-    "date": "2015/8/23",
+    "version": "1.6.1",
+    "build": "94684",
+    "date": "2016/6/12",
     "signature": "not yet implemented",
     "id": "uimod-ubermap",
     "priority": 90,
@@ -33,8 +33,9 @@
     },
 	
    "category": [
-    "in-game",
-    "ui"
+    "gameplay",
+    "ui",
+    "classic"
   ],
-    "enabled": true
+  "enabled": true
 }

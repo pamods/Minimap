@@ -3,6 +3,8 @@
 
 console.log("loaded ubermap.js");
 
+ko.options.deferUpdates = true;
+
 var useUberMaps = (api.settings.isSet("ui", "ubermap_enabled", true) || "ON") === "ON";
 
 var paMemoryWebservice = "http://127.0.0.1:8184";
@@ -2936,17 +2938,15 @@ $(document).ready(function() {
 		model.planets(payload.planets);
 	}; 
 	
-	handlers.setSize = function(size) { 
+	handlers.setSize = function(size) {
 		ko.computed.deferUpdates = false;
-		ko.processAllDeferredBindingUpdates();
+		ko.tasks.runEarly();
 		model.parentWidth(size[0]);
 		model.parentHeight(size[1]);
 		ko.computed.deferUpdates = true;
 		// basically I am trying to get rid of weird resize bugs... (success it seems)
-		ko.processAllDeferredBindingUpdates();
+		ko.tasks.runEarly();
 	};
-	
-
 	
 	handlers.setArmyInfo = function(args) {
 		console.log("got army info");
